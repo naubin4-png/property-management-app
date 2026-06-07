@@ -1,3 +1,5 @@
+import { prisma } from "@/lib/prisma";
+
 export const defaultEmailSettings = {
   reminderEnabled: true,
   sendBeforeDue: true,
@@ -12,3 +14,14 @@ export const defaultEmailSettings = {
   lateNoticeBody:
     "Hi {tenant_name},\n\nOur records show that rent of {amount_due} for {property_name} was due on {due_date} and has not yet been received. Please let me know the status.\n\nThanks!",
 };
+
+export async function getSettings() {
+  return prisma.appSettings.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: {
+      id: "singleton",
+      ...defaultEmailSettings,
+    },
+  });
+}
