@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PeriodStatus {
+  PENDING
+  RECEIVED
+  LATE
+}
+
+enum TriggerType {
+  RENT_REMINDER
+  LATE_NOTICE
+}
+
+model Property {
+  id        String   @id @default(uuid())
+  name      String
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leases Lease[]
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leases    Lease[]
+  emailLogs EmailLog[]
+}
+
+model Lease {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+
+  firstPeriodMonth DateTime @db.Date
+  lastPeriodMonth  DateTime @db.Date
+  rentCents        Int
+  notes            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  paymentPeriods PaymentPeriod[]
+  payments       Payment[]
+}
+
+model PaymentPeriod {
+  id      String @id @default(uuid())
+  leaseId String
+  lease   Lease  @relation(fields: [leaseId], references: [id])
+
+  periodMonth    DateTime     @db.Date
+  amountDueCents Int
+  status         PeriodStatus @default(PENDING)
+
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leaseId, periodMonth])
+}
+
+model Payment {
+  id      String @id @default(uuid())
+  leaseId String
+  lease   Lease  @relation(fields: [leaseId], references: [id])
+
+  receivedAt       DateTime @db.Date
+  amountCents      Int
+  paymentMethod    String?
+  paymentReference String?
+  notes            String?
+  clientRequestId  String   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coveredPeriods PaymentPeriod[]
+}
+
+model EmailLog {
+  id              String      @id @default(uuid())
+  tenantId        String?
+  tenant          Tenant?     @relation(fields: [tenantId], references: [id])
+  leaseId         String?
+  periodMonth     DateTime?   @db.Date
+  toAddress       String
+  subject         String
+  triggerType     TriggerType
+  resendMessageId String?
+  sentAt          DateTime    @default(now())
+  error           String?
+
+  @@unique([tenantId, triggerType, periodMonth])
+}
+
+model AppSettings {
+  id String @id @default("singleton")
+
+  reminderEnabled     Boolean @default(true)
+  sendBeforeDue       Boolean @default(true)
+  sendAfterDue        Boolean @default(true)
+  daysBeforeReminder  Int     @default(3)
+  daysAfterLateNotice Int     @default(5)
+  gracePeriodDays     Int     @default(5)
+
+  reminderEmailSubject String @default("Rent reminder for {property_name}")
+  reminderEmailBody    String @default("Hi {tenant_name},\n\nThis is a friendly reminder that rent of {amount_due} for {property_name} is due on {due_date}.\n\nThanks!")
+  lateNoticeSubject    String @default("Rent past due for {property_name}")
+  lateNoticeBody       String @default("Hi {tenant_name},\n\nOur records show that rent of {amount_due} for {property_name} was due on {due_date} and has not yet been received. Please let me know the status.\n\nThanks!")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
