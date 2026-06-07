@@ -1,12 +1,23 @@
+import { randomUUID } from "node:crypto";
+
 import Link from "next/link";
 
+import { PaymentModal } from "@/components/payment-modal";
 import { PropertyList } from "@/components/property-list";
 import { getDashboardData } from "@/lib/dashboard";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ logPayment?: string; propertyId?: string }>;
+}) {
+  const query = await searchParams;
   const { properties, needsAttention, allGood, summary } = await getDashboardData();
+  const paymentProperties = properties
+    .filter((property) => property.hasActiveLease)
+    .map((property) => ({ id: property.id, name: property.name }));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
@@ -57,6 +68,14 @@ export default async function DashboardPage() {
           <PropertyList properties={allGood} title="All Good" />
         </div>
       )}
+      {query.logPayment === "1" ? (
+        <PaymentModal
+          clientRequestId={randomUUID()}
+          closeHref="/"
+          properties={paymentProperties}
+          selectedPropertyId={query.propertyId}
+        />
+      ) : null}
     </main>
   );
 }

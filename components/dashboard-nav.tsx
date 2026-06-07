@@ -38,12 +38,12 @@ export function DashboardNav() {
           >
             + Add Property
           </Link>
-          <button
+          <Link
             className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-            type="button"
+            href="/?logPayment=1"
           >
             Log Payment
-          </button>
+          </Link>
         </nav>
 
         <button
@@ -83,12 +83,13 @@ export function DashboardNav() {
           >
             + Add Property
           </Link>
-          <button
+          <Link
             className="block w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white"
-            type="button"
+            href="/?logPayment=1"
+            onClick={() => setIsOpen(false)}
           >
             Log Payment
-          </button>
+          </Link>
         </nav>
       ) : null}
     </header>

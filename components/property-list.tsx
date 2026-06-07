@@ -1,6 +1,7 @@
 "use client";
 
 import { ReceiptText } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { DashboardProperty, DashboardStatus } from "@/lib/dashboard";
@@ -40,14 +41,14 @@ function PaymentAction({ property }: { property: DashboardProperty }) {
   }
 
   return (
-    <button
+    <Link
       aria-label={`Log payment for ${property.name}`}
       className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+      href={`/?logPayment=1&propertyId=${property.id}`}
       onClick={(event) => event.stopPropagation()}
-      type="button"
     >
       <ReceiptText aria-hidden="true" size={18} />
-    </button>
+    </Link>
   );
 }
 
@@ -111,11 +112,17 @@ export function PropertyList({
 
       <div className="mt-3 space-y-3 md:hidden">
         {properties.map((property) => (
-          <button
+          <div
             className="w-full rounded-lg border border-zinc-200 bg-white p-4 text-left shadow-sm"
             key={property.id}
             onClick={() => router.push(`/properties/${property.id}`)}
-            type="button"
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                router.push(`/properties/${property.id}`);
+              }
+            }}
+            role="button"
+            tabIndex={0}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -142,7 +149,17 @@ export function PropertyList({
                 </dd>
               </div>
             </dl>
-          </button>
+            {property.hasActiveLease ? (
+              <Link
+                className="mt-4 inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 px-3 text-sm font-medium text-zinc-800"
+                href={`/?logPayment=1&propertyId=${property.id}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <ReceiptText aria-hidden="true" size={16} />
+                Log Payment
+              </Link>
+            ) : null}
+          </div>
         ))}
       </div>
     </section>

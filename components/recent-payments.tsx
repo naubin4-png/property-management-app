@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
+import { deletePayment } from "@/app/(dashboard)/payments/actions";
 import { formatMoney, formatMonth } from "@/lib/lease-math";
 
 export type PropertyPayment = {
@@ -12,7 +14,13 @@ export type PropertyPayment = {
   paymentReference: string | null;
 };
 
-export function RecentPayments({ payments }: { payments: PropertyPayment[] }) {
+export function RecentPayments({
+  payments,
+  propertyId,
+}: {
+  payments: PropertyPayment[];
+  propertyId: string;
+}) {
   const [showAll, setShowAll] = useState(false);
   const visiblePayments = showAll ? payments : payments.slice(0, 5);
 
@@ -39,16 +47,17 @@ export function RecentPayments({ payments }: { payments: PropertyPayment[] }) {
         </div>
       ) : (
         <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-          <div className="hidden grid-cols-4 gap-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500 sm:grid">
+          <div className="hidden grid-cols-5 gap-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500 sm:grid">
             <span>Date</span>
             <span>Amount</span>
             <span>Method</span>
             <span>Reference</span>
+            <span>Actions</span>
           </div>
           <div className="divide-y divide-zinc-100">
             {visiblePayments.map((payment) => (
               <div
-                className="grid gap-3 px-5 py-4 text-sm sm:grid-cols-4 sm:gap-4"
+                className="grid gap-3 px-5 py-4 text-sm sm:grid-cols-5 sm:gap-4"
                 key={payment.id}
               >
                 <div>
@@ -70,6 +79,22 @@ export function RecentPayments({ payments }: { payments: PropertyPayment[] }) {
                   <span className="text-zinc-600">
                     {payment.paymentReference ?? "-"}
                   </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Link
+                    className="font-medium text-zinc-700 hover:text-zinc-950"
+                    href={`/properties/${propertyId}?editPayment=${payment.id}`}
+                  >
+                    Edit
+                  </Link>
+                  <form action={deletePayment.bind(null, payment.id, propertyId)}>
+                    <button
+                      className="font-medium text-red-700 hover:text-red-900"
+                      type="submit"
+                    >
+                      Delete
+                    </button>
+                  </form>
                 </div>
               </div>
             ))}

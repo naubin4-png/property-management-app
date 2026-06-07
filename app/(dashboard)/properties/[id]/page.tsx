@@ -1,7 +1,10 @@
+import { randomUUID } from "node:crypto";
+
 import { PeriodStatus } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PaymentModal } from "@/components/payment-modal";
 import { RecentPayments } from "@/components/recent-payments";
 import { firstDayOfCurrentMonth, formatMoney, formatMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
@@ -12,10 +15,13 @@ export const dynamic = "force-dynamic";
 
 export default async function PropertyDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ logPayment?: string; editPayment?: string }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   const currentMonth = firstDayOfCurrentMonth();
   const property = await prisma.property.findUnique({
     where: { id },
@@ -119,12 +125,12 @@ export default async function PropertyDetailPage({
               </details>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
+              <Link
                 className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
-                type="button"
+                href={`/properties/${property.id}?logPayment=1`}
               >
                 Log Payment
-              </button>
+              </Link>
               <Link
                 className="inline-flex h-10 items-center rounded-md border border-zinc-300 px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
                 href={`/properties/${property.id}/leases/${activeLease.id}/edit`}
@@ -192,7 +198,55 @@ export default async function PropertyDetailPage({
         </section>
       )}
 
-      <RecentPayments payments={payments} />
+      <RecentPayments payments={payments} propertyId={property.id} />
+
+      {query.logPayment === "1" && activeLease ? (
+        <PaymentModal
+          clientRequestId={randomUUID()}
+          closeHref={`/properties/${property.id}`}
+          properties={[{ id: property.id, name: property.name }]}
+          selectedPropertyId={property.id}
+        />
+      ) : null}
+
+      {query.editPayment ? (
+        <EditPaymentModal
+          paymentId={query.editPayment}
+          propertyId={property.id}
+          propertyName={property.name}
+        />
+      ) : null}
     </main>
+  );
+}
+
+async function EditPaymentModal({
+  paymentId,
+  propertyId,
+  propertyName,
+}: {
+  paymentId: string;
+  propertyId: string;
+  propertyName: string;
+}) {
+  const payment = await prisma.payment.findFirst({
+    where: {
+      id: paymentId,
+      lease: { propertyId },
+    },
+  });
+
+  if (!payment) {
+    return null;
+  }
+
+  return (
+    <PaymentModal
+      clientRequestId={payment.clientRequestId}
+      closeHref={`/properties/${propertyId}`}
+      payment={payment}
+      properties={[{ id: propertyId, name: propertyName }]}
+      selectedPropertyId={propertyId}
+    />
   );
 }
