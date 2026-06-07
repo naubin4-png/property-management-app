@@ -6,6 +6,8 @@ import { RecentPayments } from "@/components/recent-payments";
 import { firstDayOfCurrentMonth, formatMoney, formatMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
 
+import { updateTenant } from "./actions";
+
 export const dynamic = "force-dynamic";
 
 export default async function PropertyDetailPage({
@@ -86,6 +88,35 @@ export default async function PropertyDetailPage({
               >
                 {activeLease.tenant.email}
               </a>
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm font-medium text-zinc-700">
+                  Edit tenant info
+                </summary>
+                <form
+                  action={updateTenant.bind(null, property.id, activeLease.tenant.id)}
+                  className="mt-3 grid gap-3 sm:grid-cols-2"
+                >
+                  <input
+                    className="h-10 rounded-md border border-zinc-300 px-3 text-sm"
+                    defaultValue={activeLease.tenant.name}
+                    name="tenantName"
+                    required
+                  />
+                  <input
+                    className="h-10 rounded-md border border-zinc-300 px-3 text-sm"
+                    defaultValue={activeLease.tenant.email}
+                    name="tenantEmail"
+                    required
+                    type="email"
+                  />
+                  <button
+                    className="h-9 rounded-md border border-zinc-300 px-3 text-sm font-medium sm:col-span-2 sm:justify-self-start"
+                    type="submit"
+                  >
+                    Save Tenant
+                  </button>
+                </form>
+              </details>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
