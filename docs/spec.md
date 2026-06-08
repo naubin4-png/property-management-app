@@ -171,6 +171,7 @@ model Lease {
   lastPeriodMonth  DateTime @db.Date  // always the 1st of a month; UI is a month/year picker
   rentCents        Int                // monthly rent in cents
   notes            String?            // free text — move-in date, physical items, keys, etc.
+  dashboardNote    String?            // short editable note shown on the dashboard
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -249,8 +250,7 @@ model EmailLog {
 model AppSettings {
   id                  String  @id @default("singleton")
 
-  // Email automation toggles
-  reminderEnabled     Boolean @default(true)   // master on/off
+  // Email automation controls
   sendBeforeDue       Boolean @default(true)   // send reminder before due date
   sendAfterDue        Boolean @default(true)   // send late notice after due date
   daysBeforeReminder  Int     @default(3)      // X days before the 1st
@@ -430,8 +430,7 @@ This is the heart of the app. **The owner never picks months.** He enters one do
   - **Amount** (dollar input, required) — the total amount being logged
   - **Date Received** (date picker, defaults to today)
   - **Payment Method** (dropdown: CHECK / WIRE / ACH / OTHER, optional)
-  - **Reference #** (optional)
-  - **Notes** (optional)
+  - **Notes** (optional; expands on focus)
 - On submit, server runs allocation (see below) and returns to dashboard.
 
 **Allocation rules (server-side, on submit, inside a single transaction):**
@@ -494,7 +493,7 @@ Two email triggers: a reminder before rent is due, and a late notice after if un
 - Reminder fires once per (tenant, period) when `today == periodMonth - daysBeforeReminder` AND status is PENDING.
 - Late notice fires once per (tenant, period) when `today == periodMonth + daysAfterLateNotice` AND status is PENDING or LATE.
 - Both deduped via `EmailLog` (matching tenantId + triggerType + periodMonth).
-- Skipped entirely if `reminderEnabled = false` or the respective `sendBeforeDue`/`sendAfterDue` toggle is off.
+- Skipped when the respective `sendBeforeDue`/`sendAfterDue` toggle is off.
 
 ---
 
@@ -539,7 +538,7 @@ All routes validate **both** `Authorization: Bearer ${CRON_SECRET}` **and** `x-v
 **Schedule:** Daily at 07:00 UTC
 
 ```
-1. Load settings. If reminderEnabled = false → exit.
+1. Load settings.
 
 2. BEFORE-DUE REMINDER (only if sendBeforeDue = true):
    targetDueDate = today + daysBeforeReminder days

@@ -51,6 +51,7 @@ model Lease {
   lastPeriodMonth  DateTime @db.Date
   rentCents        Int
   notes            String?
+  dashboardNote    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -114,7 +115,6 @@ model EmailLog {
 model AppSettings {
   id String @id @default("singleton")
 
-  reminderEnabled     Boolean @default(true)
   sendBeforeDue       Boolean @default(true)
   sendAfterDue        Boolean @default(true)
   daysBeforeReminder  Int     @default(3)

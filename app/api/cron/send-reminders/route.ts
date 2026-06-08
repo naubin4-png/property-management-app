@@ -25,10 +25,6 @@ export async function GET(request: NextRequest) {
   }
 
   const settings = await getSettings();
-  if (!settings.reminderEnabled) {
-    return NextResponse.json({ disabled: true, sent: 0, failed: 0, skipped: 0 });
-  }
-
   const today = utcToday();
   const totals = { sent: 0, failed: 0, skipped: 0 };
 

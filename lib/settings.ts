@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
 export const defaultEmailSettings = {
-  reminderEnabled: true,
   sendBeforeDue: true,
   sendAfterDue: true,
   daysBeforeReminder: 3,

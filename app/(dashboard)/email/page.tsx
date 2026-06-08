@@ -25,41 +25,17 @@ export default async function EmailSettingsPage({
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
-        Email Settings
-      </h1>
-      <p className="mt-2 text-zinc-600">
-        Configure reminder timing and the plain-text messages sent to tenants.
-      </p>
-
       {saved === "1" ? (
-        <p className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Email settings saved.
         </p>
       ) : null}
 
-      <form action={saveEmailSettings} className="mt-8 space-y-8">
+      <form action={saveEmailSettings} className="space-y-8">
         <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-xl font-semibold text-zinc-950">Email Timing</h2>
           <div className="mt-5 space-y-5">
-            <label className="flex items-center justify-between gap-4">
-              <span>
-                <span className="block text-sm font-medium text-zinc-900">
-                  Reminders Enabled
-                </span>
-                <span className="block text-sm text-zinc-500">
-                  Master switch for all automated tenant email.
-                </span>
-              </span>
-              <input
-                className="size-5"
-                defaultChecked={settings.reminderEnabled}
-                name="reminderEnabled"
-                type="checkbox"
-              />
-            </label>
-
-            <div className="grid gap-4 border-t border-zinc-100 pt-5 sm:grid-cols-[1fr_9rem]">
+            <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
               <label className="flex items-start gap-3">
                 <input
                   className="mt-0.5 size-5"

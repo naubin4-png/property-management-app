@@ -10,6 +10,7 @@ import { firstDayOfCurrentMonth, formatMoney, formatMonth } from "@/lib/lease-ma
 import { prisma } from "@/lib/prisma";
 
 import { updateTenant } from "./actions";
+import { editPayment, logPayment } from "../../payments/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -202,9 +203,18 @@ export default async function PropertyDetailPage({
 
       {query.logPayment === "1" && activeLease ? (
         <PaymentModal
+          action={logPayment}
           clientRequestId={randomUUID()}
           closeHref={`/properties/${property.id}`}
-          properties={[{ id: property.id, name: property.name }]}
+          properties={[
+            {
+              id: property.id,
+              name: property.name,
+              rentCents: activeLease.rentCents,
+              creditBalanceCents,
+              nextDueDate: nextDuePeriod?.periodMonth ?? null,
+            },
+          ]}
           selectedPropertyId={property.id}
         />
       ) : null}
@@ -242,6 +252,7 @@ async function EditPaymentModal({
 
   return (
     <PaymentModal
+      action={editPayment.bind(null, payment.id)}
       clientRequestId={payment.clientRequestId}
       closeHref={`/properties/${propertyId}`}
       payment={payment}

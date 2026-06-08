@@ -30,7 +30,6 @@ export async function saveEmailSettings(formData: FormData) {
     where: { id: "singleton" },
     create: {
       id: "singleton",
-      reminderEnabled: checked(formData, "reminderEnabled"),
       sendBeforeDue: checked(formData, "sendBeforeDue"),
       sendAfterDue: checked(formData, "sendAfterDue"),
       daysBeforeReminder: nonNegativeInteger(formData, "daysBeforeReminder"),
@@ -45,7 +44,6 @@ export async function saveEmailSettings(formData: FormData) {
       lateNoticeBody: requiredText(formData, "lateNoticeBody"),
     },
     update: {
-      reminderEnabled: checked(formData, "reminderEnabled"),
       sendBeforeDue: checked(formData, "sendBeforeDue"),
       sendAfterDue: checked(formData, "sendAfterDue"),
       daysBeforeReminder: nonNegativeInteger(formData, "daysBeforeReminder"),

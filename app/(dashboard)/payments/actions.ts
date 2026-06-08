@@ -48,7 +48,7 @@ function parsePaymentInput(formData: FormData) {
     amountCents,
     receivedAt,
     paymentMethod: optionalString(formData.get("paymentMethod")),
-    paymentReference: optionalString(formData.get("paymentReference")),
+    paymentReference: null,
     notes: optionalString(formData.get("notes")),
     clientRequestId,
   };

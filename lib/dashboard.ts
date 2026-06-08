@@ -1,4 +1,4 @@
-import { PeriodStatus } from "@prisma/client";
+import { PeriodStatus, TriggerType } from "@prisma/client";
 
 import {
   firstDayOfCurrentMonth,
@@ -12,11 +12,18 @@ export type DashboardStatus = "PAID" | "DUE" | "LATE" | "NO_LEASE";
 export type DashboardProperty = {
   id: string;
   name: string;
+  leaseId: string | null;
   tenantName: string | null;
   rentCents: number | null;
   nextDueDate: Date | null;
   status: DashboardStatus;
   hasActiveLease: boolean;
+  dashboardNote: string | null;
+  latestEmail: {
+    label: string;
+    sentAt: Date;
+  } | null;
+  creditBalanceCents: number;
 };
 
 async function ensureDashboardPeriods() {
@@ -69,10 +76,8 @@ export async function getDashboardData() {
           take: 1,
           include: {
             tenant: true,
+            payments: true,
             paymentPeriods: {
-              where: {
-                status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
-              },
               orderBy: { periodMonth: "asc" },
             },
           },
@@ -90,6 +95,8 @@ export async function getDashboardData() {
     getSettings(),
   ]);
 
+  const emailLookupKeys: { leaseId: string; periodMonth: Date }[] = [];
+  const emailPeriodByLease = new Map<string, Date>();
   const today = new Date();
   const rows: DashboardProperty[] = properties.map((property) => {
     const lease = property.leases[0];
@@ -98,16 +105,35 @@ export async function getDashboardData() {
       return {
         id: property.id,
         name: property.name,
+        leaseId: null,
         tenantName: null,
         rentCents: null,
         nextDueDate: null,
         status: "NO_LEASE",
         hasActiveLease: false,
+        dashboardNote: null,
+        latestEmail: null,
+        creditBalanceCents: 0,
       };
     }
 
-    const nextDue = lease.paymentPeriods[0] ?? null;
-    const hasLatePeriod = lease.paymentPeriods.some(
+    const unpaidPeriods = lease.paymentPeriods.filter(
+      (period) =>
+        period.status === PeriodStatus.PENDING ||
+        period.status === PeriodStatus.LATE,
+    );
+    const nextDue = unpaidPeriods[0] ?? null;
+    if (
+      currentMonth >= lease.firstPeriodMonth &&
+      currentMonth <= lease.lastPeriodMonth
+    ) {
+      emailLookupKeys.push({
+        leaseId: lease.id,
+        periodMonth: currentMonth,
+      });
+      emailPeriodByLease.set(lease.id, currentMonth);
+    }
+    const hasLatePeriod = unpaidPeriods.some(
       (period) => period.status === PeriodStatus.LATE,
     );
     const status: DashboardStatus = hasLatePeriod
@@ -116,26 +142,84 @@ export async function getDashboardData() {
         ? "DUE"
         : "PAID";
 
+    const allocatedCents = lease.paymentPeriods
+      .filter((period) => period.status === PeriodStatus.RECEIVED)
+      .reduce((total, period) => total + period.amountDueCents, 0);
+    const paidCents = lease.payments.reduce(
+      (total, payment) => total + payment.amountCents,
+      0,
+    );
+
     return {
       id: property.id,
       name: property.name,
+      leaseId: lease.id,
       tenantName: lease.tenant.name,
       rentCents: lease.rentCents,
       nextDueDate: nextDue?.periodMonth ?? null,
       status,
       hasActiveLease: true,
+      dashboardNote: lease.dashboardNote,
+      latestEmail: null,
+      creditBalanceCents: paidCents - allocatedCents,
     };
   });
 
-  const needsAttention = rows.filter(
+  const emailLogs =
+    emailLookupKeys.length > 0
+      ? await prisma.emailLog.findMany({
+          where: {
+            OR: emailLookupKeys.map((key) => ({
+              leaseId: key.leaseId,
+              periodMonth: key.periodMonth,
+            })),
+          },
+          orderBy: { sentAt: "desc" },
+        })
+      : [];
+  const emailLogMap = new Map<string, (typeof emailLogs)[number]>();
+  for (const log of emailLogs) {
+    if (!log.leaseId || !log.periodMonth) {
+      continue;
+    }
+    const key = `${log.leaseId}:${log.periodMonth.toISOString()}`;
+    if (!emailLogMap.has(key)) {
+      emailLogMap.set(key, log);
+    }
+  }
+  const rowsWithEmail = rows.map((row) => {
+    if (!row.leaseId) {
+      return row;
+    }
+    const emailPeriod = emailPeriodByLease.get(row.leaseId);
+    if (!emailPeriod) {
+      return row;
+    }
+    const log = emailLogMap.get(`${row.leaseId}:${emailPeriod.toISOString()}`);
+    if (!log) {
+      return row;
+    }
+    return {
+      ...row,
+      latestEmail: {
+        label:
+          log.triggerType === TriggerType.RENT_REMINDER
+            ? "Reminder sent"
+            : "Late notice",
+        sentAt: log.sentAt,
+      },
+    };
+  });
+
+  const needsAttention = rowsWithEmail.filter(
     (property) => property.status === "LATE" || property.status === "DUE",
   );
-  const allGood = rows.filter(
+  const allGood = rowsWithEmail.filter(
     (property) => property.status !== "LATE" && property.status !== "DUE",
   );
 
   return {
-    properties: rows,
+    properties: rowsWithEmail,
     needsAttention,
     allGood,
     summary: {
