@@ -1,4 +1,5 @@
 import { signInWithEmail, signInWithGoogle } from "./actions";
+import Link from "next/link";
 
 export default async function LoginPage({
   searchParams,
@@ -66,6 +67,22 @@ export default async function LoginPage({
             Continue with Google
           </button>
         </form>
+
+        <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-zinc-400">
+          <span className="h-px flex-1 bg-zinc-200" />
+          Or
+          <span className="h-px flex-1 bg-zinc-200" />
+        </div>
+
+        <Link
+          className="flex h-10 w-full items-center justify-center rounded-md bg-blue-50 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+          href="/demo"
+        >
+          Explore the public demo
+        </Link>
+        <p className="mt-3 text-center text-xs leading-5 text-zinc-500">
+          No account required. Sample data only.
+        </p>
       </div>
     </main>
   );
