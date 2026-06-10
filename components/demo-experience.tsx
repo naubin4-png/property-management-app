@@ -52,7 +52,7 @@ const startingProperties: DashboardProperty[] = [
     name: "88 Market Street",
     leaseId: "market-lease",
     rentCents: 325000,
-    nextDueDate: new Date("2026-07-01T00:00:00.000Z"),
+    nextDueDate: new Date("2026-09-01T00:00:00.000Z"),
     status: "PAID",
     hasActiveLease: true,
     dashboardNote: "Renewal conversation in August",

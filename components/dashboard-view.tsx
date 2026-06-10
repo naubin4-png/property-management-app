@@ -30,6 +30,19 @@ function formatCurrency(cents: number) {
   }).format(cents / 100);
 }
 
+function formatDate(date: Date | null) {
+  if (!date) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 function propertyName(
   property: DashboardViewProperty,
   propertyBaseHref: string | null,
@@ -281,6 +294,7 @@ function AllGoodSection({
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
               <th className="px-4 py-3 font-medium">Property Name</th>
+              <th className="px-4 py-3 font-medium">Next Due</th>
               <th className="px-4 py-3 font-medium">Notes</th>
             </tr>
           </thead>
@@ -307,6 +321,9 @@ function AllGoodSection({
               >
                 <td className="w-1/2 px-4 py-4 font-medium text-zinc-950">
                   {propertyName(property, propertyBaseHref)}
+                </td>
+                <td className="px-4 py-4 text-zinc-700">
+                  {formatDate(property.nextDueDate)}
                 </td>
                 <td className="px-4 py-4">
                   <DashboardNote onSaveNote={onSaveNote} property={property} />
@@ -342,6 +359,14 @@ function AllGoodSection({
             <p className="font-medium text-zinc-950">
               {propertyName(property, propertyBaseHref)}
             </p>
+            <div className="mt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Next Due
+              </p>
+              <p className="mt-1 text-sm text-zinc-700">
+                {formatDate(property.nextDueDate)}
+              </p>
+            </div>
             <div className="mt-4">
               <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
                 Notes
