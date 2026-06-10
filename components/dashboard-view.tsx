@@ -98,7 +98,7 @@ function DashboardNote({
   return (
     <input
       aria-label={`Notes for ${property.name}`}
-      className="h-8 w-full min-w-40 rounded-md border border-transparent bg-transparent px-2 text-sm text-zinc-700 outline-none hover:border-zinc-200 hover:bg-white focus:border-zinc-300 focus:bg-white disabled:opacity-60"
+      className="h-8 w-full min-w-40 max-w-xs rounded-md border border-transparent bg-transparent px-2 text-sm text-zinc-700 outline-none hover:border-zinc-200 hover:bg-white focus:border-zinc-300 focus:bg-white disabled:opacity-60"
       disabled={isPending}
       onBlur={(event) => {
         const nextNote = event.currentTarget.value;
