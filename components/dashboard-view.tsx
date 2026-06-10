@@ -98,7 +98,7 @@ function DashboardNote({
   return (
     <input
       aria-label={`Notes for ${property.name}`}
-      className="h-9 w-full min-w-40 rounded-md border border-transparent bg-transparent px-2 text-sm text-zinc-700 outline-none hover:border-zinc-200 hover:bg-white focus:border-zinc-300 focus:bg-white disabled:opacity-60"
+      className="h-8 w-full min-w-40 rounded-md border border-transparent bg-transparent px-2 text-sm text-zinc-700 outline-none hover:border-zinc-200 hover:bg-white focus:border-zinc-300 focus:bg-white disabled:opacity-60"
       disabled={isPending}
       onBlur={(event) => {
         const nextNote = event.currentTarget.value;
@@ -120,7 +120,7 @@ function DashboardNote({
 
 export function MoneyBar({ summary }: { summary: DashboardSummary }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
+    <section className="rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-0">
         <span>
           <span className="font-medium text-zinc-500">
@@ -169,13 +169,17 @@ function NeedsAttentionSection({
         Needs Attention
       </h2>
 
-      <div className="mt-3 hidden overflow-hidden rounded-lg border border-zinc-200 bg-white md:block">
+      <div className="mt-2 hidden overflow-hidden rounded-lg border border-zinc-200 bg-white md:block">
         <table className="w-full border-collapse text-left text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
-              <th className="px-4 py-3 font-medium">Property Name</th>
-              <th className="px-4 py-3 font-medium">Amount Owed</th>
-              <th className="px-4 py-3 font-medium">Notes</th>
+              <th className="w-px whitespace-nowrap px-4 py-2 font-medium">
+                Property Name
+              </th>
+              <th className="w-40 whitespace-nowrap px-4 py-2 font-medium">
+                Amount Owed
+              </th>
+              <th className="w-full px-4 py-2 font-medium">Notes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -199,14 +203,14 @@ function NeedsAttentionSection({
                 }}
                 tabIndex={propertyBaseHref ? 0 : undefined}
               >
-                <td className="px-4 py-4 font-medium text-zinc-950">
+                <td className="w-px whitespace-nowrap px-4 py-2.5 font-medium text-zinc-950">
                   {propertyName(property, propertyBaseHref)}
                   <AttentionStatus property={property} />
                 </td>
-                <td className="px-4 py-4 font-medium text-zinc-900">
+                <td className="w-40 whitespace-nowrap px-4 py-2.5 font-medium text-zinc-900">
                   {formatCurrency(property.amountOwedCents)}
                 </td>
-                <td className="w-1/2 px-4 py-4">
+                <td className="w-full px-4 py-2.5">
                   <DashboardNote onSaveNote={onSaveNote} property={property} />
                 </td>
               </tr>
@@ -215,7 +219,7 @@ function NeedsAttentionSection({
         </table>
       </div>
 
-      <div className="mt-3 space-y-3 md:hidden">
+      <div className="mt-2 space-y-2 md:hidden">
         {properties.map((property) => (
           <div
             className={
@@ -289,13 +293,17 @@ function AllGoodSection({
         All Good
       </h2>
 
-      <div className="mt-3 hidden overflow-hidden rounded-lg border border-zinc-200 bg-white md:block">
+      <div className="mt-2 hidden overflow-hidden rounded-lg border border-zinc-200 bg-white md:block">
         <table className="w-full border-collapse text-left text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
-              <th className="px-4 py-3 font-medium">Property Name</th>
-              <th className="px-4 py-3 font-medium">Next Due</th>
-              <th className="px-4 py-3 font-medium">Notes</th>
+              <th className="w-px whitespace-nowrap px-4 py-2 font-medium">
+                Property Name
+              </th>
+              <th className="w-40 whitespace-nowrap px-4 py-2 font-medium">
+                Next Due
+              </th>
+              <th className="w-full px-4 py-2 font-medium">Notes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -319,13 +327,13 @@ function AllGoodSection({
                 }}
                 tabIndex={propertyBaseHref ? 0 : undefined}
               >
-                <td className="w-1/2 px-4 py-4 font-medium text-zinc-950">
+                <td className="w-px whitespace-nowrap px-4 py-2.5 font-medium text-zinc-950">
                   {propertyName(property, propertyBaseHref)}
                 </td>
-                <td className="px-4 py-4 text-zinc-700">
+                <td className="w-40 whitespace-nowrap px-4 py-2.5 text-zinc-700">
                   {formatDate(property.nextDueDate)}
                 </td>
-                <td className="px-4 py-4">
+                <td className="w-full px-4 py-2.5">
                   <DashboardNote onSaveNote={onSaveNote} property={property} />
                 </td>
               </tr>
@@ -334,7 +342,7 @@ function AllGoodSection({
         </table>
       </div>
 
-      <div className="mt-3 space-y-3 md:hidden">
+      <div className="mt-2 space-y-2 md:hidden">
         {properties.map((property) => (
           <div
             className={
@@ -392,7 +400,7 @@ export function PropertyTable({
   propertyBaseHref?: string | null;
 }) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <NeedsAttentionSection
         onSaveNote={onSaveNote}
         properties={needsAttention}
@@ -456,7 +464,7 @@ export function DashboardView({
           )}
         </section>
       ) : (
-        <div className="mt-8">
+        <div className="mt-5">
           <PropertyTable
             allGood={allGood}
             needsAttention={needsAttention}
