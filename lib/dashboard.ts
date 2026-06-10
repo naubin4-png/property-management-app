@@ -5,7 +5,6 @@ import {
   firstDayOfNextMonth,
 } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
-import { getSettings } from "@/lib/settings";
 
 export type DashboardStatus = "PAID" | "DUE" | "LATE" | "NO_LEASE";
 
@@ -23,6 +22,7 @@ export type DashboardProperty = {
     label: string;
     sentAt: Date;
   } | null;
+  amountOwedCents: number;
   creditBalanceCents: number;
 };
 
@@ -66,12 +66,15 @@ export async function getDashboardData() {
 
   const currentMonth = firstDayOfCurrentMonth();
   const nextMonth = firstDayOfNextMonth();
-  const [properties, paymentsThisMonth, settings] = await Promise.all([
+  const [properties, collectedThisMonth, outstanding] = await Promise.all([
     prisma.property.findMany({
       orderBy: { name: "asc" },
       include: {
         leases: {
-          where: { lastPeriodMonth: { gte: currentMonth } },
+          where: {
+            firstPeriodMonth: { lte: currentMonth },
+            lastPeriodMonth: { gte: currentMonth },
+          },
           orderBy: { firstPeriodMonth: "desc" },
           take: 1,
           include: {
@@ -84,15 +87,25 @@ export async function getDashboardData() {
         },
       },
     }),
-    prisma.payment.count({
+    prisma.payment.aggregate({
       where: {
         receivedAt: {
           gte: currentMonth,
           lt: nextMonth,
         },
       },
+      _sum: { amountCents: true },
     }),
-    getSettings(),
+    prisma.paymentPeriod.aggregate({
+      where: {
+        status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
+        lease: {
+          firstPeriodMonth: { lte: currentMonth },
+          lastPeriodMonth: { gte: currentMonth },
+        },
+      },
+      _sum: { amountDueCents: true },
+    }),
   ]);
 
   const emailLookupKeys: { leaseId: string; periodMonth: Date }[] = [];
@@ -113,6 +126,7 @@ export async function getDashboardData() {
         hasActiveLease: false,
         dashboardNote: null,
         latestEmail: null,
+        amountOwedCents: 0,
         creditBalanceCents: 0,
       };
     }
@@ -161,6 +175,10 @@ export async function getDashboardData() {
       hasActiveLease: true,
       dashboardNote: lease.dashboardNote,
       latestEmail: null,
+      amountOwedCents: unpaidPeriods.reduce(
+        (total, period) => total + period.amountDueCents,
+        0,
+      ),
       creditBalanceCents: paidCents - allocatedCents,
     };
   });
@@ -223,10 +241,8 @@ export async function getDashboardData() {
     needsAttention,
     allGood,
     summary: {
-      activeProperties: rows.filter((property) => property.hasActiveLease).length,
-      paymentsThisMonth,
-      needingAttention: needsAttention.length,
+      collectedThisMonthCents: collectedThisMonth._sum.amountCents ?? 0,
+      outstandingCents: outstanding._sum.amountDueCents ?? 0,
     },
-    gracePeriodDays: settings.gracePeriodDays,
   };
 }

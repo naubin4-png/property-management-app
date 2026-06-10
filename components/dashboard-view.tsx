@@ -1,28 +1,17 @@
 "use client";
 
-import { ReceiptText } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { saveDashboardNote } from "@/app/(dashboard)/dashboard/actions";
 import type { DashboardProperty, DashboardStatus } from "@/lib/dashboard";
-import { formatMoney, formatMonth } from "@/lib/lease-math";
-import { cn } from "@/lib/utils";
 
 export type DashboardSummary = {
-  activeProperties: number;
-  paymentsThisMonth: number;
-  needingAttention: number;
+  collectedThisMonthCents: number;
+  outstandingCents: number;
 };
 
 type DashboardViewProperty = DashboardProperty;
-
-const statusStyles: Record<DashboardStatus, string> = {
-  PAID: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  DUE: "bg-amber-50 text-amber-700 ring-amber-600/20",
-  LATE: "bg-red-50 text-red-700 ring-red-600/20",
-  NO_LEASE: "bg-zinc-100 text-zinc-600 ring-zinc-500/20",
-};
 
 const statusLabels: Record<DashboardStatus, string> = {
   PAID: "Paid",
@@ -31,32 +20,49 @@ const statusLabels: Record<DashboardStatus, string> = {
   NO_LEASE: "No Lease",
 };
 
-function StatusChip({ status }: { status: DashboardStatus }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
-        statusStyles[status],
-      )}
-    >
-      {statusLabels[status]}
-    </span>
-  );
+function formatCurrency(cents: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
 }
 
-function RecentEmail({ property }: { property: DashboardViewProperty }) {
-  if (!property.latestEmail) {
-    return null;
+function propertyName(
+  property: DashboardViewProperty,
+  propertyBaseHref: string | null,
+) {
+  if (!propertyBaseHref) {
+    return property.name;
   }
 
   return (
-    <p className="mt-1 text-xs text-zinc-500">
-      {property.latestEmail.label}{" "}
-      {property.latestEmail.sentAt.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        timeZone: "UTC",
-      })}
+    <Link
+      className="hover:underline"
+      href={`${propertyBaseHref}/${property.id}`}
+    >
+      {property.name}
+    </Link>
+  );
+}
+
+function AttentionStatus({ property }: { property: DashboardViewProperty }) {
+  const email = property.latestEmail
+    ? ` · ${property.latestEmail.label} ${property.latestEmail.sentAt.toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+          day: "numeric",
+          timeZone: "UTC",
+        },
+      )}`
+    : "";
+
+  return (
+    <p className="mt-1 text-xs font-normal text-zinc-500">
+      {statusLabels[property.status]}
+      {email}
     </p>
   );
 }
@@ -96,28 +102,23 @@ function DashboardNote({
   );
 }
 
-export function StatCards({ summary }: { summary: DashboardSummary }) {
+export function MoneyBar({ summary }: { summary: DashboardSummary }) {
   return (
     <section className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-0">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-0">
         <span>
-          <span className="font-medium text-zinc-500">Active properties:</span>{" "}
+          <span className="font-medium text-zinc-500">
+            Collected this month:
+          </span>{" "}
           <span className="font-semibold text-zinc-950">
-            {summary.activeProperties}
+            {formatCurrency(summary.collectedThisMonthCents)}
           </span>
         </span>
         <span className="hidden px-3 text-zinc-300 sm:inline">|</span>
         <span>
-          <span className="font-medium text-zinc-500">Payments this month:</span>{" "}
+          <span className="font-medium text-zinc-500">Outstanding:</span>{" "}
           <span className="font-semibold text-zinc-950">
-            {summary.paymentsThisMonth}
-          </span>
-        </span>
-        <span className="hidden px-3 text-zinc-300 sm:inline">|</span>
-        <span>
-          <span className="font-medium text-zinc-500">Needing attention:</span>{" "}
-          <span className="font-semibold text-zinc-950">
-            {summary.needingAttention}
+            {formatCurrency(summary.outstandingCents)}
           </span>
         </span>
       </div>
@@ -125,54 +126,12 @@ export function StatCards({ summary }: { summary: DashboardSummary }) {
   );
 }
 
-function PaymentAction({
-  property,
-  onLogPayment,
-}: {
-  property: DashboardViewProperty;
-  onLogPayment?: (propertyId?: string) => void;
-}) {
-  if (!property.hasActiveLease) {
-    return null;
-  }
-
-  if (onLogPayment) {
-    return (
-      <button
-        aria-label={`Log payment for ${property.name}`}
-        className="mt-4 inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 px-3 text-sm font-medium text-zinc-800 md:mt-0 md:border-0 md:p-2 md:text-zinc-500 md:hover:bg-zinc-100 md:hover:text-zinc-900"
-        onClick={() => onLogPayment(property.id)}
-        type="button"
-      >
-        <ReceiptText aria-hidden="true" size={18} />
-        <span className="md:hidden">Log Payment</span>
-      </button>
-    );
-  }
-
-  return (
-    <Link
-      aria-label={`Log payment for ${property.name}`}
-      className="mt-4 inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 px-3 text-sm font-medium text-zinc-800 md:mt-0 md:border-0 md:p-2 md:text-zinc-500 md:hover:bg-zinc-100 md:hover:text-zinc-900"
-      href={`/?logPayment=1&propertyId=${property.id}`}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <ReceiptText aria-hidden="true" size={18} />
-      <span className="md:hidden">Log Payment</span>
-    </Link>
-  );
-}
-
-function PropertySection({
+function NeedsAttentionSection({
   properties,
-  title,
-  onLogPayment,
   onSaveNote,
   propertyBaseHref,
 }: {
   properties: DashboardViewProperty[];
-  title: string;
-  onLogPayment?: (propertyId?: string) => void;
   onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   propertyBaseHref: string | null;
 }) {
@@ -182,7 +141,9 @@ function PropertySection({
 
   return (
     <section>
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{title}</h2>
+      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
+        Needs Attention
+      </h2>
 
       <div className="mt-3 hidden overflow-hidden rounded-lg border border-zinc-200 bg-white md:block">
         <table className="w-full border-collapse text-left text-sm">
@@ -190,9 +151,7 @@ function PropertySection({
             <tr>
               <th className="px-4 py-3 font-medium">Property Name</th>
               <th className="px-4 py-3 font-medium">Tenant</th>
-              <th className="px-4 py-3 font-medium">Monthly Rent</th>
-              <th className="px-4 py-3 font-medium">Next Due Date</th>
-              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Amount Owed</th>
               <th className="px-4 py-3 font-medium">Notes</th>
             </tr>
           </thead>
@@ -200,43 +159,17 @@ function PropertySection({
             {properties.map((property) => (
               <tr className="hover:bg-zinc-50" key={property.id}>
                 <td className="px-4 py-4 font-medium text-zinc-950">
-                  {propertyBaseHref ? (
-                    <Link
-                      className="hover:underline"
-                      href={`${propertyBaseHref}/${property.id}`}
-                    >
-                      {property.name}
-                    </Link>
-                  ) : (
-                    property.name
-                  )}
+                  {propertyName(property, propertyBaseHref)}
+                  <AttentionStatus property={property} />
                 </td>
                 <td className="px-4 py-4 text-zinc-600">
                   {property.tenantName ?? "-"}
                 </td>
-                <td className="px-4 py-4 text-zinc-600">
-                  {property.rentCents === null
-                    ? "-"
-                    : `$${formatMoney(property.rentCents)}`}
+                <td className="px-4 py-4 font-medium text-zinc-900">
+                  {formatCurrency(property.amountOwedCents)}
                 </td>
-                <td className="px-4 py-4 text-zinc-600">
-                  {property.nextDueDate ? formatMonth(property.nextDueDate) : "-"}
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <StatusChip status={property.status} />
-                  <RecentEmail property={property} />
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-2">
-                    <DashboardNote
-                      onSaveNote={onSaveNote}
-                      property={property}
-                    />
-                    <PaymentAction
-                      onLogPayment={onLogPayment}
-                      property={property}
-                    />
-                  </div>
+                <td className="w-2/5 px-4 py-4">
+                  <DashboardNote onSaveNote={onSaveNote} property={property} />
                 </td>
               </tr>
             ))}
@@ -247,45 +180,24 @@ function PropertySection({
       <div className="mt-3 space-y-3 md:hidden">
         {properties.map((property) => (
           <div
-            className="w-full rounded-lg border border-zinc-200 bg-white p-4 text-left shadow-sm"
+            className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
             key={property.id}
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-medium text-zinc-950">
-                  {propertyBaseHref ? (
-                    <Link
-                      className="hover:underline"
-                      href={`${propertyBaseHref}/${property.id}`}
-                    >
-                      {property.name}
-                    </Link>
-                  ) : (
-                    property.name
-                  )}
-                </p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  {property.tenantName ?? "No tenant"}
-                </p>
-              </div>
-              <div className="text-right">
-                <StatusChip status={property.status} />
-                <RecentEmail property={property} />
-              </div>
-            </div>
+            <p className="font-medium text-zinc-950">
+              {propertyName(property, propertyBaseHref)}
+            </p>
+            <AttentionStatus property={property} />
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div>
-                <dt className="text-zinc-500">Monthly rent</dt>
+                <dt className="text-zinc-500">Tenant</dt>
                 <dd className="mt-1 font-medium text-zinc-900">
-                  {property.rentCents === null
-                    ? "-"
-                    : `$${formatMoney(property.rentCents)}`}
+                  {property.tenantName ?? "-"}
                 </dd>
               </div>
               <div>
-                <dt className="text-zinc-500">Next due</dt>
+                <dt className="text-zinc-500">Amount owed</dt>
                 <dd className="mt-1 font-medium text-zinc-900">
-                  {property.nextDueDate ? formatMonth(property.nextDueDate) : "-"}
+                  {formatCurrency(property.amountOwedCents)}
                 </dd>
               </div>
             </dl>
@@ -295,7 +207,70 @@ function PropertySection({
               </p>
               <DashboardNote onSaveNote={onSaveNote} property={property} />
             </div>
-            <PaymentAction onLogPayment={onLogPayment} property={property} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AllGoodSection({
+  properties,
+  onSaveNote,
+  propertyBaseHref,
+}: {
+  properties: DashboardViewProperty[];
+  onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
+  propertyBaseHref: string | null;
+}) {
+  if (properties.length === 0) {
+    return null;
+  }
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
+        All Good
+      </h2>
+
+      <div className="mt-3 hidden overflow-hidden rounded-lg border border-zinc-200 bg-white md:block">
+        <table className="w-full border-collapse text-left text-sm">
+          <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+            <tr>
+              <th className="px-4 py-3 font-medium">Property Name</th>
+              <th className="px-4 py-3 font-medium">Notes</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {properties.map((property) => (
+              <tr className="hover:bg-zinc-50" key={property.id}>
+                <td className="w-1/2 px-4 py-4 font-medium text-zinc-950">
+                  {propertyName(property, propertyBaseHref)}
+                </td>
+                <td className="px-4 py-4">
+                  <DashboardNote onSaveNote={onSaveNote} property={property} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-3 space-y-3 md:hidden">
+        {properties.map((property) => (
+          <div
+            className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+            key={property.id}
+          >
+            <p className="font-medium text-zinc-950">
+              {propertyName(property, propertyBaseHref)}
+            </p>
+            <div className="mt-4">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Notes
+              </p>
+              <DashboardNote onSaveNote={onSaveNote} property={property} />
+            </div>
           </div>
         ))}
       </div>
@@ -306,31 +281,25 @@ function PropertySection({
 export function PropertyTable({
   needsAttention,
   allGood,
-  onLogPayment,
   onSaveNote,
   propertyBaseHref = "/properties",
 }: {
   needsAttention: DashboardViewProperty[];
   allGood: DashboardViewProperty[];
-  onLogPayment?: (propertyId?: string) => void;
   onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   propertyBaseHref?: string | null;
 }) {
   return (
     <div className="space-y-8">
-      <PropertySection
-        onLogPayment={onLogPayment}
+      <NeedsAttentionSection
         onSaveNote={onSaveNote}
         properties={needsAttention}
         propertyBaseHref={propertyBaseHref}
-        title="Needs Attention"
       />
-      <PropertySection
-        onLogPayment={onLogPayment}
+      <AllGoodSection
         onSaveNote={onSaveNote}
         properties={allGood}
         propertyBaseHref={propertyBaseHref}
-        title="All Good"
       />
     </div>
   );
@@ -341,7 +310,6 @@ export function DashboardView({
   emptyActionHref = "/?addProperty=1",
   needsAttention,
   onAddProperty,
-  onLogPayment,
   onSaveNote,
   propertyBaseHref = "/properties",
   summary,
@@ -350,7 +318,6 @@ export function DashboardView({
   emptyActionHref?: string;
   needsAttention: DashboardViewProperty[];
   onAddProperty?: () => void;
-  onLogPayment?: (propertyId?: string) => void;
   onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   propertyBaseHref?: string | null;
   summary: DashboardSummary;
@@ -359,7 +326,7 @@ export function DashboardView({
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-      <StatCards summary={summary} />
+      <MoneyBar summary={summary} />
 
       {!hasProperties ? (
         <section className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center">
@@ -391,7 +358,6 @@ export function DashboardView({
           <PropertyTable
             allGood={allGood}
             needsAttention={needsAttention}
-            onLogPayment={onLogPayment}
             onSaveNote={onSaveNote}
             propertyBaseHref={propertyBaseHref}
           />

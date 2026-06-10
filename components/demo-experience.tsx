@@ -29,6 +29,7 @@ const startingProperties: DashboardProperty[] = [
       label: "Late notice",
       sentAt: new Date("2026-06-05T00:00:00.000Z"),
     },
+    amountOwedCents: 400000,
     creditBalanceCents: 0,
   },
   {
@@ -40,11 +41,12 @@ const startingProperties: DashboardProperty[] = [
     nextDueDate: new Date("2026-06-01T00:00:00.000Z"),
     status: "DUE",
     hasActiveLease: true,
-    dashboardNote: "",
+    dashboardNote: "Tenant confirmed both invoices are processing",
     latestEmail: {
       label: "Reminder sent",
       sentAt: new Date("2026-06-03T00:00:00.000Z"),
     },
+    amountOwedCents: 1360000,
     creditBalanceCents: 50000,
   },
   {
@@ -58,6 +60,7 @@ const startingProperties: DashboardProperty[] = [
     hasActiveLease: true,
     dashboardNote: "Renewal conversation in August",
     latestEmail: null,
+    amountOwedCents: 0,
     creditBalanceCents: 0,
   },
   {
@@ -71,6 +74,7 @@ const startingProperties: DashboardProperty[] = [
     hasActiveLease: true,
     dashboardNote: "",
     latestEmail: null,
+    amountOwedCents: 0,
     creditBalanceCents: 25000,
   },
 ];
@@ -86,6 +90,8 @@ export function DemoExperience() {
     useState<DashboardProperty[]>(startingProperties);
   const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [collectedThisMonthCents, setCollectedThisMonthCents] =
+    useState(600000);
   const [selectedPropertyId, setSelectedPropertyId] = useState<
     string | undefined
   >();
@@ -107,14 +113,13 @@ export function DemoExperience() {
   );
   const summary = useMemo(
     () => ({
-      activeProperties: properties.filter((property) => property.hasActiveLease)
-        .length,
-      paymentsThisMonth: properties.filter(
-        (property) => property.status === "PAID",
-      ).length,
-      needingAttention: needsAttention.length,
+      collectedThisMonthCents,
+      outstandingCents: properties.reduce(
+        (total, property) => total + property.amountOwedCents,
+        0,
+      ),
     }),
-    [needsAttention.length, properties],
+    [collectedThisMonthCents, properties],
   );
 
   function openPayment(propertyId?: string) {
@@ -138,14 +143,21 @@ export function DemoExperience() {
 
         const availableCents = amountCents + property.creditBalanceCents;
         const monthsCovered = Math.floor(availableCents / property.rentCents);
+        const amountAppliedCents = Math.min(
+          monthsCovered * property.rentCents,
+          property.amountOwedCents,
+        );
+        const amountOwedCents = property.amountOwedCents - amountAppliedCents;
         return {
           ...property,
           nextDueDate: nextMonth(property.nextDueDate, monthsCovered),
-          status: monthsCovered > 0 ? "PAID" : property.status,
+          status: amountOwedCents === 0 ? "PAID" : property.status,
+          amountOwedCents,
           creditBalanceCents: availableCents % property.rentCents,
         };
       }),
     );
+    setCollectedThisMonthCents((current) => current + amountCents);
     setIsPaymentOpen(false);
   }
 
@@ -164,6 +176,7 @@ export function DemoExperience() {
         hasActiveLease: true,
         dashboardNote: "",
         latestEmail: null,
+        amountOwedCents: input.rentCents,
         creditBalanceCents: 0,
       },
     ]);
@@ -186,7 +199,6 @@ export function DemoExperience() {
         allGood={allGood}
         needsAttention={needsAttention}
         onAddProperty={() => setIsAddPropertyOpen(true)}
-        onLogPayment={openPayment}
         onSaveNote={(leaseId, note) => {
           setProperties((current) =>
             current.map((property) =>
