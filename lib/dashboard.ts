@@ -12,7 +12,6 @@ export type DashboardProperty = {
   id: string;
   name: string;
   leaseId: string | null;
-  tenantName: string | null;
   rentCents: number | null;
   nextDueDate: Date | null;
   status: DashboardStatus;
@@ -78,7 +77,6 @@ export async function getDashboardData() {
           orderBy: { firstPeriodMonth: "desc" },
           take: 1,
           include: {
-            tenant: true,
             payments: true,
             paymentPeriods: {
               orderBy: { periodMonth: "asc" },
@@ -119,7 +117,6 @@ export async function getDashboardData() {
         id: property.id,
         name: property.name,
         leaseId: null,
-        tenantName: null,
         rentCents: null,
         nextDueDate: null,
         status: "NO_LEASE",
@@ -168,7 +165,6 @@ export async function getDashboardData() {
       id: property.id,
       name: property.name,
       leaseId: lease.id,
-      tenantName: lease.tenant.name,
       rentCents: lease.rentCents,
       nextDueDate: nextDue?.periodMonth ?? null,
       status,

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { saveDashboardNote } from "@/app/(dashboard)/dashboard/actions";
@@ -95,7 +96,9 @@ function DashboardNote({
           void (onSaveNote ?? saveDashboardNote)(property.leaseId!, nextNote);
         });
       }}
+      onClick={(event) => event.stopPropagation()}
       onChange={(event) => setNote(event.target.value)}
+      onKeyDown={(event) => event.stopPropagation()}
       placeholder="Add note"
       value={note}
     />
@@ -135,8 +138,16 @@ function NeedsAttentionSection({
   onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   propertyBaseHref: string | null;
 }) {
+  const router = useRouter();
+
   if (properties.length === 0) {
     return null;
+  }
+
+  function openProperty(propertyId: string) {
+    if (propertyBaseHref) {
+      router.push(`${propertyBaseHref}/${propertyId}`);
+    }
   }
 
   return (
@@ -150,25 +161,39 @@ function NeedsAttentionSection({
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
               <th className="px-4 py-3 font-medium">Property Name</th>
-              <th className="px-4 py-3 font-medium">Tenant</th>
               <th className="px-4 py-3 font-medium">Amount Owed</th>
               <th className="px-4 py-3 font-medium">Notes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {properties.map((property) => (
-              <tr className="hover:bg-zinc-50" key={property.id}>
+              <tr
+                className={
+                  propertyBaseHref
+                    ? "cursor-pointer hover:bg-zinc-50"
+                    : "hover:bg-zinc-50"
+                }
+                key={property.id}
+                onClick={() => openProperty(property.id)}
+                onKeyDown={(event) => {
+                  if (
+                    propertyBaseHref &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
+                    event.preventDefault();
+                    openProperty(property.id);
+                  }
+                }}
+                tabIndex={propertyBaseHref ? 0 : undefined}
+              >
                 <td className="px-4 py-4 font-medium text-zinc-950">
                   {propertyName(property, propertyBaseHref)}
                   <AttentionStatus property={property} />
                 </td>
-                <td className="px-4 py-4 text-zinc-600">
-                  {property.tenantName ?? "-"}
-                </td>
                 <td className="px-4 py-4 font-medium text-zinc-900">
                   {formatCurrency(property.amountOwedCents)}
                 </td>
-                <td className="w-2/5 px-4 py-4">
+                <td className="w-1/2 px-4 py-4">
                   <DashboardNote onSaveNote={onSaveNote} property={property} />
                 </td>
               </tr>
@@ -180,20 +205,30 @@ function NeedsAttentionSection({
       <div className="mt-3 space-y-3 md:hidden">
         {properties.map((property) => (
           <div
-            className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+            className={
+              propertyBaseHref
+                ? "cursor-pointer rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+                : "rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+            }
             key={property.id}
+            onClick={() => openProperty(property.id)}
+            onKeyDown={(event) => {
+              if (
+                propertyBaseHref &&
+                (event.key === "Enter" || event.key === " ")
+              ) {
+                event.preventDefault();
+                openProperty(property.id);
+              }
+            }}
+            role={propertyBaseHref ? "link" : undefined}
+            tabIndex={propertyBaseHref ? 0 : undefined}
           >
             <p className="font-medium text-zinc-950">
               {propertyName(property, propertyBaseHref)}
             </p>
             <AttentionStatus property={property} />
-            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <dt className="text-zinc-500">Tenant</dt>
-                <dd className="mt-1 font-medium text-zinc-900">
-                  {property.tenantName ?? "-"}
-                </dd>
-              </div>
+            <dl className="mt-4 text-sm">
               <div>
                 <dt className="text-zinc-500">Amount owed</dt>
                 <dd className="mt-1 font-medium text-zinc-900">
@@ -223,8 +258,16 @@ function AllGoodSection({
   onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   propertyBaseHref: string | null;
 }) {
+  const router = useRouter();
+
   if (properties.length === 0) {
     return null;
+  }
+
+  function openProperty(propertyId: string) {
+    if (propertyBaseHref) {
+      router.push(`${propertyBaseHref}/${propertyId}`);
+    }
   }
 
   return (
@@ -243,7 +286,25 @@ function AllGoodSection({
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {properties.map((property) => (
-              <tr className="hover:bg-zinc-50" key={property.id}>
+              <tr
+                className={
+                  propertyBaseHref
+                    ? "cursor-pointer hover:bg-zinc-50"
+                    : "hover:bg-zinc-50"
+                }
+                key={property.id}
+                onClick={() => openProperty(property.id)}
+                onKeyDown={(event) => {
+                  if (
+                    propertyBaseHref &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
+                    event.preventDefault();
+                    openProperty(property.id);
+                  }
+                }}
+                tabIndex={propertyBaseHref ? 0 : undefined}
+              >
                 <td className="w-1/2 px-4 py-4 font-medium text-zinc-950">
                   {propertyName(property, propertyBaseHref)}
                 </td>
@@ -259,8 +320,24 @@ function AllGoodSection({
       <div className="mt-3 space-y-3 md:hidden">
         {properties.map((property) => (
           <div
-            className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+            className={
+              propertyBaseHref
+                ? "cursor-pointer rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+                : "rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+            }
             key={property.id}
+            onClick={() => openProperty(property.id)}
+            onKeyDown={(event) => {
+              if (
+                propertyBaseHref &&
+                (event.key === "Enter" || event.key === " ")
+              ) {
+                event.preventDefault();
+                openProperty(property.id);
+              }
+            }}
+            role={propertyBaseHref ? "link" : undefined}
+            tabIndex={propertyBaseHref ? 0 : undefined}
           >
             <p className="font-medium text-zinc-950">
               {propertyName(property, propertyBaseHref)}
