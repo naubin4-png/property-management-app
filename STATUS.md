@@ -20,7 +20,7 @@ Track task progress here. Update after completing each active task.
 | Task | Status | Notes |
 |------|--------|-------|
 | Phase 2 Task 0: Documentation Reset | Complete | Archived the original Task 0-9 plan byte-for-byte, established the documentation authority/conflict hierarchy, added mobile-first UX principles, created the Phase 2 redesign specification and active task sequence, and verified `pnpm build`. |
-| Phase 2 Task 1: Native App Shell and Navigation | Not started | |
+| Phase 2 Task 1: Native App Shell and Navigation | Complete | Replaced the mobile hamburger with a shared fixed Dashboard/Email/Add/Payment bar, retained the compact desktop top bar and Property Manager brand, added safe-area/content padding and 44px+ controls, and kept demo-only banner/sign-in affordances. Verified both modal actions, desktop/mobile navigation, zero horizontal overflow, no hamburger DOM, no console errors, lint, typecheck, and `pnpm build`. |
 | Phase 2 Task 2: Money Semantics and Dashboard Cards | Not started | |
 | Phase 2 Task 3: Property Slide-Over | Not started | |
 | Phase 2 Task 4: Native Forms and Modal Ergonomics | Not started | |
