@@ -64,6 +64,22 @@ const startingProperties: DashboardProperty[] = [
     creditBalanceCents: 0,
   },
   {
+    id: "lakeview-retail",
+    name: "Lakeview Retail",
+    leaseId: "lakeview-lease",
+    rentCents: 520000,
+    nextDueDate: new Date("2026-06-01T00:00:00.000Z"),
+    status: "LATE",
+    hasActiveLease: true,
+    dashboardNote: "Waiting on the tenant's updated payment date",
+    latestEmail: {
+      label: "Late notice",
+      sentAt: new Date("2026-06-08T00:00:00.000Z"),
+    },
+    amountOwedCents: 520000,
+    creditBalanceCents: 0,
+  },
+  {
     id: "cedar-studio",
     name: "Cedar Street Studio",
     leaseId: "cedar-lease",
@@ -84,7 +100,10 @@ function nextMonth(date: Date, count = 1) {
   return result;
 }
 
-function demoDetails(property: DashboardProperty): PropertyDetailData {
+function demoDetails(
+  property: DashboardProperty,
+  extraPayments: PropertyDetailData["payments"] = [],
+): PropertyDetailData {
   const firstPeriodMonth = new Date("2026-01-01T00:00:00.000Z");
   const nextDueDate =
     property.nextDueDate ?? new Date("2026-07-01T00:00:00.000Z");
@@ -94,6 +113,7 @@ function demoDetails(property: DashboardProperty): PropertyDetailData {
     "harbor-office": ["Maya Chen", "maya@example.com"],
     "riverside-warehouse": ["Noah Williams", "noah@example.com"],
     "market-street": ["Avery Johnson", "avery@example.com"],
+    "lakeview-retail": ["Samira Patel", "samira@example.com"],
     "cedar-studio": ["Jordan Lee", "jordan@example.com"],
   };
   const [tenantName, tenantEmail] = tenantNames[property.id] ?? [
@@ -149,11 +169,15 @@ function demoDetails(property: DashboardProperty): PropertyDetailData {
     payments: [
       {
         id: `${property.id}-payment`,
-        receivedAt: new Date("2026-05-03T00:00:00.000Z"),
+        receivedAt:
+          property.id === "market-street" || property.id === "cedar-studio"
+            ? new Date("2026-06-03T00:00:00.000Z")
+            : new Date("2026-05-03T00:00:00.000Z"),
         amountCents: property.rentCents ?? 0,
         paymentMethod: "ACH",
         paymentReference: null,
       },
+      ...extraPayments,
     ],
   };
 }
@@ -169,6 +193,9 @@ export function DemoExperience() {
     string | undefined
   >();
   const [detailPropertyId, setDetailPropertyId] = useState<string | null>(null);
+  const [extraPayments, setExtraPayments] = useState<
+    Record<string, PropertyDetailData["payments"]>
+  >({});
 
   const needsAttention = properties.filter(
     (property) => property.status === "LATE" || property.status === "DUE",
@@ -235,11 +262,28 @@ export function DemoExperience() {
       }),
     );
     setCollectedThisMonthCents((current) => current + amountCents);
+    setExtraPayments((current) => ({
+      ...current,
+      [propertyId]: [
+        {
+          id: `demo-payment-${Date.now()}`,
+          receivedAt: new Date(
+            `${String(formData.get("receivedAt") ?? "2026-06-11")}T00:00:00.000Z`,
+          ),
+          amountCents,
+          paymentMethod: String(formData.get("paymentMethod") || "") || null,
+          paymentReference: null,
+        },
+        ...(current[propertyId] ?? []),
+      ],
+    }));
     setIsPaymentOpen(false);
   }
 
   function addDemoProperty(input: DemoPropertyInput) {
     const id = `demo-${Date.now()}`;
+    const firstDue = new Date(`${input.firstPeriodMonth}-01T00:00:00.000Z`);
+    const isCurrentlyDue = firstDue <= new Date("2026-06-11T00:00:00.000Z");
     setProperties((current) => [
       ...current,
       {
@@ -247,12 +291,12 @@ export function DemoExperience() {
         name: input.propertyName,
         leaseId: `${id}-lease`,
         rentCents: input.rentCents,
-        nextDueDate: new Date(`${input.firstPeriodMonth}-01T00:00:00.000Z`),
-        status: "DUE",
+        nextDueDate: firstDue,
+        status: isCurrentlyDue ? "DUE" : "PAID",
         hasActiveLease: true,
         dashboardNote: "",
         latestEmail: null,
-        amountOwedCents: input.rentCents,
+        amountOwedCents: isCurrentlyDue ? input.rentCents : 0,
         creditBalanceCents: 0,
       },
     ]);
@@ -295,7 +339,10 @@ export function DemoExperience() {
           title={selectedDetail.name}
         >
           <PropertyDetailContent
-            detail={demoDetails(selectedDetail)}
+            detail={demoDetails(
+              selectedDetail,
+              extraPayments[selectedDetail.id],
+            )}
             onLogPayment={() => openPayment(selectedDetail.id)}
             showInlineEditing={false}
             showPaymentActions={false}
