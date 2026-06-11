@@ -297,6 +297,7 @@ export function DemoExperience() {
           <PropertyDetailContent
             detail={demoDetails(selectedDetail)}
             onLogPayment={() => openPayment(selectedDetail.id)}
+            showInlineEditing={false}
             showPaymentActions={false}
           />
         </PropertyPanel>

@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 
+import {
+  LeaseInlineEditor,
+  TenantInlineEditor,
+} from "@/components/property-inline-editors";
 import { RecentPayments } from "@/components/recent-payments";
 import { formatMoney, formatMonth } from "@/lib/lease-math";
 import type {
@@ -28,11 +32,13 @@ export function PropertyDetailContent({
   logPaymentHref,
   onLogPayment,
   showPaymentActions = true,
+  showInlineEditing = true,
 }: {
   detail: PropertyDetailData;
   logPaymentHref?: string;
   onLogPayment?: () => void;
   showPaymentActions?: boolean;
+  showInlineEditing?: boolean;
 }) {
   const lease = detail.activeLease;
 
@@ -82,6 +88,12 @@ export function PropertyDetailContent({
                 >
                   {lease.tenant.email}
                 </a>
+                {showInlineEditing ? (
+                  <TenantInlineEditor
+                    propertyId={detail.id}
+                    tenant={lease.tenant}
+                  />
+                ) : null}
               </div>
               {lease.creditBalanceCents > 0 ? (
                 <div className="rounded-xl bg-emerald-50 px-3 py-2 text-right">
@@ -131,13 +143,18 @@ export function PropertyDetailContent({
               <h2 className="text-base font-semibold text-zinc-950">
                 Rent periods
               </h2>
-              <Link
-                className="inline-flex min-h-11 items-center text-sm font-medium text-zinc-600 hover:text-zinc-950"
-                href={`/properties/${detail.id}/leases/${lease.id}/edit`}
-              >
-                Edit lease
-              </Link>
+              {!showInlineEditing ? (
+                <Link
+                  className="inline-flex min-h-11 items-center text-sm font-medium text-zinc-600 hover:text-zinc-950"
+                  href={`/properties/${detail.id}/leases/${lease.id}/edit`}
+                >
+                  Edit lease
+                </Link>
+              ) : null}
             </div>
+            {showInlineEditing ? (
+              <LeaseInlineEditor lease={lease} propertyId={detail.id} />
+            ) : null}
             <div className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
               {lease.periods.map((period) => (
                 <div
