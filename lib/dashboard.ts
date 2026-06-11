@@ -5,6 +5,7 @@ import {
   firstDayOfNextMonth,
 } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/settings";
 
 export type DashboardStatus = "PAID" | "DUE" | "LATE" | "NO_LEASE";
 
@@ -65,50 +66,56 @@ export async function getDashboardData() {
 
   const currentMonth = firstDayOfCurrentMonth();
   const nextMonth = firstDayOfNextMonth();
-  const [properties, collectedThisMonth, outstanding] = await Promise.all([
-    prisma.property.findMany({
-      orderBy: { name: "asc" },
-      include: {
-        leases: {
-          where: {
-            firstPeriodMonth: { lte: currentMonth },
-            lastPeriodMonth: { gte: currentMonth },
-          },
-          orderBy: { firstPeriodMonth: "desc" },
-          take: 1,
-          include: {
-            payments: true,
-            paymentPeriods: {
-              orderBy: { periodMonth: "asc" },
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const [properties, collectedThisMonth, outstanding, settings] =
+    await Promise.all([
+      prisma.property.findMany({
+        orderBy: { name: "asc" },
+        include: {
+          leases: {
+            where: {
+              firstPeriodMonth: { lte: currentMonth },
+              lastPeriodMonth: { gte: currentMonth },
+            },
+            orderBy: { firstPeriodMonth: "desc" },
+            take: 1,
+            include: {
+              payments: true,
+              paymentPeriods: {
+                orderBy: { periodMonth: "asc" },
+              },
             },
           },
         },
-      },
-    }),
-    prisma.payment.aggregate({
-      where: {
-        receivedAt: {
-          gte: currentMonth,
-          lt: nextMonth,
+      }),
+      prisma.payment.aggregate({
+        where: {
+          receivedAt: {
+            gte: currentMonth,
+            lt: nextMonth,
+          },
         },
-      },
-      _sum: { amountCents: true },
-    }),
-    prisma.paymentPeriod.aggregate({
-      where: {
-        status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
-        lease: {
-          firstPeriodMonth: { lte: currentMonth },
-          lastPeriodMonth: { gte: currentMonth },
+        _sum: { amountCents: true },
+      }),
+      prisma.paymentPeriod.aggregate({
+        where: {
+          status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
+          periodMonth: { lte: today },
+          lease: {
+            firstPeriodMonth: { lte: currentMonth },
+            lastPeriodMonth: { gte: currentMonth },
+          },
         },
-      },
-      _sum: { amountDueCents: true },
-    }),
-  ]);
+        _sum: { amountDueCents: true },
+      }),
+      getSettings(),
+    ]);
 
   const emailLookupKeys: { leaseId: string; periodMonth: Date }[] = [];
   const emailPeriodByLease = new Map<string, Date>();
-  const today = new Date();
+  const lateCutoff = new Date(today);
+  lateCutoff.setUTCDate(lateCutoff.getUTCDate() - settings.gracePeriodDays);
   const rows: DashboardProperty[] = properties.map((property) => {
     const lease = property.leases[0];
 
@@ -133,6 +140,9 @@ export async function getDashboardData() {
         period.status === PeriodStatus.PENDING ||
         period.status === PeriodStatus.LATE,
     );
+    const duePeriods = unpaidPeriods.filter(
+      (period) => period.periodMonth <= today,
+    );
     const nextDue = unpaidPeriods[0] ?? null;
     if (
       currentMonth >= lease.firstPeriodMonth &&
@@ -144,12 +154,12 @@ export async function getDashboardData() {
       });
       emailPeriodByLease.set(lease.id, currentMonth);
     }
-    const hasLatePeriod = unpaidPeriods.some(
-      (period) => period.status === PeriodStatus.LATE,
+    const hasLatePeriod = duePeriods.some(
+      (period) => period.periodMonth < lateCutoff,
     );
     const status: DashboardStatus = hasLatePeriod
       ? "LATE"
-      : nextDue && nextDue.periodMonth <= today
+      : duePeriods.length > 0
         ? "DUE"
         : "PAID";
 
@@ -171,7 +181,7 @@ export async function getDashboardData() {
       hasActiveLease: true,
       dashboardNote: lease.dashboardNote,
       latestEmail: null,
-      amountOwedCents: unpaidPeriods.reduce(
+      amountOwedCents: duePeriods.reduce(
         (total, period) => total + period.amountDueCents,
         0,
       ),

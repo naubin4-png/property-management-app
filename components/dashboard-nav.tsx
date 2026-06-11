@@ -73,18 +73,18 @@ export function TopBar({
             ))}
             {onAddProperty ? (
               <button
-                className={`${actionClass} ml-2 border border-zinc-300 text-zinc-900 hover:bg-zinc-50`}
-                onClick={onAddProperty}
-                type="button"
-              >
-                + Add Property
+              className={`${actionClass} ml-2 border border-zinc-300 text-zinc-900 hover:bg-zinc-50`}
+              onClick={onAddProperty}
+              type="button"
+            >
+                + Add
               </button>
             ) : (
               <Link
                 className={`${actionClass} ml-2 border border-zinc-300 text-zinc-900 hover:bg-zinc-50`}
                 href="/?addProperty=1"
               >
-                + Add Property
+                + Add
               </Link>
             )}
             {onLogPayment ? (
