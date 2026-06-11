@@ -1,6 +1,6 @@
 # STATUS.md
 
-Track task progress here. Update after completing each task. Never edit TASKS.md.
+Track task progress here. Update after completing each active task.
 
 | Task | Status | Notes |
 |------|--------|-------|
@@ -14,3 +14,17 @@ Track task progress here. Update after completing each task. Never edit TASKS.md
 | Task 7: Email Page + Cron Jobs | Complete | Added `/email` settings with default AppSettings fallback, editable timing/copy, recent EmailLog history, Resend client wrapper, authenticated cron routes, and `vercel.json` schedules. Verified save persistence, unauthorized cron rejection, `flag-late` idempotently flipping overdue rent to LATE, `ensure-periods` creating a missing next-month period with a temporary fixture then no-oping on rerun, and `send-reminders` creating one failed EmailLog then skipping duplicates while RESEND_API_KEY and EMAIL_FROM remain blank as requested. Dashboard LATE status and `pnpm build` verified. |
 | Task 8: Final Verification | Complete | Verified all 23 checklist behaviors using direct database assertions, production server actions, Supabase Auth HTTP requests, and curl against the local app. Confirmed schema/migrations, auth redirects and provider configuration, 30-month lease generation, dashboard grouping/statuses, payment allocation/credit/edit/delete/idempotency, lease extension/rejections, cron authorization/idempotency/toggles/default settings, lazy period creation, and responsive markup. Reminder processing, template substitution, EmailLog creation, and deduplication passed; actual Resend delivery remains intentionally deferred because RESEND_API_KEY and EMAIL_FROM are blank. Final lint, typecheck, and production build passed. |
 | Task 9: Deploy to Vercel | Complete | Connected the private GitHub repo to Vercel project `property-management-app`, configured production and development env vars for Supabase and CRON_SECRET, left RESEND_API_KEY and EMAIL_FROM unset/blank per deferred email setup, added explicit Prisma client generation for Vercel builds, and deployed production at https://property-management-app-virid.vercel.app. Verified live Google OAuth login, property creation, lease creation, payment logging, direct DB allocation state, authorized and unauthorized cron endpoint behavior, and the Vercel Cron Jobs dashboard showing all three schedules. |
+
+## Phase 2 Redesign
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Phase 2 Task 0: Documentation Reset | Complete | Archived the original Task 0-9 plan byte-for-byte, established the documentation authority/conflict hierarchy, added mobile-first UX principles, created the Phase 2 redesign specification and active task sequence, and verified `pnpm build`. |
+| Phase 2 Task 1: Native App Shell and Navigation | Not started | |
+| Phase 2 Task 2: Money Semantics and Dashboard Cards | Not started | |
+| Phase 2 Task 3: Property Slide-Over | Not started | |
+| Phase 2 Task 4: Native Forms and Modal Ergonomics | Not started | |
+| Phase 2 Task 5: Safe Inline Editing | Not started | |
+| Phase 2 Task 6: Email Experience | Not started | |
+| Phase 2 Task 7: Demo Parity and Gestures | Not started | |
+| Phase 2 Task 8: Final Verification and Production Release | Not started | |

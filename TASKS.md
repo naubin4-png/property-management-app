@@ -1,244 +1,183 @@
 # TASKS.md
 
-Complete these tasks in order. Do not skip ahead. After completing each task, verify against the "Done when" checklist before committing. Then move to the next task.
+Active Phase 2 UI/UX redesign sequence. Complete tasks in order. After each
+task, run `pnpm build`, verify the task in the browser, update `STATUS.md`,
+commit, and push to `main`.
 
-Full technical spec is in `docs/spec.md`. Reference it for schema details, allocation rules, cron logic, and UI specifications.
-
----
-
-## Task 0: Environment Setup
-
-Set up all external accounts and credentials needed for the project.
-
-**Do this:**
-- Create a Supabase project (free tier)
-- Enable Google OAuth provider in Supabase (Authentication → Providers → Google)
-- Disable public sign-ups in Supabase (Authentication → Settings)
-- Create the admin user account in Supabase manually
-- Create a Resend account, verify a domain, grab the API key
-- Generate a CRON_SECRET (`openssl rand -hex 32`)
-- Create `.env.local` in the repo root with all env vars listed in docs/spec.md
-
-**Done when:**
-- [ ] `.env.local` exists with all 7 env vars populated
-- [ ] Supabase project is live and accessible
-- [ ] Google OAuth is enabled in Supabase
-- [ ] Sign-ups are disabled in Supabase
-- [ ] Resend domain is verified
+Backend behavior remains governed by `docs/spec.md`. UI behavior is governed by
+`docs/redesign.md`.
 
 ---
 
-## Task 1: Project Scaffold + Prisma Schema
-
-Set up the Next.js project and database schema.
+## Phase 2 Task 0: Documentation Reset
 
 **Do this:**
-- Initialize Next.js 15 with TypeScript strict, pnpm, App Router
-- Install and configure: Prisma, shadcn/ui, Tailwind CSS, @supabase/ssr
-- Create the Prisma schema exactly as defined in docs/spec.md (7 models, 2 enums)
-- Run `npx prisma migrate dev` against the Supabase database
-- Set up the project structure as defined in docs/spec.md
+- Archive the completed original plan in `docs/original-build-tasks.md`
+- Establish the source-of-truth hierarchy in `AGENTS.md`
+- Add the backend authority warning to `docs/spec.md`
+- Create `docs/redesign.md`
+- Replace `TASKS.md` with this active Phase 2 sequence
+- Add Phase 2 status tracking to `STATUS.md`
 
 **Done when:**
-- [ ] `pnpm build` succeeds
-- [ ] `npx prisma validate` passes
-- [ ] `npx prisma studio` shows all 7 models (Property, Tenant, Lease, PaymentPeriod, Payment, EmailLog, AppSettings) and 2 enums (PeriodStatus, TriggerType)
-- [ ] Project structure matches docs/spec.md
-- [ ] Commit pushed to main: `chore: scaffold project and prisma schema`
+- [ ] The original Task 0-9 plan is preserved verbatim in the archive
+- [ ] Documentation conflict rules are explicit
+- [ ] UX principles are explicit
+- [ ] All Phase 2 tasks appear in `STATUS.md` as Not started
+- [ ] `pnpm build` passes
 
 ---
 
-## Task 2: Authentication
-
-Set up Supabase Auth with login page.
+## Phase 2 Task 1: Native App Shell and Navigation
 
 **Do this:**
-- Create `lib/supabase.ts` with server and browser Supabase clients using `@supabase/ssr`
-- Create middleware that protects all `(dashboard)` routes — redirects unauthenticated users to `/login`
-- Build `/login` page with email/password form and Google OAuth button
-- Verify both login methods work in the browser
+- Keep the `Property Manager` brand
+- Replace the mobile hamburger with always-visible, touch-friendly navigation
+- Keep desktop navigation compact and familiar
+- Provide obvious back/close controls on all non-dashboard surfaces
+- Make real and demo shells share components
+- Add safe-area handling and 44px minimum touch targets
 
 **Done when:**
-- [ ] Visiting `/` while logged out redirects to `/login`
-- [ ] Can log in with email/password
-- [ ] Can log in with Google OAuth
-- [ ] After login, redirects to dashboard
-- [ ] `pnpm build` succeeds
-- [ ] Commit pushed to main: `feat: auth setup with supabase`
+- [ ] No hamburger menu exists at any viewport
+- [ ] Dashboard, Email, Add, and Payment actions remain reachable
+- [ ] Navigation works at 375px and desktop widths
+- [ ] Demo adds only its demo banner and Owner sign in affordance
+- [ ] `pnpm build` passes
 
 ---
 
-## Task 3: Dashboard Layout + Home Page
-
-Build the top bar navigation and dashboard home page.
+## Phase 2 Task 2: Money Semantics and Dashboard Cards
 
 **Do this:**
-- Create `(dashboard)/layout.tsx` with top bar: App name | Dashboard | Email | [+ Add Property] | [Log Payment]
-- Build dashboard home page per Section 2 of docs/spec.md:
-  - Summary stat cards (total properties, payments this month, needing attention count)
-  - Property list split into "Needs Attention" and "All Good" sections
-  - Status chips (green Paid, amber Due, red Late, gray No Lease)
-  - Row click navigates to property detail
-- Implement lazy period creation on dashboard load (see docs/spec.md)
-- Handle empty state: "Add Your First Property" CTA when no properties exist
-- Mobile responsive: table → card list under 768px, top bar → hamburger
+- Replace dashboard tables with native-feeling property cards
+- Remove `Property` from user-facing data labels while preserving the brand
+- Compute Outstanding from unpaid rent due today or earlier only
+- Exclude future unpaid periods from Needs Attention
+- Use red beyond grace, amber due/past-due within grace, neutral for future
+- Preserve inline operational notes with validation
+- Keep Collected this month behavior unchanged
 
 **Done when:**
-- [ ] Dashboard loads with empty state message
-- [ ] Top bar shows all 4 items (Dashboard, Email, + Add Property, Log Payment)
-- [ ] Mobile view (375px) renders card list and hamburger menu
-- [ ] `pnpm build` succeeds
-- [ ] Commit pushed to main: `feat: dashboard layout and home page`
+- [ ] Dashboard uses shared responsive cards, not admin tables
+- [ ] Future periods do not inflate Outstanding
+- [ ] Future periods do not create Needs Attention cards
+- [ ] Red/amber/neutral states follow the redesign rules
+- [ ] Card selection works with mouse, keyboard, and touch
+- [ ] `pnpm build` passes
 
 ---
 
-## Task 4: Property Detail + Add Property
-
-Build the property detail page and add property form.
+## Phase 2 Task 3: Property Slide-Over
 
 **Do this:**
-- Build `/properties/new` form: Name field (required), Notes field (optional)
-- After creation, redirect to the new property's detail page
-- Build `/properties/[id]` detail page per Section 3 of docs/spec.md:
-  - Property header (name, notes)
-  - Active lease card (tenant info, rent, dates, next due, credit balance, Log Payment button, Edit Lease button)
-  - Recent payments list (last 5, "View All" expands inline)
-  - "No Active Lease" state with "Add Lease" CTA
-- Wire up the [+ Add Property] button in the top bar to navigate to `/properties/new`
+- Open property details in a shared slide-over from dashboard cards
+- Preserve direct `/properties/[id]` routes and browser history
+- Show tenant, lease, due periods, credit, notes, and payment history compactly
+- Start payment history above the fold where possible
+- Allow internal scrolling on small screens
+- Keep future unpaid periods neutral
+- Add close/back controls and focus management
 
 **Done when:**
-- [ ] Can create a property via the form
-- [ ] After creation, lands on property detail page showing "No Active Lease"
-- [ ] [+ Add Property] button in top bar works
-- [ ] Property appears on dashboard with "No Lease" gray chip
-- [ ] `pnpm build` succeeds
-- [ ] Commit pushed to main: `feat: property detail and add property`
+- [ ] Every dashboard card opens the correct property
+- [ ] Direct property URLs remain usable
+- [ ] Payment history is visible without excessive vertical ceremony
+- [ ] Small screens scroll inside the panel without trapping the page
+- [ ] Demo uses the same panel component
+- [ ] `pnpm build` passes
 
 ---
 
-## Task 5: Lease Management
-
-Build lease creation and editing forms.
+## Phase 2 Task 4: Native Forms and Modal Ergonomics
 
 **Do this:**
-- Build `/properties/[id]/leases/new` per Section 4 of docs/spec.md:
-  - Tenant section: Name, Email (inline)
-  - Lease section: First Rent Due (month/year picker), Lease Ends (month/year picker), Monthly Rent (dollar input), Notes
-  - Tenant deduplication: if email matches existing tenant, prompt to reuse
-  - On create: validate no active lease exists, create Lease + all PaymentPeriods
-- Build `/properties/[id]/leases/[leaseId]/edit` per docs/spec.md:
-  - Extend-only: reject if new lastPeriodMonth <= existing
-  - On extend: create new PaymentPeriods for added months
-  - On rent change: only update future periods
-- Tenant info editable inline on property detail page
+- Apply numeric/decimal input modes
+- Use native date/month pickers
+- Auto-focus first fields
+- Make Enter/next progression natural
+- Keep active inputs visible above the mobile keyboard
+- Ensure modal actions and close controls are at least 44px
+- Preserve transactional add-property and payment behavior
 
 **Done when:**
-- [ ] Can create a lease with a new tenant (month/year pickers work)
-- [ ] PaymentPeriod rows created for every month of the lease term (verify in Prisma Studio)
-- [ ] Property detail shows lease info, tenant info, next due date
-- [ ] Dashboard status chip updates to reflect the lease
-- [ ] Can extend a lease — new periods created
-- [ ] Cannot shorten a lease — error message shown
-- [ ] `pnpm build` succeeds
-- [ ] Commit pushed to main: `feat: lease management`
+- [ ] Add and payment flows work at desktop and 375px
+- [ ] Appropriate mobile keyboards are requested
+- [ ] Focus and submit progression are predictable
+- [ ] No modal lacks an obvious close action
+- [ ] `pnpm build` passes
 
 ---
 
-## Task 6: Payment Tracking
-
-Build the Log Payment modal and allocation logic. This is the most critical task — read Section 5 of docs/spec.md carefully.
+## Phase 2 Task 5: Safe Inline Editing
 
 **Do this:**
-- Build the Log Payment modal:
-  - Property dropdown (pre-selected when opened from a specific property)
-  - Amount, Date Received, Payment Method (dropdown), Reference #, Notes
-  - Wire up: dashboard row action, property detail button, top bar [Log Payment] button
-- Implement allocation logic (server-side, inside a Prisma $transaction):
-  - All 8 steps from docs/spec.md Section 5
-  - Set paymentId on each RECEIVED period
-  - Idempotency via clientRequestId
-- Build Edit Payment (reverse allocation via paymentId, re-run with new amount)
-- Build Delete Payment (reverse allocation, hard-delete payment)
+- Add compact inline editing for tenant and lease details in the slide-over
+- Validate all edits before saving
+- Make lease end and rent changes transactional
+- Preserve extend-only lease rules and future-period rent behavior
+- Surface actionable validation errors without leaving the panel
 
 **Done when:**
-- [ ] Can log a payment from dashboard row action, property detail, and top bar button
-- [ ] Payment of exactly 1 month's rent → 1 period flips to RECEIVED with paymentId set
-- [ ] Payment of 3x rent → 3 periods flip to RECEIVED
-- [ ] Non-multiple payment (e.g. $10,500 on $4,000 rent) → 2 months covered, $2,500 credit
-- [ ] Credit balance shows on property detail when > 0
-- [ ] Edit payment → old periods revert to PENDING, new allocation applied
-- [ ] Delete payment → periods revert to PENDING, payment row deleted
-- [ ] Double-submit (same clientRequestId) → no duplicate payment
-- [ ] Dashboard status chips update correctly after payment
-- [ ] `pnpm build` succeeds
-- [ ] Commit pushed to main: `feat: payment tracking and allocation`
+- [ ] Invalid tenant, rent, or month values are rejected visibly
+- [ ] Lease shortening remains impossible
+- [ ] Rent edits update only allowed periods
+- [ ] Failed edits leave database state unchanged
+- [ ] Successful edits refresh dashboard and panel data
+- [ ] `pnpm build` passes
 
 ---
 
-## Task 7: Email Page + Cron Jobs
-
-Build the email configuration page and all three cron jobs.
+## Phase 2 Task 6: Email Experience
 
 **Do this:**
-- Build `/email` page per Section 6 of docs/spec.md:
-  - Email timing section (toggles + number inputs)
-  - Email copy section (subject + body text areas with placeholder docs)
-  - Recent emails section (last 20 EmailLog entries)
-- Implement AppSettings singleton pattern with `getSettings()` fallback defaults
-- Build all 3 cron routes per docs/spec.md:
-  - `/api/cron/send-reminders` — daily email processor
-  - `/api/cron/ensure-periods` — monthly period creation
-  - `/api/cron/flag-late` — daily late payment flag
-- All crons: validate CRON_SECRET + x-vercel-cron header, idempotent
-- Create `vercel.json` with cron schedules
-- Set up Resend client in `lib/resend.ts`, use EMAIL_FROM env var
+- Redesign Email as a mobile-first settings surface
+- Keep timing, copy, recent logs, and backend settings unchanged
+- Remove admin-table styling
+- Add obvious dashboard/back navigation
+- Use numeric input modes and 44px controls
 
 **Done when:**
-- [ ] Email page loads with default settings (even with no AppSettings row in DB)
-- [ ] Can edit email timing and copy, save persists
-- [ ] Manually hitting `/api/cron/flag-late` flips overdue PENDING periods to LATE
-- [ ] Manually hitting `/api/cron/ensure-periods` creates next month's periods (idempotent)
-- [ ] Manually hitting `/api/cron/send-reminders` sends emails on correct trigger dates (verify in EmailLog)
-- [ ] Re-running any cron produces no duplicates
-- [ ] Dashboard status chips reflect LATE status after flag-late runs
-- [ ] `pnpm build` succeeds
-- [ ] Commit pushed to main: `feat: email settings and cron jobs`
+- [ ] Existing settings persist unchanged
+- [ ] Both reminder toggles and timing fields remain functional
+- [ ] Recent email history is readable on mobile
+- [ ] Cron and email backend behavior is untouched
+- [ ] `pnpm build` passes
 
 ---
 
-## Task 8: Final Verification
-
-Run through the full verification checklist in docs/spec.md (Section: Verification Checklist, items 1–23).
+## Phase 2 Task 7: Demo Parity and Gestures
 
 **Do this:**
-- Start the dev server
-- Test every item on the checklist in the browser
-- Fix any failures
-- Run `pnpm build` one final time
+- Use the same shell, cards, panel, and forms as the real app
+- Include three Needs Attention amounts: $4,000, $13,600, and $5,200
+- Set demo Outstanding to exactly $22,800
+- Keep sample collected data internally consistent
+- Implement slide-over swipe-to-close with pointer/touch events
+- Keep demo mutations local and clearly non-persistent
 
 **Done when:**
-- [ ] All 23 verification checklist items pass
-- [ ] `pnpm build` succeeds
-- [ ] All fixes committed and pushed to main: `fix: verification checklist fixes`
+- [ ] Demo money bar equals its card data
+- [ ] Demo and real UI share the same components
+- [ ] Swipe-to-close works on touch/pointer input
+- [ ] Mouse/keyboard close behavior still works
+- [ ] `pnpm build` passes
 
 ---
 
-## Task 9: Deploy to Vercel
-
-Connect the repo to Vercel and deploy.
+## Phase 2 Task 8: Final Verification and Production Release
 
 **Do this:**
-- Connect the GitHub repo to Vercel (via browser)
-- Set all environment variables in Vercel dashboard:
-  - DATABASE_URL, DIRECT_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
-  - RESEND_API_KEY, EMAIL_FROM, CRON_SECRET
-- Deploy to production
-- Verify the live URL works: login, create property, log payment
-- Verify cron jobs are registered in Vercel dashboard
+- Verify all Phase 2 requirements in the browser
+- Verify backend payment, credit, edit/delete reversal, auth, email, and cron
+  contracts remain intact
+- Check desktop and 375px mobile behavior
+- Check direct routes, back/forward history, focus, touch targets, and console
+- Confirm production deployment after the final push
 
 **Done when:**
-- [ ] App is live on a Vercel URL
-- [ ] Can log in on the live URL
-- [ ] Can create a property, add a lease, log a payment on the live URL
-- [ ] Cron jobs visible in Vercel dashboard
-- [ ] Commit pushed to main: `chore: vercel deployment config`
+- [ ] All Phase 2 task checklists pass
+- [ ] Backend regression checks pass
+- [ ] No console errors, TODOs, debug artifacts, or dead code remain
+- [ ] `pnpm build` passes
+- [ ] Production demo and authenticated app load successfully

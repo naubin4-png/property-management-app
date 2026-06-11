@@ -2,11 +2,35 @@
 
 ## Project
 
-Property management rent tracker for a single owner with ~40–60 commercial leases. Full technical spec in `docs/spec.md`. Read it before starting any task.
+Property Manager is a rent tracker for a single owner with roughly 40-60
+commercial leases. The original build is complete, deployed, and archived in
+`docs/original-build-tasks.md`.
 
-Task list with completion checklists in `TASKS.md`. The plan is immutable — never edit TASKS.md. Track progress in `STATUS.md` only.
+Phase 2 is a UI/UX redesign of the working application, not a rebuild. Preserve
+authentication, the Prisma schema, payment allocation, credit handling, payment
+edit/delete reversal, email settings, cron jobs, Supabase/Vercel configuration,
+and deployment assumptions unless the authoritative backend spec explicitly
+changes them.
 
-Complete tasks sequentially. Do not skip ahead.
+Complete the active tasks in `TASKS.md` sequentially. Do not skip ahead. Update
+`STATUS.md`, run all required verification, commit, and push after each task.
+
+## Source of Truth
+
+1. `AGENTS.md` - global coding rules, source-of-truth hierarchy, UX principles
+2. `docs/spec.md` - backend schema, auth, payment allocation, credit handling,
+   email, cron, deployment
+3. `docs/redesign.md` - UI, routes, navigation, naming, mobile behavior, demo
+   behavior
+4. `TASKS.md` - active Phase 2 implementation sequence
+
+Conflict rules:
+
+- `docs/redesign.md` wins for UI, navigation, routes, naming, mobile behavior,
+  and demo behavior.
+- `docs/spec.md` wins for schema, auth, payment allocation, email, cron, and
+  deployment.
+- `TASKS.md` wins only for implementation order.
 
 ## Stack
 
@@ -21,67 +45,68 @@ Complete tasks sequentially. Do not skip ahead.
 
 ## Conventions
 
-- Money is always stored as integer cents. Display: `(cents / 100).toFixed(2)`. Never use FLOAT.
-- All date fields use Prisma `@db.Date` (no time component).
-- All month fields (firstPeriodMonth, lastPeriodMonth, periodMonth) are always the 1st of the month.
-- Use Prisma enums for status fields (`PeriodStatus`, `TriggerType`), not string literals.
-- Server Actions for mutations. No API routes except cron jobs.
+- Money is always stored as integer cents. Never use FLOAT.
+- All date fields use Prisma `@db.Date` with no time component.
+- Month fields are always the first day of the month.
+- Use Prisma enums for status fields, not duplicated string literals.
+- Use Server Actions for mutations. API routes are reserved for cron jobs.
+- Prefer existing components and backend helpers over parallel implementations.
 - Commit messages use conventional commits: `feat:`, `fix:`, `chore:`.
+
+## UX Principles
+
+- The app should feel native and mobile-first, not like a web admin table.
+- Number fields use `inputmode="numeric"`.
+- Dollar fields use `inputmode="decimal"`.
+- Date and month inputs use native pickers where possible.
+- Auto-focus the first field when a modal or form opens.
+- Enter and next advance naturally through fields.
+- The keyboard must not cover the active input.
+- Tappable elements must be at least 44x44px.
+- Every non-dashboard page, modal, or panel has an obvious back or close control.
+- No hamburger menu anywhere.
+- Demo and real app must share components.
+- Prefer clear cards, sheets, and progressive disclosure over dense desktop
+  tables on small screens.
+- Preserve accessible labels, keyboard navigation, visible focus states, and
+  reduced-motion behavior.
 
 ## Tools and Access
 
-- Prefer CLI (pnpm, git, npx, curl) when possible — faster and more reliable.
-- Use browser only when CLI access isn't available.
-- If you need credentials or access you don't have (API keys, account setup, domain verification), use the browser to get them, then return to CLI with those credentials.
-- Never ask the user to do something you can do yourself through CLI or browser.
-
-## Environment Setup
-
-Before starting Task 1, use the browser to:
-
-1. Create a Supabase project (free tier). Note:
-   - `DATABASE_URL` (pooled connection, port 6543, append `?pgbouncer=true&connection_limit=1`)
-   - `DIRECT_URL` (direct connection, port 5432)
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-2. In Supabase: Authentication → Providers → enable Google OAuth.
-3. In Supabase: Authentication → Settings → disable "Allow new users to sign up."
-4. Create a Resend account. Verify the domain. Note `RESEND_API_KEY`.
-5. Set `EMAIL_FROM` to match the verified Resend domain (e.g. `reminders@yourdomain.com`).
-6. Generate `CRON_SECRET` with `openssl rand -hex 32`.
-7. Create `.env.local` in the repo root with all values.
+- Prefer CLI tools for code, database checks, builds, and deployment inspection.
+- Use the browser for real user-flow and responsive verification.
+- Never ask the user to perform an action available through the CLI or browser.
+- Do not expose credentials in commits, logs, screenshots, or documentation.
 
 ## Testing Before Each Commit
 
-- Run `pnpm build` — must compile without errors.
-- Start dev server (`pnpm dev`).
-- Test the feature in the browser — go through the actual user flows that the task built.
-- Verify the database has the right data via `npx prisma studio` or direct query.
-- If it works → commit and push. If it fails → fix and retry.
-- Never commit code that doesn't compile or that you haven't tested.
+- Run `pnpm build`; it must pass.
+- Run focused lint/type checks when useful before the full build.
+- Start the app and test the task's real user flows in the browser.
+- Test at desktop and 375px mobile widths for user-facing changes.
+- Verify relevant database state with direct Prisma queries.
+- Verify demo parity whenever shared UI changes.
+- Check for browser console errors.
 
 ## Definition of Done for Each Task
 
-- Code compiles (`pnpm build` passes).
-- Feature works in the browser (tested by clicking through it).
-- Database state is correct (verified via Prisma Studio or direct query).
-- No debug code, console.logs, TODOs, or dead code left behind.
-- Commit message is clear and descriptive (conventional commit format).
-- Changes are pushed to main.
-- STATUS.md updated with task completion and any notes.
+- The task checklist in `TASKS.md` is satisfied.
+- `pnpm build` passes.
+- Browser behavior is verified through actual interactions.
+- Relevant database state is correct.
+- No debug code, `console.log`, TODO comments, or dead code remains.
+- `STATUS.md` records the completed task and verification.
+- A focused conventional commit is pushed to `main`.
 
-## Anti-Patterns — Never Do These
+## Anti-Patterns
 
-- Never edit TASKS.md. The plan is immutable. Track progress in STATUS.md only.
-- Never mock the database. Test against real Supabase.
-- Never build a fake test harness or stub services. Test through the actual app UI.
-- Never mark a task done without testing the feature in the browser.
-- Never add feature flags, fallback handlers, or "legacy" code paths. Build it right once.
-- Never leave debug logging, console.logs, or TODO comments in committed code.
-- Never skip `pnpm build` before committing.
-
-- Read the error message carefully.
-- Fix the code or configuration.
-- Retry the operation.
-- If stuck after 2 retries, stop and explain the issue. Do not keep looping.
-- Never commit broken code.
+- Never rewrite working backend behavior to make a UI task easier.
+- Never mock Supabase for acceptance testing.
+- Never mark a task complete without browser verification.
+- Never leave duplicate desktop/mobile implementations when a shared component
+  can express both.
+- Never use CSS alone to claim swipe support; implement pointer/touch behavior.
+- Never save invalid inline edits.
+- Never make lease end or rent changes outside a safe transaction.
+- Never skip `pnpm build` before a commit.
+- If the same blocker persists after two retries, stop and explain it.

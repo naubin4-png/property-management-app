@@ -1,5 +1,9 @@
 # Property Management Platform — Engineering Spec (V2)
 
+> This file remains authoritative for backend behavior: schema, auth, payment
+> allocation, credit handling, email, cron, and deployment.
+> UI/navigation/route behavior has been superseded by `docs/redesign.md`.
+
 ## Overview
 
 A simple web app for one owner to track rent across a portfolio of ~40–60 commercial leases. The owner cares about three things:
