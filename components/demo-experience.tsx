@@ -12,7 +12,10 @@ import {
   LogPaymentModal,
   type PaymentPropertyOption,
 } from "@/components/payment-modal";
+import { PropertyDetailContent } from "@/components/property-detail-content";
+import { PropertyPanel } from "@/components/property-panel";
 import type { DashboardProperty } from "@/lib/dashboard";
+import type { PropertyDetailData } from "@/lib/property-details";
 
 const startingProperties: DashboardProperty[] = [
   {
@@ -81,6 +84,80 @@ function nextMonth(date: Date, count = 1) {
   return result;
 }
 
+function demoDetails(property: DashboardProperty): PropertyDetailData {
+  const firstPeriodMonth = new Date("2026-01-01T00:00:00.000Z");
+  const nextDueDate =
+    property.nextDueDate ?? new Date("2026-07-01T00:00:00.000Z");
+  const upcomingDate =
+    property.amountOwedCents > 0 ? nextMonth(nextDueDate) : nextDueDate;
+  const tenantNames: Record<string, [string, string]> = {
+    "harbor-office": ["Maya Chen", "maya@example.com"],
+    "riverside-warehouse": ["Noah Williams", "noah@example.com"],
+    "market-street": ["Avery Johnson", "avery@example.com"],
+    "cedar-studio": ["Jordan Lee", "jordan@example.com"],
+  };
+  const [tenantName, tenantEmail] = tenantNames[property.id] ?? [
+    "Sample Tenant",
+    "tenant@example.com",
+  ];
+  const periods = [
+    {
+      id: `${property.id}-paid`,
+      periodMonth: new Date("2026-05-01T00:00:00.000Z"),
+      amountDueCents: property.rentCents ?? 0,
+      status: "RECEIVED" as const,
+    },
+    ...(property.amountOwedCents > 0
+      ? [
+          {
+            id: `${property.id}-due`,
+            periodMonth: new Date("2026-06-01T00:00:00.000Z"),
+            amountDueCents: property.amountOwedCents,
+            status: property.status === "LATE" ? ("LATE" as const) : ("DUE" as const),
+          },
+        ]
+      : []),
+    {
+      id: `${property.id}-upcoming`,
+      periodMonth: upcomingDate,
+      amountDueCents: property.rentCents ?? 0,
+      status: "UPCOMING" as const,
+    },
+  ];
+
+  return {
+    id: property.id,
+    name: property.name,
+    notes: property.dashboardNote,
+    activeLease: property.leaseId
+      ? {
+          id: property.leaseId,
+          tenant: {
+            id: `${property.id}-tenant`,
+            name: tenantName,
+            email: tenantEmail,
+          },
+          rentCents: property.rentCents ?? 0,
+          firstPeriodMonth,
+          lastPeriodMonth: new Date("2027-12-01T00:00:00.000Z"),
+          notes: null,
+          dashboardNote: property.dashboardNote,
+          creditBalanceCents: property.creditBalanceCents,
+          periods,
+        }
+      : null,
+    payments: [
+      {
+        id: `${property.id}-payment`,
+        receivedAt: new Date("2026-05-03T00:00:00.000Z"),
+        amountCents: property.rentCents ?? 0,
+        paymentMethod: "ACH",
+        paymentReference: null,
+      },
+    ],
+  };
+}
+
 export function DemoExperience() {
   const [properties, setProperties] =
     useState<DashboardProperty[]>(startingProperties);
@@ -91,6 +168,7 @@ export function DemoExperience() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<
     string | undefined
   >();
+  const [detailPropertyId, setDetailPropertyId] = useState<string | null>(null);
 
   const needsAttention = properties.filter(
     (property) => property.status === "LATE" || property.status === "DUE",
@@ -117,6 +195,9 @@ export function DemoExperience() {
     }),
     [collectedThisMonthCents, properties],
   );
+  const selectedDetail = detailPropertyId
+    ? properties.find((property) => property.id === detailPropertyId)
+    : null;
 
   function openPayment(propertyId?: string) {
     setSelectedPropertyId(propertyId);
@@ -194,6 +275,7 @@ export function DemoExperience() {
         allGood={allGood}
         needsAttention={needsAttention}
         onAddProperty={() => setIsAddPropertyOpen(true)}
+        onOpenProperty={setDetailPropertyId}
         onSaveNote={(leaseId, note) => {
           setProperties((current) =>
             current.map((property) =>
@@ -206,6 +288,19 @@ export function DemoExperience() {
         propertyBaseHref={null}
         summary={summary}
       />
+      {selectedDetail ? (
+        <PropertyPanel
+          closeHref="/demo"
+          onClose={() => setDetailPropertyId(null)}
+          title={selectedDetail.name}
+        >
+          <PropertyDetailContent
+            detail={demoDetails(selectedDetail)}
+            onLogPayment={() => openPayment(selectedDetail.id)}
+            showPaymentActions={false}
+          />
+        </PropertyPanel>
+      ) : null}
       {isPaymentOpen ? (
         <LogPaymentModal
           clientRequestId={`demo-${Date.now()}`}

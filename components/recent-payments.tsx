@@ -15,19 +15,27 @@ export type PropertyPayment = {
 };
 
 export function RecentPayments({
+  compact = false,
   payments,
   propertyId,
+  showActions = true,
 }: {
+  compact?: boolean;
   payments: PropertyPayment[];
   propertyId: string;
+  showActions?: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
   const visiblePayments = showAll ? payments : payments.slice(0, 5);
 
   return (
-    <section className="mt-8">
+    <section className={compact ? "mt-6" : "mt-8"}>
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
+        <h2
+          className={`font-semibold tracking-tight text-zinc-950 ${
+            compact ? "text-base" : "text-lg"
+          }`}
+        >
           Recent Payments
         </h2>
         {payments.length > 5 ? (
@@ -46,18 +54,24 @@ export function RecentPayments({
           No payments recorded yet.
         </div>
       ) : (
-        <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-          <div className="hidden grid-cols-5 gap-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500 sm:grid">
+        <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <div
+            className={`hidden gap-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-medium uppercase tracking-wide text-zinc-500 sm:grid ${
+              showActions ? "grid-cols-5" : "grid-cols-4"
+            }`}
+          >
             <span>Date</span>
             <span>Amount</span>
             <span>Method</span>
             <span>Reference</span>
-            <span>Actions</span>
+            {showActions ? <span>Actions</span> : null}
           </div>
           <div className="divide-y divide-zinc-100">
             {visiblePayments.map((payment) => (
               <div
-                className="grid gap-3 px-5 py-4 text-sm sm:grid-cols-5 sm:gap-4"
+                className={`grid gap-3 text-sm sm:gap-4 ${
+                  showActions ? "sm:grid-cols-5" : "sm:grid-cols-4"
+                } ${compact ? "px-4 py-3" : "px-5 py-4"}`}
                 key={payment.id}
               >
                 <div>
@@ -80,22 +94,24 @@ export function RecentPayments({
                     {payment.paymentReference ?? "-"}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Link
-                    className="font-medium text-zinc-700 hover:text-zinc-950"
-                    href={`/properties/${propertyId}?editPayment=${payment.id}`}
-                  >
-                    Edit
-                  </Link>
-                  <form action={deletePayment.bind(null, payment.id, propertyId)}>
-                    <button
-                      className="font-medium text-red-700 hover:text-red-900"
-                      type="submit"
+                {showActions ? (
+                  <div className="flex items-center gap-3">
+                    <Link
+                      className="font-medium text-zinc-700 hover:text-zinc-950"
+                      href={`/properties/${propertyId}?editPayment=${payment.id}`}
                     >
-                      Delete
-                    </button>
-                  </form>
-                </div>
+                      Edit
+                    </Link>
+                    <form action={deletePayment.bind(null, payment.id, propertyId)}>
+                      <button
+                        className="font-medium text-red-700 hover:text-red-900"
+                        type="submit"
+                      >
+                        Delete
+                      </button>
+                    </form>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

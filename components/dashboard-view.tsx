@@ -253,12 +253,14 @@ function PropertyCard({
 
 function PropertySection({
   attention,
+  onOpenProperty,
   onSaveNote,
   properties,
   propertyBaseHref,
   title,
 }: {
   attention: boolean;
+  onOpenProperty?: (propertyId: string) => void;
   onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   properties: DashboardViewProperty[];
   propertyBaseHref: string | null;
@@ -284,9 +286,16 @@ function PropertySection({
             attention={attention}
             key={property.id}
             onOpen={
-              propertyBaseHref
-                ? () => router.push(`${propertyBaseHref}/${property.id}`)
-                : undefined
+              onOpenProperty
+                ? () => onOpenProperty(property.id)
+                : propertyBaseHref
+                  ? () =>
+                      router.push(
+                        propertyBaseHref.includes("?")
+                          ? `${propertyBaseHref}${property.id}`
+                          : `${propertyBaseHref}/${property.id}`,
+                      )
+                  : undefined
             }
             onSaveNote={onSaveNote}
             property={property}
@@ -301,11 +310,13 @@ export function PropertyTable({
   needsAttention,
   allGood,
   onSaveNote,
+  onOpenProperty,
   propertyBaseHref = "/properties",
 }: {
   needsAttention: DashboardViewProperty[];
   allGood: DashboardViewProperty[];
   onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
+  onOpenProperty?: (propertyId: string) => void;
   propertyBaseHref?: string | null;
 }) {
   return (
@@ -313,6 +324,7 @@ export function PropertyTable({
       <PropertySection
         attention
         onSaveNote={onSaveNote}
+        onOpenProperty={onOpenProperty}
         properties={needsAttention}
         propertyBaseHref={propertyBaseHref}
         title="Needs Attention"
@@ -320,6 +332,7 @@ export function PropertyTable({
       <PropertySection
         attention={false}
         onSaveNote={onSaveNote}
+        onOpenProperty={onOpenProperty}
         properties={allGood}
         propertyBaseHref={propertyBaseHref}
         title="All Good"
@@ -334,6 +347,7 @@ export function DashboardView({
   needsAttention,
   onAddProperty,
   onSaveNote,
+  onOpenProperty,
   propertyBaseHref = "/properties",
   summary,
 }: {
@@ -342,6 +356,7 @@ export function DashboardView({
   needsAttention: DashboardViewProperty[];
   onAddProperty?: () => void;
   onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
+  onOpenProperty?: (propertyId: string) => void;
   propertyBaseHref?: string | null;
   summary: DashboardSummary;
 }) {
@@ -382,6 +397,7 @@ export function DashboardView({
             allGood={allGood}
             needsAttention={needsAttention}
             onSaveNote={onSaveNote}
+            onOpenProperty={onOpenProperty}
             propertyBaseHref={propertyBaseHref}
           />
         </div>
