@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+} from "react";
 
 type AddPropertyActionState = { error: string | null };
 type AddPropertyAction = (
@@ -31,6 +37,7 @@ export function AddPropertyModal({
 }) {
   const [step, setStep] = useState(1);
   const formRef = useRef<HTMLFormElement>(null);
+  const tenantNameRef = useRef<HTMLInputElement>(null);
   const [state, formAction, isPending] = useActionState(
     action ?? demoAction,
     initialState,
@@ -44,6 +51,35 @@ export function AddPropertyModal({
     window.location.href = closeHref ?? "/";
   }
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (onClose) {
+        onClose();
+      } else {
+        window.location.href = closeHref ?? "/";
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeHref, onClose]);
+
+  useEffect(() => {
+    if (step === 2) {
+      tenantNameRef.current?.focus();
+    }
+  }, [step]);
+
+  function keepFieldVisible(event: FocusEvent<HTMLFormElement>) {
+    window.setTimeout(() => {
+      event.target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 150);
+  }
+
   return (
     <div
       aria-labelledby="add-property-modal-title"
@@ -51,14 +87,14 @@ export function AddPropertyModal({
       className="fixed inset-0 z-50 flex bg-black/40 sm:items-center sm:justify-center sm:p-4"
       role="dialog"
     >
-      <div className="flex min-h-full w-full flex-col bg-white p-5 sm:min-h-0 sm:max-w-xl sm:rounded-xl sm:p-6 sm:shadow-xl">
+      <div className="flex h-[100dvh] w-full flex-col overflow-y-auto bg-white p-5 scroll-pb-32 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-xl sm:rounded-xl sm:p-6 sm:shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2
               className="text-xl font-semibold tracking-tight text-zinc-950"
               id="add-property-modal-title"
             >
-              Add Property
+              Add Space
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
               Step {step} of 2
@@ -66,7 +102,7 @@ export function AddPropertyModal({
           </div>
           <button
             aria-label="Close property form"
-            className="rounded-md px-2 py-1 text-xl text-zinc-500 hover:bg-zinc-100"
+            className="inline-flex size-11 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
             onClick={close}
             type="button"
           >
@@ -77,6 +113,7 @@ export function AddPropertyModal({
         <form
           action={onDemoCreate ? undefined : formAction}
           className="mt-6 grid flex-1 content-start gap-4"
+          onFocusCapture={keepFieldVisible}
           ref={formRef}
           onSubmit={
             onDemoCreate
@@ -100,13 +137,23 @@ export function AddPropertyModal({
         >
           <div className={step === 1 ? "grid gap-4" : "hidden"}>
             <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-              Property name
+              Name
               <input
                 autoFocus
                 className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
+                enterKeyHint="next"
                 name="propertyName"
                 placeholder="e.g. 123 Main Street"
                 required
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") {
+                    return;
+                  }
+                  event.preventDefault();
+                  if (event.currentTarget.reportValidity()) {
+                    setStep(2);
+                  }
+                }}
               />
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
@@ -124,7 +171,9 @@ export function AddPropertyModal({
                 Tenant name
                 <input
                   className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
+                  enterKeyHint="next"
                   name="tenantName"
+                  ref={tenantNameRef}
                   required
                 />
               </label>
@@ -132,6 +181,7 @@ export function AddPropertyModal({
                 Tenant email
                 <input
                   className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
+                  enterKeyHint="next"
                   name="tenantEmail"
                   required
                   type="email"
@@ -162,6 +212,8 @@ export function AddPropertyModal({
               Monthly rent
               <input
                 className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
+                enterKeyHint="done"
+                inputMode="decimal"
                 min="0.01"
                 name="rent"
                 placeholder="0.00"
@@ -228,7 +280,7 @@ export function AddPropertyModal({
                   disabled={isPending}
                   type="submit"
                 >
-                  {isPending ? "Creating..." : "Create Property"}
+                  {isPending ? "Creating..." : "Create"}
                 </button>
               </>
             )}

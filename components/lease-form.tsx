@@ -50,7 +50,9 @@ export function LeaseForm({
           <label className="text-sm font-medium text-zinc-800">
             Tenant Name
             <input
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+              autoFocus
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+              enterKeyHint="next"
               name="tenantName"
               required
             />
@@ -58,7 +60,8 @@ export function LeaseForm({
           <label className="text-sm font-medium text-zinc-800">
             Email
             <input
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+              enterKeyHint="next"
               name="tenantEmail"
               onBlur={(event) => void checkTenant(event.currentTarget.value)}
               required
@@ -77,7 +80,7 @@ export function LeaseForm({
           <label className="text-sm font-medium text-zinc-800">
             First Rent Due
             <input
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
               name="firstPeriodMonth"
               required
               type="month"
@@ -86,7 +89,7 @@ export function LeaseForm({
           <label className="text-sm font-medium text-zinc-800">
             Lease Ends
             <input
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
               name="lastPeriodMonth"
               required
               type="month"
@@ -95,7 +98,8 @@ export function LeaseForm({
           <label className="text-sm font-medium text-zinc-800 sm:col-span-2">
             Monthly Rent
             <input
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+              enterKeyHint="done"
               inputMode="decimal"
               min="0.01"
               name="rent"
@@ -117,7 +121,7 @@ export function LeaseForm({
 
       <div className="flex justify-end">
         <button
-          className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
+          className="h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
           type="submit"
         >
           Create Lease

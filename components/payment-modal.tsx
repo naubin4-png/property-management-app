@@ -3,9 +3,12 @@
 import Link from "next/link";
 import {
   useActionState,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
+  type FocusEvent,
 } from "react";
 
 export type PaymentPropertyOption = {
@@ -65,6 +68,8 @@ export function PaymentModal({
   const [amount, setAmount] = useState(
     payment ? (payment.amountCents / 100).toFixed(2) : "",
   );
+  const propertyRef = useRef<HTMLSelectElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
   const selectedProperty = properties.find(
     (property) => property.id === propertyId,
   );
@@ -115,10 +120,35 @@ export function PaymentModal({
     onDemoSubmit(new FormData(event.currentTarget));
   }
 
+  useEffect(() => {
+    (payment || selectedPropertyId ? amountRef.current : propertyRef.current)?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (onClose) {
+        onClose();
+      } else {
+        window.location.href = closeHref;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeHref, onClose, payment, selectedPropertyId]);
+
+  function keepFieldVisible(event: FocusEvent<HTMLFormElement>) {
+    window.setTimeout(() => {
+      event.target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 150);
+  }
+
   const closeControl = onClose ? (
     <button
       aria-label="Close payment form"
-      className="rounded-md px-2 py-1 text-xl text-zinc-500 hover:bg-zinc-100"
+      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
       onClick={onClose}
       type="button"
     >
@@ -127,7 +157,7 @@ export function PaymentModal({
   ) : (
     <Link
       aria-label="Close payment form"
-      className="rounded-md px-2 py-1 text-xl text-zinc-500 hover:bg-zinc-100"
+      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
       href={closeHref}
     >
       ×
@@ -141,7 +171,7 @@ export function PaymentModal({
       className="fixed inset-0 z-50 flex bg-black/40 sm:items-center sm:justify-center sm:p-4"
       role="dialog"
     >
-      <div className="flex min-h-full w-full flex-col bg-white p-5 sm:min-h-0 sm:max-w-lg sm:rounded-xl sm:p-6 sm:shadow-xl">
+      <div className="flex h-[100dvh] w-full flex-col overflow-y-auto bg-white p-5 scroll-pb-32 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-lg sm:rounded-xl sm:p-6 sm:shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2
@@ -160,6 +190,7 @@ export function PaymentModal({
         <form
           action={formAction}
           className="mt-6 grid flex-1 content-start gap-4"
+          onFocusCapture={keepFieldVisible}
           onSubmit={handleDemoSubmit}
         >
           <input
@@ -169,13 +200,14 @@ export function PaymentModal({
           />
 
           <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-            Property
+            Space
             <select
               className="h-11 rounded-md border border-zinc-300 bg-white px-3 font-normal"
               defaultValue={selectedPropertyId ?? ""}
               disabled={Boolean(payment)}
               name={payment ? undefined : "propertyId"}
               onChange={(event) => setPropertyId(event.target.value)}
+              ref={propertyRef}
               required
             >
               <option disabled value="">
@@ -200,11 +232,14 @@ export function PaymentModal({
                 defaultValue={
                   payment ? (payment.amountCents / 100).toFixed(2) : ""
                 }
+                enterKeyHint="next"
+                inputMode="decimal"
                 min="0.01"
                 name="amount"
                 onChange={(event) => setAmount(event.target.value)}
                 placeholder="0.00"
                 required
+                ref={amountRef}
                 step="0.01"
                 type="number"
               />

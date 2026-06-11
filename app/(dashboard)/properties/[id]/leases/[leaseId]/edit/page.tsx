@@ -64,7 +64,8 @@ export default async function EditLeasePage({
         <label className="block text-sm font-medium text-zinc-800">
           Extend Lease Through
           <input
-            className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+            autoFocus
+            className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
             defaultValue={monthInputValue(lease.lastPeriodMonth)}
             min={monthInputValue(lease.lastPeriodMonth)}
             name="lastPeriodMonth"
@@ -75,8 +76,9 @@ export default async function EditLeasePage({
         <label className="block text-sm font-medium text-zinc-800">
           Monthly Rent
           <input
-            className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
+            className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 font-normal outline-none focus:border-zinc-900"
             defaultValue={formatMoney(lease.rentCents)}
+            inputMode="decimal"
             min="0.01"
             name="rent"
             required
@@ -94,7 +96,7 @@ export default async function EditLeasePage({
         </label>
         <div className="flex justify-end">
           <button
-            className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
+            className="h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
             type="submit"
           >
             Save Lease

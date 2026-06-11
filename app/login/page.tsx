@@ -28,7 +28,9 @@ export default async function LoginPage({
               Email
             </label>
             <input
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-900"
+              autoFocus
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-900"
+              enterKeyHint="next"
               id="email"
               name="email"
               type="email"
@@ -42,7 +44,8 @@ export default async function LoginPage({
               Password
             </label>
             <input
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-900"
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-900"
+              enterKeyHint="done"
               id="password"
               name="password"
               type="password"
@@ -52,7 +55,7 @@ export default async function LoginPage({
           </div>
 
           <button
-            className="h-10 w-full rounded-md bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+            className="h-11 w-full rounded-md bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
             type="submit"
           >
             Sign in
@@ -61,7 +64,7 @@ export default async function LoginPage({
 
         <form action={signInWithGoogle} className="mt-3">
           <button
-            className="h-10 w-full rounded-md border border-zinc-300 bg-white text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50"
+            className="h-11 w-full rounded-md border border-zinc-300 bg-white text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50"
             type="submit"
           >
             Continue with Google
@@ -75,7 +78,7 @@ export default async function LoginPage({
         </div>
 
         <Link
-          className="flex h-10 w-full items-center justify-center rounded-md bg-blue-50 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+          className="flex h-11 w-full items-center justify-center rounded-md bg-blue-50 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
           href="/demo"
         >
           Explore the public demo
