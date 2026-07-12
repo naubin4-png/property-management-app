@@ -30,13 +30,17 @@ const periodStyles: Record<PropertyPeriodStatus, string> = {
 export function PropertyDetailContent({
   detail,
   logPaymentHref,
+  newLeaseHref,
   onLogPayment,
+  paymentReturnHref,
   showPaymentActions = true,
   showInlineEditing = true,
 }: {
   detail: PropertyDetailData;
   logPaymentHref?: string;
+  newLeaseHref?: string;
   onLogPayment?: () => void;
+  paymentReturnHref?: string;
   showPaymentActions?: boolean;
   showInlineEditing?: boolean;
 }) {
@@ -59,14 +63,14 @@ export function PropertyDetailContent({
             onClick={onLogPayment}
             type="button"
           >
-            Log Payment
+            Add Check
           </button>
         ) : lease && logPaymentHref ? (
           <Link
             className="inline-flex min-h-11 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
             href={logPaymentHref}
           >
-            Log Payment
+            Add Check
           </Link>
         ) : null}
       </div>
@@ -135,6 +139,7 @@ export function PropertyDetailContent({
             compact
             payments={detail.payments}
             propertyId={detail.id}
+            returnHref={paymentReturnHref}
             showActions={showPaymentActions}
           />
 
@@ -143,14 +148,6 @@ export function PropertyDetailContent({
               <h2 className="text-base font-semibold text-zinc-950">
                 Rent periods
               </h2>
-              {!showInlineEditing ? (
-                <Link
-                  className="inline-flex min-h-11 items-center text-sm font-medium text-zinc-600 hover:text-zinc-950"
-                  href={`/properties/${detail.id}/leases/${lease.id}/edit`}
-                >
-                  Edit lease
-                </Link>
-              ) : null}
             </div>
             {showInlineEditing ? (
               <LeaseInlineEditor lease={lease} propertyId={detail.id} />
@@ -185,12 +182,14 @@ export function PropertyDetailContent({
           <p className="mt-2 text-sm text-zinc-600">
             Add a tenant, rent amount, and lease dates to track payments.
           </p>
-          <Link
-            className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white"
-            href={`/properties/${detail.id}/leases/new`}
-          >
-            Add Lease
-          </Link>
+          {newLeaseHref ? (
+            <Link
+              className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white"
+              href={newLeaseHref}
+            >
+              New Lease
+            </Link>
+          ) : null}
         </section>
       )}
     </div>

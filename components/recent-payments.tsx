@@ -18,11 +18,13 @@ export function RecentPayments({
   compact = false,
   payments,
   propertyId,
+  returnHref,
   showActions = true,
 }: {
   compact?: boolean;
   payments: PropertyPayment[];
   propertyId: string;
+  returnHref?: string;
   showActions?: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
@@ -98,11 +100,22 @@ export function RecentPayments({
                   <div className="flex items-center gap-3">
                     <Link
                       className="font-medium text-zinc-700 hover:text-zinc-950"
-                      href={`/properties/${propertyId}?editPayment=${payment.id}`}
+                      href={
+                        returnHref
+                          ? `${returnHref}${returnHref.includes("?") ? "&" : "?"}editPayment=${payment.id}`
+                          : `/properties/${propertyId}?editPayment=${payment.id}`
+                      }
                     >
                       Edit
                     </Link>
-                    <form action={deletePayment.bind(null, payment.id, propertyId)}>
+                    <form
+                      action={deletePayment.bind(
+                        null,
+                        payment.id,
+                        propertyId,
+                        returnHref ?? `/properties/${propertyId}`,
+                      )}
+                    >
                       <button
                         className="font-medium text-red-700 hover:text-red-900"
                         type="submit"

@@ -24,6 +24,11 @@ function optionalString(value: FormDataEntryValue | null) {
   return text || null;
 }
 
+function safeReturnHref(formData: FormData, fallback: string) {
+  const value = String(formData.get("returnHref") ?? "");
+  return value.startsWith("/") && !value.startsWith("//") ? value : fallback;
+}
+
 function parsePaymentInput(formData: FormData) {
   const propertyId = String(formData.get("propertyId") ?? "");
   const amountCents = parseDollarAmount(String(formData.get("amount") ?? ""));
@@ -117,11 +122,11 @@ export async function logPayment(
     revalidatePath(`/properties/${input.propertyId}`);
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Unable to log payment.",
+      error: error instanceof Error ? error.message : "Unable to add check.",
     };
   }
 
-  redirect("/");
+  redirect(safeReturnHref(formData, "/"));
 }
 
 export async function editPayment(
@@ -166,10 +171,19 @@ export async function editPayment(
     };
   }
 
-  redirect(`/properties/${String(formData.get("propertyId") ?? "")}`);
+  redirect(
+    safeReturnHref(
+      formData,
+      `/properties/${String(formData.get("propertyId") ?? "")}`,
+    ),
+  );
 }
 
-export async function deletePayment(paymentId: string, propertyId: string) {
+export async function deletePayment(
+  paymentId: string,
+  propertyId: string,
+  returnHref: string,
+) {
   await prisma.$transaction(async (tx) => {
     await tx.paymentPeriod.updateMany({
       where: { paymentId },
@@ -180,5 +194,9 @@ export async function deletePayment(paymentId: string, propertyId: string) {
 
   revalidatePath("/");
   revalidatePath(`/properties/${propertyId}`);
-  redirect(`/properties/${propertyId}`);
+  redirect(
+    returnHref.startsWith("/") && !returnHref.startsWith("//")
+      ? returnHref
+      : `/properties/${propertyId}`,
+  );
 }

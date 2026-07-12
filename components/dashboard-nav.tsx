@@ -19,13 +19,13 @@ export function TopBar({
   emailHref = "/email",
   ownerSignInHref,
   onAddProperty,
-  onLogPayment,
+  onAddCheck,
 }: {
   dashboardHref?: string;
   emailHref?: string;
   ownerSignInHref?: string;
   onAddProperty?: () => void;
-  onLogPayment?: () => void;
+  onAddCheck?: () => void;
 }) {
   const pathname = usePathname();
   const items: NavigationItem[] = [
@@ -87,20 +87,20 @@ export function TopBar({
                 + Add
               </Link>
             )}
-            {onLogPayment ? (
+            {onAddCheck ? (
               <button
                 className={`${actionClass} bg-zinc-900 text-white hover:bg-zinc-800`}
-                onClick={onLogPayment}
+                onClick={onAddCheck}
                 type="button"
               >
-                Log Payment
+                Add Check
               </button>
             ) : (
               <Link
                 className={`${actionClass} bg-zinc-900 text-white hover:bg-zinc-800`}
-                href="/?logPayment=1"
+                href="/?addCheck=1"
               >
-                Log Payment
+                Add Check
               </Link>
             )}
             {ownerSignInHref ? (
@@ -154,10 +154,10 @@ export function TopBar({
             Add
           </Link>
         )}
-        {onLogPayment ? (
+        {onAddCheck ? (
           <button
             className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-zinc-500"
-            onClick={onLogPayment}
+            onClick={onAddCheck}
             type="button"
           >
             <CircleDollarSign aria-hidden size={20} />
@@ -166,7 +166,7 @@ export function TopBar({
         ) : (
           <Link
             className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-zinc-500"
-            href="/?logPayment=1"
+            href="/?addCheck=1"
           >
             <CircleDollarSign aria-hidden size={20} />
             Payment

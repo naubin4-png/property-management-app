@@ -9,7 +9,7 @@ import {
 import { TopBar } from "@/components/dashboard-nav";
 import { DashboardView } from "@/components/dashboard-view";
 import {
-  LogPaymentModal,
+  AddCheckModal,
   type PaymentPropertyOption,
 } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
@@ -312,7 +312,7 @@ export function DemoExperience() {
         dashboardHref="/demo"
         emailHref="/demo"
         onAddProperty={() => setIsAddPropertyOpen(true)}
-        onLogPayment={() => openPayment()}
+        onAddCheck={() => openPayment()}
         ownerSignInHref="/login"
       />
       <DashboardView
@@ -344,13 +344,14 @@ export function DemoExperience() {
               extraPayments[selectedDetail.id],
             )}
             onLogPayment={() => openPayment(selectedDetail.id)}
+            paymentReturnHref="/demo"
             showInlineEditing={false}
             showPaymentActions={false}
           />
         </PropertyPanel>
       ) : null}
       {isPaymentOpen ? (
-        <LogPaymentModal
+        <AddCheckModal
           clientRequestId={`demo-${Date.now()}`}
           closeHref="/demo"
           onClose={() => setIsPaymentOpen(false)}

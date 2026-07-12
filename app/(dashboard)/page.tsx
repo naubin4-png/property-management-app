@@ -2,14 +2,16 @@ import { randomUUID } from "node:crypto";
 
 import { AddPropertyModal } from "@/components/add-property-modal";
 import { DashboardView } from "@/components/dashboard-view";
-import { LogPaymentModal } from "@/components/payment-modal";
+import { EditPaymentModal } from "@/components/edit-payment-modal";
+import { NewLeaseModal } from "@/components/new-lease-modal";
+import { AddCheckModal } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
 import { getDashboardData } from "@/lib/dashboard";
 import { getPropertyDetails } from "@/lib/property-details";
 
 import { logPayment } from "./payments/actions";
-import { createPropertyWithLease } from "./properties/new/actions";
+import { createPropertyWithLease } from "./properties/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,10 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{
     addProperty?: string;
+    addCheck?: string;
+    editPayment?: string;
     logPayment?: string;
+    newLease?: string;
     property?: string;
     propertyId?: string;
   }>;
@@ -50,17 +55,36 @@ export default async function DashboardPage({
         <PropertyPanel closeHref="/" title={selectedProperty.name}>
           <PropertyDetailContent
             detail={selectedProperty}
-            logPaymentHref={`/?property=${selectedProperty.id}&logPayment=1&propertyId=${selectedProperty.id}`}
+            logPaymentHref={`/?property=${selectedProperty.id}&addCheck=1&propertyId=${selectedProperty.id}`}
+            newLeaseHref={`/?property=${selectedProperty.id}&newLease=1`}
+            paymentReturnHref={`/?property=${selectedProperty.id}`}
           />
         </PropertyPanel>
       ) : null}
-      {query.logPayment === "1" ? (
-        <LogPaymentModal
+      {query.addCheck === "1" || query.logPayment === "1" ? (
+        <AddCheckModal
           action={logPayment}
           clientRequestId={randomUUID()}
           closeHref={query.property ? `/?property=${query.property}` : "/"}
           properties={paymentProperties}
           selectedPropertyId={query.propertyId}
+        />
+      ) : null}
+      {query.editPayment && selectedProperty ? (
+        <EditPaymentModal
+          paymentId={query.editPayment}
+          propertyId={selectedProperty.id}
+          propertyName={selectedProperty.name}
+          returnHref={`/?property=${selectedProperty.id}`}
+        />
+      ) : null}
+      {query.newLease === "1" &&
+      selectedProperty &&
+      !selectedProperty.activeLease ? (
+        <NewLeaseModal
+          closeHref={`/?property=${selectedProperty.id}`}
+          propertyId={selectedProperty.id}
+          propertyName={selectedProperty.name}
         />
       ) : null}
       {query.addProperty === "1" ? (

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { createLeaseRecord } from "@/lib/lease-creation";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
 import { updateLeaseRecord } from "@/lib/lease-updates";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +11,80 @@ export type InlineEditState = {
   error: string | null;
   saved: boolean;
 };
+
+export async function findTenantByEmail(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  return prisma.tenant.findFirst({
+    where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+    select: { id: true, name: true, email: true },
+  });
+}
+
+export async function createLeaseInline(
+  propertyId: string,
+  _state: InlineEditState,
+  formData: FormData,
+): Promise<InlineEditState> {
+  const tenantName = String(formData.get("tenantName") ?? "").trim();
+  const tenantEmail = String(formData.get("tenantEmail") ?? "")
+    .trim()
+    .toLowerCase();
+  const firstPeriodMonth = parseMonth(
+    String(formData.get("firstPeriodMonth") ?? ""),
+  );
+  const lastPeriodMonth = parseMonth(
+    String(formData.get("lastPeriodMonth") ?? ""),
+  );
+  const rentCents = parseDollarAmount(String(formData.get("rent") ?? ""));
+  const notes = String(formData.get("notes") ?? "").trim();
+  const reuseTenantId =
+    String(formData.get("reuseTenantId") ?? "").trim() || undefined;
+
+  if (
+    !tenantName ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail) ||
+    !firstPeriodMonth ||
+    !lastPeriodMonth ||
+    !rentCents
+  ) {
+    return { error: "Complete all required lease fields.", saved: false };
+  }
+  if (lastPeriodMonth < firstPeriodMonth) {
+    return {
+      error: "Lease end must be the same as or after the first rent month.",
+      saved: false,
+    };
+  }
+  if (notes.length > 1000) {
+    return { error: "Use 1,000 characters or fewer for notes.", saved: false };
+  }
+
+  try {
+    await createLeaseRecord({
+      propertyId,
+      tenantName,
+      tenantEmail,
+      firstPeriodMonth,
+      lastPeriodMonth,
+      rentCents,
+      notes,
+      reuseTenantId,
+    });
+    revalidatePath("/");
+    revalidatePath(`/properties/${propertyId}`);
+    return { error: null, saved: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to create lease.",
+      saved: false,
+    };
+  }
+}
 
 export async function updateTenant(
   propertyId: string,

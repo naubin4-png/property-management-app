@@ -48,6 +48,7 @@ export function PaymentModal({
   clientRequestId,
   closeHref,
   payment,
+  returnHref,
   onClose,
   onDemoSubmit,
 }: {
@@ -57,6 +58,7 @@ export function PaymentModal({
   clientRequestId: string;
   closeHref: string;
   payment?: EditablePayment;
+  returnHref?: string;
   onClose?: () => void;
   onDemoSubmit?: (formData: FormData) => void;
 }) {
@@ -147,7 +149,7 @@ export function PaymentModal({
 
   const closeControl = onClose ? (
     <button
-      aria-label="Close payment form"
+      aria-label="Close check form"
       className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
       onClick={onClose}
       type="button"
@@ -156,7 +158,7 @@ export function PaymentModal({
     </button>
   ) : (
     <Link
-      aria-label="Close payment form"
+      aria-label="Close check form"
       className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
       href={closeHref}
     >
@@ -178,7 +180,7 @@ export function PaymentModal({
               className="text-xl font-semibold tracking-tight text-zinc-950"
               id="payment-modal-title"
             >
-              {payment ? "Edit Payment" : "Log Payment"}
+              {payment ? "Edit Check" : "Add Check"}
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
               Payments apply automatically to the oldest unpaid rent.
@@ -198,6 +200,7 @@ export function PaymentModal({
             type="hidden"
             value={payment?.clientRequestId ?? clientRequestId}
           />
+          <input name="returnHref" type="hidden" value={returnHref ?? closeHref} />
 
           <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
             Space
@@ -320,7 +323,7 @@ export function PaymentModal({
               disabled={isPending}
               type="submit"
             >
-              {isPending ? "Saving..." : payment ? "Save Payment" : "Log Payment"}
+              {isPending ? "Saving..." : payment ? "Save Check" : "Add Check"}
             </button>
           </div>
         </form>
@@ -329,4 +332,4 @@ export function PaymentModal({
   );
 }
 
-export const LogPaymentModal = PaymentModal;
+export const AddCheckModal = PaymentModal;

@@ -101,7 +101,7 @@ export function AddPropertyModal({
             </p>
           </div>
           <button
-            aria-label="Close property form"
+            aria-label="Close add form"
             className="inline-flex size-11 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
             onClick={close}
             type="button"

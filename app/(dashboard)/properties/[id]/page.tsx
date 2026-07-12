@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto";
 
 import { notFound } from "next/navigation";
 
-import { PaymentModal } from "@/components/payment-modal";
+import { EditPaymentModal } from "@/components/edit-payment-modal";
+import { NewLeaseModal } from "@/components/new-lease-modal";
+import { AddCheckModal } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
 import { getPropertyDetails } from "@/lib/property-details";
-import { prisma } from "@/lib/prisma";
 
-import { editPayment, logPayment } from "../../payments/actions";
+import { logPayment } from "../../payments/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,12 @@ export default async function PropertyDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ logPayment?: string; editPayment?: string }>;
+  searchParams: Promise<{
+    addCheck?: string;
+    editPayment?: string;
+    logPayment?: string;
+    newLease?: string;
+  }>;
 }) {
   const { id } = await params;
   const query = await searchParams;
@@ -34,12 +40,14 @@ export default async function PropertyDetailPage({
       <PropertyPanel closeHref="/" title={detail.name}>
         <PropertyDetailContent
           detail={detail}
-          logPaymentHref={`/properties/${detail.id}?logPayment=1`}
+          logPaymentHref={`/properties/${detail.id}?addCheck=1`}
+          newLeaseHref={`/properties/${detail.id}?newLease=1`}
+          paymentReturnHref={`/properties/${detail.id}`}
         />
       </PropertyPanel>
 
-      {query.logPayment === "1" && lease ? (
-        <PaymentModal
+      {(query.addCheck === "1" || query.logPayment === "1") && lease ? (
+        <AddCheckModal
           action={logPayment}
           clientRequestId={randomUUID()}
           closeHref={`/properties/${detail.id}`}
@@ -54,6 +62,7 @@ export default async function PropertyDetailPage({
                   ?.periodMonth ?? null,
             },
           ]}
+          returnHref={`/properties/${detail.id}`}
           selectedPropertyId={detail.id}
         />
       ) : null}
@@ -63,40 +72,16 @@ export default async function PropertyDetailPage({
           paymentId={query.editPayment}
           propertyId={detail.id}
           propertyName={detail.name}
+          returnHref={`/properties/${detail.id}`}
+        />
+      ) : null}
+      {query.newLease === "1" && !lease ? (
+        <NewLeaseModal
+          closeHref={`/properties/${detail.id}`}
+          propertyId={detail.id}
+          propertyName={detail.name}
         />
       ) : null}
     </>
-  );
-}
-
-async function EditPaymentModal({
-  paymentId,
-  propertyId,
-  propertyName,
-}: {
-  paymentId: string;
-  propertyId: string;
-  propertyName: string;
-}) {
-  const payment = await prisma.payment.findFirst({
-    where: {
-      id: paymentId,
-      lease: { propertyId },
-    },
-  });
-
-  if (!payment) {
-    return null;
-  }
-
-  return (
-    <PaymentModal
-      action={editPayment.bind(null, payment.id)}
-      clientRequestId={payment.clientRequestId}
-      closeHref={`/properties/${propertyId}`}
-      payment={payment}
-      properties={[{ id: propertyId, name: propertyName }]}
-      selectedPropertyId={propertyId}
-    />
   );
 }
