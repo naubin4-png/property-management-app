@@ -87,7 +87,7 @@ export function PropertyDetailContent({
                   {lease.tenant.name}
                 </p>
                 <a
-                  className="mt-0.5 inline-block text-sm text-zinc-600 hover:text-zinc-950"
+                  className="mt-0.5 inline-flex min-h-11 items-center text-sm text-zinc-600 hover:text-zinc-950"
                   href={`mailto:${lease.tenant.email}`}
                 >
                   {lease.tenant.email}

@@ -91,7 +91,6 @@ export function PropertyPanel({
       tracking: false,
       currentX: 0,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function moveSwipe(event: PointerEvent<HTMLElement>) {
@@ -112,6 +111,7 @@ export function PropertyPanel({
     }
 
     gesture.tracking = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
     gesture.currentX = deltaX;
     setDragX(deltaX);
   }
