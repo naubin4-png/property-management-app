@@ -1,5 +1,14 @@
 # STATUS.md
 
+> Historical note: original build and Phase 2 are complete.
+>
+> This file is retained as implementation history and verification evidence. It
+> is not an active progress tracker for normal product development. Do not update
+> it for routine bug fixes or small product changes unless the user explicitly
+> asks for a historical status update.
+>
+> For current agent workflow, use `AGENTS.md` and `docs/AGENT_WORKFLOW.md`.
+
 Track task progress here. Update after completing each active task.
 
 | Task | Status | Notes |
