@@ -7,7 +7,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
   type FocusEvent,
 } from "react";
 
@@ -35,7 +34,6 @@ type PaymentAction = (
   state: PaymentActionState,
   formData: FormData,
 ) => Promise<PaymentActionState>;
-const demoAction: PaymentAction = async () => initialState;
 
 function dateInputValue(date: Date) {
   return new Date(date).toISOString().slice(0, 10);
@@ -50,20 +48,18 @@ export function PaymentModal({
   payment,
   returnHref,
   onClose,
-  onDemoSubmit,
 }: {
   properties: PaymentPropertyOption[];
-  action?: PaymentAction;
+  action: PaymentAction;
   selectedPropertyId?: string;
   clientRequestId: string;
   closeHref: string;
   payment?: EditablePayment;
   returnHref?: string;
   onClose?: () => void;
-  onDemoSubmit?: (formData: FormData) => void;
 }) {
   const [state, formAction, isPending] = useActionState(
-    action ?? demoAction,
+    action,
     initialState,
   );
   const [propertyId, setPropertyId] = useState(selectedPropertyId ?? "");
@@ -112,15 +108,6 @@ export function PaymentModal({
           : null,
     };
   }, [amount, selectedProperty]);
-
-  function handleDemoSubmit(event: FormEvent<HTMLFormElement>) {
-    if (!onDemoSubmit) {
-      return;
-    }
-
-    event.preventDefault();
-    onDemoSubmit(new FormData(event.currentTarget));
-  }
 
   useEffect(() => {
     (payment || selectedPropertyId ? amountRef.current : propertyRef.current)?.focus();
@@ -193,7 +180,6 @@ export function PaymentModal({
           action={formAction}
           className="mt-6 grid flex-1 content-start gap-4"
           onFocusCapture={keepFieldVisible}
-          onSubmit={handleDemoSubmit}
         >
           <input
             name="clientRequestId"

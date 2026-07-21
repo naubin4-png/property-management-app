@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ComponentProps } from "react";
 
 import {
   LeaseInlineEditor,
@@ -12,6 +13,10 @@ import type {
   PropertyDetailData,
   PropertyPeriodStatus,
 } from "@/lib/property-details";
+
+type RecentPaymentsProps = ComponentProps<typeof RecentPayments>;
+type TenantInlineEditorProps = ComponentProps<typeof TenantInlineEditor>;
+type LeaseInlineEditorProps = ComponentProps<typeof LeaseInlineEditor>;
 
 const periodLabels: Record<PropertyPeriodStatus, string> = {
   RECEIVED: "Paid",
@@ -29,20 +34,28 @@ const periodStyles: Record<PropertyPeriodStatus, string> = {
 
 export function PropertyDetailContent({
   detail,
+  leaseAction,
   logPaymentHref,
   newLeaseHref,
   onLogPayment,
+  paymentDeleteAction,
   paymentReturnHref,
   showPaymentActions = true,
   showInlineEditing = true,
+  tenantAction,
+  tenantEmailHref,
 }: {
   detail: PropertyDetailData;
+  leaseAction?: LeaseInlineEditorProps["action"];
   logPaymentHref?: string;
   newLeaseHref?: string;
   onLogPayment?: () => void;
+  paymentDeleteAction?: RecentPaymentsProps["deleteAction"];
   paymentReturnHref?: string;
   showPaymentActions?: boolean;
   showInlineEditing?: boolean;
+  tenantAction?: TenantInlineEditorProps["action"];
+  tenantEmailHref?: string;
 }) {
   const lease = detail.activeLease;
 
@@ -87,13 +100,14 @@ export function PropertyDetailContent({
                   {lease.tenant.name}
                 </p>
                 <a
-                  className="mt-0.5 inline-block text-sm text-zinc-600 hover:text-zinc-950"
-                  href={`mailto:${lease.tenant.email}`}
+                  className="mt-0.5 inline-flex min-h-11 items-center text-sm text-zinc-600 hover:text-zinc-950"
+                  href={tenantEmailHref ?? `mailto:${lease.tenant.email}`}
                 >
                   {lease.tenant.email}
                 </a>
                 {showInlineEditing ? (
                   <TenantInlineEditor
+                    action={tenantAction}
                     propertyId={detail.id}
                     tenant={lease.tenant}
                   />
@@ -137,6 +151,7 @@ export function PropertyDetailContent({
 
           <RecentPayments
             compact
+            deleteAction={paymentDeleteAction}
             payments={detail.payments}
             propertyId={detail.id}
             returnHref={paymentReturnHref}
@@ -150,7 +165,11 @@ export function PropertyDetailContent({
               </h2>
             </div>
             {showInlineEditing ? (
-              <LeaseInlineEditor lease={lease} propertyId={detail.id} />
+              <LeaseInlineEditor
+                action={leaseAction}
+                lease={lease}
+                propertyId={detail.id}
+              />
             ) : null}
             <div className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
               {lease.periods.map((period) => (

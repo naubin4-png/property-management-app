@@ -16,12 +16,14 @@ export type PropertyPayment = {
 
 export function RecentPayments({
   compact = false,
+  deleteAction = deletePayment,
   payments,
   propertyId,
   returnHref,
   showActions = true,
 }: {
   compact?: boolean;
+  deleteAction?: typeof deletePayment;
   payments: PropertyPayment[];
   propertyId: string;
   returnHref?: string;
@@ -109,7 +111,7 @@ export function RecentPayments({
                       Edit
                     </Link>
                     <form
-                      action={deletePayment.bind(
+                      action={deleteAction.bind(
                         null,
                         payment.id,
                         propertyId,

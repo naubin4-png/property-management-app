@@ -22,9 +22,11 @@ function nextMonthValue(date: Date) {
 }
 
 export function TenantInlineEditor({
+  action: tenantAction,
   propertyId,
   tenant,
 }: {
+  action?: typeof updateTenant;
   propertyId: string;
   tenant: NonNullable<PropertyDetailData["activeLease"]>["tenant"];
 }) {
@@ -32,7 +34,7 @@ export function TenantInlineEditor({
   const [open, setOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const [state, action, pending] = useActionState(
-    updateTenant.bind(null, propertyId, tenant.id),
+    (tenantAction ?? updateTenant).bind(null, propertyId, tenant.id),
     initialState,
   );
 
@@ -111,9 +113,11 @@ export function TenantInlineEditor({
 }
 
 export function LeaseInlineEditor({
+  action: leaseAction,
   lease,
   propertyId,
 }: {
+  action?: typeof updateLeaseInline;
   lease: NonNullable<PropertyDetailData["activeLease"]>;
   propertyId: string;
 }) {
@@ -122,7 +126,7 @@ export function LeaseInlineEditor({
   const endRef = useRef<HTMLInputElement>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [state, action, pending] = useActionState(
-    updateLeaseInline.bind(null, propertyId, lease.id),
+    (leaseAction ?? updateLeaseInline).bind(null, propertyId, lease.id),
     initialState,
   );
   const minimumEnd = nextMonthValue(lease.lastPeriodMonth);
