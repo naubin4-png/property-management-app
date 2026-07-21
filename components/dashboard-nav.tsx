@@ -15,6 +15,8 @@ const actionClass =
   "inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors";
 
 export function TopBar({
+  addCheckHref,
+  addPropertyHref,
   dashboardHref = "/",
   emailHref = "/email",
   ownerSignInHref,
@@ -22,6 +24,8 @@ export function TopBar({
   onAddProperty,
   onAddCheck,
 }: {
+  addCheckHref?: string;
+  addPropertyHref?: string;
   dashboardHref?: string;
   emailHref?: string;
   ownerSignInHref?: string;
@@ -31,6 +35,8 @@ export function TopBar({
 }) {
   const pathname = usePathname();
   const currentHref = activeHref ?? pathname;
+  const resolvedAddPropertyHref = addPropertyHref ?? `${dashboardHref}?addProperty=1`;
+  const resolvedAddCheckHref = addCheckHref ?? `${dashboardHref}?addCheck=1`;
   const items: NavigationItem[] = [
     { href: dashboardHref, icon: Home, label: "Dashboard" },
     { href: emailHref, icon: Mail, label: "Email" },
@@ -87,7 +93,7 @@ export function TopBar({
             ) : (
               <Link
                 className={`${actionClass} ml-2 border border-zinc-300 text-zinc-900 hover:bg-zinc-50`}
-                href="/?addProperty=1"
+                href={resolvedAddPropertyHref}
               >
                 + Add
               </Link>
@@ -103,7 +109,7 @@ export function TopBar({
             ) : (
               <Link
                 className={`${actionClass} bg-zinc-900 text-white hover:bg-zinc-800`}
-                href="/?addCheck=1"
+                href={resolvedAddCheckHref}
               >
                 Add Check
               </Link>
@@ -153,7 +159,7 @@ export function TopBar({
         ) : (
           <Link
             className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-zinc-500"
-            href="/?addProperty=1"
+            href={resolvedAddPropertyHref}
           >
             <Plus aria-hidden size={20} />
             Add
@@ -171,7 +177,7 @@ export function TopBar({
         ) : (
           <Link
             className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-zinc-500"
-            href="/?addCheck=1"
+            href={resolvedAddCheckHref}
           >
             <CircleDollarSign aria-hidden size={20} />
             Payment

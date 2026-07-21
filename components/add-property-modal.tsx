@@ -15,31 +15,21 @@ type AddPropertyAction = (
 ) => Promise<AddPropertyActionState>;
 
 const initialState: AddPropertyActionState = { error: null };
-const demoAction: AddPropertyAction = async () => initialState;
-
-export type DemoPropertyInput = {
-  propertyName: string;
-  tenantName: string;
-  rentCents: number;
-  firstPeriodMonth: string;
-};
 
 export function AddPropertyModal({
   closeHref,
   action,
   onClose,
-  onDemoCreate,
 }: {
   closeHref?: string;
-  action?: AddPropertyAction;
+  action: AddPropertyAction;
   onClose?: () => void;
-  onDemoCreate?: (input: DemoPropertyInput) => void;
 }) {
   const [step, setStep] = useState(1);
   const formRef = useRef<HTMLFormElement>(null);
   const tenantNameRef = useRef<HTMLInputElement>(null);
   const [state, formAction, isPending] = useActionState(
-    action ?? demoAction,
+    action,
     initialState,
   );
 
@@ -111,29 +101,10 @@ export function AddPropertyModal({
         </div>
 
         <form
-          action={onDemoCreate ? undefined : formAction}
+          action={formAction}
           className="mt-6 grid flex-1 content-start gap-4"
           onFocusCapture={keepFieldVisible}
           ref={formRef}
-          onSubmit={
-            onDemoCreate
-              ? (event) => {
-                  event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
-                  const rent = Number(
-                    String(formData.get("rent") ?? "").replace(/[$,]/g, ""),
-                  );
-                  onDemoCreate({
-                    propertyName: String(formData.get("propertyName") ?? ""),
-                    tenantName: String(formData.get("tenantName") ?? ""),
-                    rentCents: Math.round(rent * 100),
-                    firstPeriodMonth: String(
-                      formData.get("firstPeriodMonth") ?? "",
-                    ),
-                  });
-                }
-              : undefined
-          }
         >
           <div className={step === 1 ? "grid gap-4" : "hidden"}>
             <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
