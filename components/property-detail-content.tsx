@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type MouseEvent } from "react";
 
 import {
   LeaseInlineEditor,
@@ -36,6 +35,7 @@ export function PropertyDetailContent({
   paymentReturnHref,
   showPaymentActions = true,
   showInlineEditing = true,
+  tenantEmailHref,
 }: {
   detail: PropertyDetailData;
   logPaymentHref?: string;
@@ -44,44 +44,9 @@ export function PropertyDetailContent({
   paymentReturnHref?: string;
   showPaymentActions?: boolean;
   showInlineEditing?: boolean;
+  tenantEmailHref?: string;
 }) {
   const lease = detail.activeLease;
-  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
-
-  async function copyEmail(email: string) {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(email);
-      return;
-    }
-
-    const textarea = document.createElement("textarea");
-    textarea.value = email;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
-  }
-
-  function handleEmailClick(
-    event: MouseEvent<HTMLAnchorElement>,
-    email: string,
-  ) {
-    event.preventDefault();
-    setCopiedEmail(email);
-
-    void copyEmail(email).catch(() => undefined);
-    window.setTimeout(() => {
-      setCopiedEmail((currentEmail) =>
-        currentEmail === email ? null : currentEmail,
-      );
-    }, 2500);
-    window.setTimeout(() => {
-      window.location.href = `mailto:${email}`;
-    }, 500);
-  }
 
   return (
     <div className="px-4 py-5 sm:px-6">
@@ -125,21 +90,10 @@ export function PropertyDetailContent({
                 </p>
                 <a
                   className="mt-0.5 inline-flex min-h-11 items-center text-sm text-zinc-600 hover:text-zinc-950"
-                  href={`mailto:${lease.tenant.email}`}
-                  onClick={(event) => {
-                    handleEmailClick(event, lease.tenant.email);
-                  }}
+                  href={tenantEmailHref ?? `mailto:${lease.tenant.email}`}
                 >
                   {lease.tenant.email}
                 </a>
-                <p
-                  aria-live="polite"
-                  className="min-h-5 text-xs font-medium text-emerald-700"
-                >
-                  {copiedEmail === lease.tenant.email
-                    ? "Email copied. Paste it if mail does not open."
-                    : ""}
-                </p>
                 {showInlineEditing ? (
                   <TenantInlineEditor
                     propertyId={detail.id}

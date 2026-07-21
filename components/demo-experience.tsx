@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import {
@@ -15,7 +16,9 @@ import {
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
 import type { DashboardProperty } from "@/lib/dashboard";
+import { formatMoney, formatMonth } from "@/lib/lease-math";
 import type { PropertyDetailData } from "@/lib/property-details";
+import { defaultEmailSettings } from "@/lib/settings";
 
 const startingProperties: DashboardProperty[] = [
   {
@@ -182,7 +185,13 @@ function demoDetails(
   };
 }
 
-export function DemoExperience() {
+export function DemoExperience({
+  initialEmailPropertyId,
+  initialIsEmailView = false,
+}: {
+  initialEmailPropertyId?: string;
+  initialIsEmailView?: boolean;
+}) {
   const [properties, setProperties] =
     useState<DashboardProperty[]>(startingProperties);
   const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false);
@@ -225,6 +234,10 @@ export function DemoExperience() {
   const selectedDetail = detailPropertyId
     ? properties.find((property) => property.id === detailPropertyId)
     : null;
+  const selectedEmailProperty =
+    properties.find((property) => property.id === initialEmailPropertyId) ??
+    needsAttention[0] ??
+    properties[0];
 
   function openPayment(propertyId?: string) {
     setSelectedPropertyId(propertyId);
@@ -310,29 +323,34 @@ export function DemoExperience() {
       </div>
       <TopBar
         dashboardHref="/demo"
-        emailHref="/demo"
+        emailHref="/demo?email=1"
+        activeHref={initialIsEmailView ? "/demo?email=1" : "/demo"}
         onAddProperty={() => setIsAddPropertyOpen(true)}
         onAddCheck={() => openPayment()}
         ownerSignInHref="/login"
       />
-      <DashboardView
-        allGood={allGood}
-        needsAttention={needsAttention}
-        onAddProperty={() => setIsAddPropertyOpen(true)}
-        onOpenProperty={setDetailPropertyId}
-        onSaveNote={(leaseId, note) => {
-          setProperties((current) =>
-            current.map((property) =>
-              property.leaseId === leaseId
-                ? { ...property, dashboardNote: note }
-                : property,
-            ),
-          );
-        }}
-        propertyBaseHref={null}
-        summary={summary}
-      />
-      {selectedDetail ? (
+      {initialIsEmailView && selectedEmailProperty ? (
+        <DemoEmailView property={demoDetails(selectedEmailProperty)} />
+      ) : (
+        <DashboardView
+          allGood={allGood}
+          needsAttention={needsAttention}
+          onAddProperty={() => setIsAddPropertyOpen(true)}
+          onOpenProperty={setDetailPropertyId}
+          onSaveNote={(leaseId, note) => {
+            setProperties((current) =>
+              current.map((property) =>
+                property.leaseId === leaseId
+                  ? { ...property, dashboardNote: note }
+                  : property,
+              ),
+            );
+          }}
+          propertyBaseHref={null}
+          summary={summary}
+        />
+      )}
+      {selectedDetail && !initialIsEmailView ? (
         <PropertyPanel
           closeHref="/demo"
           onClose={() => setDetailPropertyId(null)}
@@ -347,6 +365,7 @@ export function DemoExperience() {
             paymentReturnHref="/demo"
             showInlineEditing={false}
             showPaymentActions={false}
+            tenantEmailHref={`/demo?email=1&property=${selectedDetail.id}`}
           />
         </PropertyPanel>
       ) : null}
@@ -367,5 +386,133 @@ export function DemoExperience() {
         />
       ) : null}
     </div>
+  );
+}
+
+function DemoEmailView({ property }: { property: PropertyDetailData }) {
+  const lease = property.activeLease;
+  const tenantName = lease?.tenant.name ?? "Sample Tenant";
+  const tenantEmail = lease?.tenant.email ?? "tenant@example.com";
+  const amountDue = lease?.periods.find(
+    (period) => period.status === "LATE" || period.status === "DUE",
+  );
+  const dueDate = amountDue?.periodMonth ?? lease?.periods[0]?.periodMonth;
+  const amountDueText = amountDue
+    ? `$${formatMoney(amountDue.amountDueCents)}`
+    : "$0.00";
+  const previewSubject = defaultEmailSettings.lateNoticeSubject.replaceAll(
+    "{property_name}",
+    property.name,
+  );
+  const previewBody = defaultEmailSettings.lateNoticeBody
+    .replaceAll("{tenant_name}", tenantName)
+    .replaceAll("{property_name}", property.name)
+    .replaceAll("{amount_due}", amountDueText)
+    .replaceAll("{due_date}", dueDate ? formatMonth(dueDate) : "the due date");
+
+  return (
+    <main className="mx-auto max-w-4xl px-4 py-5 sm:px-6 sm:py-7">
+      <header className="mb-5 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
+            Email
+          </h1>
+          <p className="mt-1 text-sm text-zinc-600">
+            Demo reminder settings and tenant email preview.
+          </p>
+        </div>
+        <Link
+          className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+          href="/demo"
+        >
+          Dashboard
+        </Link>
+      </header>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Selected tenant
+        </p>
+        <div className="mt-3 rounded-xl bg-zinc-50 p-4">
+          <p className="font-semibold text-zinc-950">{tenantName}</p>
+          <p className="mt-1 text-sm text-zinc-600">{tenantEmail}</p>
+          <p className="mt-2 text-sm text-zinc-600">{property.name}</p>
+        </div>
+      </section>
+
+      <section className="mt-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="text-lg font-semibold text-zinc-950">Timing</h2>
+        <div className="mt-4 grid gap-3">
+          <div className="grid gap-3 rounded-xl bg-zinc-50 p-4 sm:grid-cols-[1fr_9rem] sm:items-center">
+            <div>
+              <p className="text-sm font-medium text-zinc-900">
+                Send reminder before due date
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Send once for each pending rent period.
+              </p>
+            </div>
+            <p className="text-sm font-semibold text-zinc-950">
+              {defaultEmailSettings.daysBeforeReminder} days before
+            </p>
+          </div>
+          <div className="grid gap-3 rounded-xl bg-zinc-50 p-4 sm:grid-cols-[1fr_9rem] sm:items-center">
+            <div>
+              <p className="text-sm font-medium text-zinc-900">
+                Send late notice after due date
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Send once for pending or late rent.
+              </p>
+            </div>
+            <p className="text-sm font-semibold text-zinc-950">
+              {defaultEmailSettings.daysAfterLateNotice} days after
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="text-lg font-semibold text-zinc-950">Message preview</h2>
+        <div className="mt-4 rounded-xl bg-zinc-50 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            To
+          </p>
+          <p className="mt-1 break-all text-sm font-medium text-zinc-950">
+            {tenantEmail}
+          </p>
+          <p className="mt-4 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Subject
+          </p>
+          <p className="mt-1 text-sm font-medium text-zinc-950">
+            {previewSubject}
+          </p>
+          <p className="mt-4 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Body
+          </p>
+          <p className="mt-1 whitespace-pre-line text-sm leading-6 text-zinc-700">
+            {previewBody}
+          </p>
+        </div>
+      </section>
+
+      <section className="mt-5">
+        <h2 className="text-lg font-semibold text-zinc-950">Recent activity</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-medium text-zinc-950">{previewSubject}</p>
+              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                Sent
+              </span>
+            </div>
+            <p className="mt-2 break-all text-zinc-600">{tenantEmail}</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {property.name} · sample demo activity
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

@@ -18,20 +18,25 @@ export function TopBar({
   dashboardHref = "/",
   emailHref = "/email",
   ownerSignInHref,
+  activeHref,
   onAddProperty,
   onAddCheck,
 }: {
   dashboardHref?: string;
   emailHref?: string;
   ownerSignInHref?: string;
+  activeHref?: string;
   onAddProperty?: () => void;
   onAddCheck?: () => void;
 }) {
   const pathname = usePathname();
+  const currentHref = activeHref ?? pathname;
   const items: NavigationItem[] = [
     { href: dashboardHref, icon: Home, label: "Dashboard" },
     { href: emailHref, icon: Mail, label: "Email" },
   ];
+  const isActive = (href: string) =>
+    currentHref === href || currentHref.startsWith(`${href}&`);
 
   return (
     <>
@@ -59,9 +64,9 @@ export function TopBar({
           >
             {items.map((item) => (
               <Link
-                aria-current={pathname === item.href ? "page" : undefined}
+                aria-current={isActive(item.href) ? "page" : undefined}
                 className={`${actionClass} ${
-                  pathname === item.href
+                  isActive(item.href)
                     ? "bg-zinc-100 text-zinc-950"
                     : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
                 }`}
@@ -121,7 +126,7 @@ export function TopBar({
       >
         {items.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href;
+          const active = isActive(item.href);
           return (
             <Link
               aria-current={active ? "page" : undefined}

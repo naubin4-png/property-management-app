@@ -5,6 +5,17 @@ export const metadata = {
   description: "Property Manager demo dashboard.",
 };
 
-export default function DemoPage() {
-  return <DemoExperience />;
+export default async function DemoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string; property?: string }>;
+}) {
+  const query = await searchParams;
+
+  return (
+    <DemoExperience
+      initialEmailPropertyId={query.property}
+      initialIsEmailView={query.email === "1"}
+    />
+  );
 }
