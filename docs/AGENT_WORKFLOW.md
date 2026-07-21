@@ -11,10 +11,12 @@ capability, or skill names.
    browser before asking questions or planning when browser access is available.
 3. Classify the request.
 4. Ask only outcome-changing questions.
-5. Implement the smallest appropriate change.
-6. Verify the exact behavior with real browser interactions and relevant
+5. Decide whether the symptom is local or caused by shared architectural
+   divergence.
+6. Implement the smallest safe change.
+7. Verify the exact behavior with real browser interactions and relevant
    commands.
-7. Return a concise, reviewable result with before/after evidence.
+8. Return a concise, reviewable result with before/after evidence.
 
 If browser access or an authenticated session is unavailable, say so explicitly
 and do not claim browser-verified behavior.
@@ -26,6 +28,8 @@ and do not claim browser-verified behavior.
   relevant to the requested outcome.
 - Use available capabilities directly instead of asking the user to perform
   actions the agent can safely perform.
+- Treat existing implementation as evidence, not proof of intended product
+  behavior.
 - Treat browser, application, database, log, deployment, and GitHub access as
   parts of the working environment, not merely sources of documentation.
 - Prefer the simplest capability that provides reliable evidence.
@@ -51,6 +55,7 @@ Route:
 - Reproduce or observe the current behavior in browser at the relevant viewport.
 - Inspect the surrounding user journey, not just the reported element.
 - Diagnose from code and current behavior.
+- Decide whether the bug is local or caused by shared architectural divergence.
 - Make the smallest fix.
 - Repeat the exact interaction after implementation.
 - Verify relevant desktop/mobile behavior and console state.
@@ -121,6 +126,8 @@ For user-facing work:
 - Inspect current behavior before planning when browser access is available.
 - Reproduce or observe at the relevant viewport.
 - Inspect the surrounding user journey.
+- Verify the intended user outcome, not merely the element, href, handler, or
+  isolated technical mechanism.
 - After implementation, perform the exact user interaction again.
 - Verify relevant desktop/mobile behavior.
 - Check browser console state.
@@ -141,6 +148,9 @@ Do not ask the user to choose tools, skill names, commands, or internal
 capabilities. Select useful diagnosis, product-intent, browser QA, testing, and
 review capabilities automatically.
 
+If a request has multiple materially different product outcomes, ask one concise
+outcome-level question before coding.
+
 ## Verification Commands
 
 Use the smallest verification set that matches the change:
@@ -154,6 +164,11 @@ Use the smallest verification set that matches the change:
 - Use curl for route, API, cron, auth redirect, or deployment checks.
 - Use browser checks for all user-facing behavior claims.
 - Verify demo parity whenever shared UI changes.
+- Demo and production must share UI, navigation, validation, and behavior. Demo
+  may differ only in example data, authentication bypass, persistence, and safe
+  handling of external side effects.
+- User acceptance overrides agent assumptions. Do not call work complete while
+  the observed business outcome remains unverified.
 
 ## Stop / Escalate
 
