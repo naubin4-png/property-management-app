@@ -38,6 +38,16 @@ and do not claim browser-verified behavior.
   production data mutations, deployments, or communications when authorization
   is not already explicit.
 
+## Working Tree Hygiene
+
+- Use one active writer per working tree.
+- For parallel implementation, automatically create separate Git worktrees and
+  branches with one coordinator responsible for integration.
+- Automatically remove known task-created temporary or obsolete factory
+  artifacts after preserving any durable conclusions.
+- Preserve ownership-uncertain user work, but do not repeatedly ask the user
+  about an artifact class that has already been resolved.
+
 ## Routing
 
 ### Localized Bug
