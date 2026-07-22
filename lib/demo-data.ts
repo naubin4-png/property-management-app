@@ -13,9 +13,10 @@ export const demoProperties: DashboardProperty[] = [
     hasActiveLease: true,
     dashboardNote: "Call about the remaining balance",
     latestEmail: {
-      label: "Late notice",
+      label: "Late notice sent",
       sentAt: new Date("2026-06-05T00:00:00.000Z"),
     },
+    advancePayment: null,
     amountOwedCents: 400000,
     creditBalanceCents: 0,
   },
@@ -32,6 +33,7 @@ export const demoProperties: DashboardProperty[] = [
       label: "Reminder sent",
       sentAt: new Date("2026-06-03T00:00:00.000Z"),
     },
+    advancePayment: null,
     amountOwedCents: 1360000,
     creditBalanceCents: 50000,
   },
@@ -45,6 +47,10 @@ export const demoProperties: DashboardProperty[] = [
     hasActiveLease: true,
     dashboardNote: "Renewal conversation in August",
     latestEmail: null,
+    advancePayment: {
+      monthsPaid: 3,
+      paidAt: new Date("2026-06-04T00:00:00.000Z"),
+    },
     amountOwedCents: 0,
     creditBalanceCents: 0,
   },
@@ -58,9 +64,10 @@ export const demoProperties: DashboardProperty[] = [
     hasActiveLease: true,
     dashboardNote: "Waiting on the tenant's updated payment date",
     latestEmail: {
-      label: "Late notice",
+      label: "Late notice sent",
       sentAt: new Date("2026-06-08T00:00:00.000Z"),
     },
+    advancePayment: null,
     amountOwedCents: 520000,
     creditBalanceCents: 0,
   },
@@ -74,6 +81,7 @@ export const demoProperties: DashboardProperty[] = [
     hasActiveLease: true,
     dashboardNote: "",
     latestEmail: null,
+    advancePayment: null,
     amountOwedCents: 0,
     creditBalanceCents: 25000,
   },
@@ -95,10 +103,10 @@ function nextMonth(date: Date, count = 1) {
 
 export function getDemoDashboardData() {
   const needsAttention = demoProperties.filter(
-    (property) => property.status === "LATE" || property.status === "DUE",
+    (property) => property.status === "LATE",
   );
   const allGood = demoProperties.filter(
-    (property) => property.status !== "LATE" && property.status !== "DUE",
+    (property) => property.status !== "LATE",
   );
 
   return {

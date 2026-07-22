@@ -26,8 +26,10 @@ export const dynamic = "force-dynamic";
 
 function DemoSuccessBanner({ value }: { value?: string }) {
   const messages: Record<string, string> = {
-    check: "Demo check saved. Sample data resets on reload.",
-    "deleted-check": "Demo check deleted. Sample data resets on reload.",
+    payment: "Demo payment saved. Sample data resets on reload.",
+    check: "Demo payment saved. Sample data resets on reload.",
+    "deleted-payment": "Demo payment deleted. Sample data resets on reload.",
+    "deleted-check": "Demo payment deleted. Sample data resets on reload.",
     property: "Demo space created. Sample data resets on reload.",
   };
   const message = value ? messages[value] : null;

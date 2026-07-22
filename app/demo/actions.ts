@@ -99,7 +99,7 @@ export async function logDemoPayment(
   optionalString(formData.get("paymentMethod"));
   optionalString(formData.get("notes"));
 
-  redirect(withParam(safeReturnHref(formData, "/demo"), "demoSaved", "check"));
+  redirect(withParam(safeReturnHref(formData, "/demo"), "demoSaved", "payment"));
 }
 
 export async function editDemoPayment(
@@ -116,7 +116,7 @@ export async function deleteDemoPayment(
   returnHref: string,
 ) {
   redirect(
-    withParam(safeDemoHref(returnHref, "/demo"), "demoSaved", "deleted-check"),
+    withParam(safeDemoHref(returnHref, "/demo"), "demoSaved", "deleted-payment"),
   );
 }
 

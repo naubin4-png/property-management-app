@@ -22,6 +22,10 @@ export type DashboardProperty = {
     label: string;
     sentAt: Date;
   } | null;
+  advancePayment: {
+    monthsPaid: number;
+    paidAt: Date;
+  } | null;
   amountOwedCents: number;
   creditBalanceCents: number;
 };
@@ -81,7 +85,9 @@ export async function getDashboardData() {
             orderBy: { firstPeriodMonth: "desc" },
             take: 1,
             include: {
-              payments: true,
+              payments: {
+                orderBy: { receivedAt: "desc" },
+              },
               paymentPeriods: {
                 orderBy: { periodMonth: "asc" },
               },
@@ -130,6 +136,7 @@ export async function getDashboardData() {
         hasActiveLease: false,
         dashboardNote: null,
         latestEmail: null,
+        advancePayment: null,
         amountOwedCents: 0,
         creditBalanceCents: 0,
       };
@@ -170,6 +177,19 @@ export async function getDashboardData() {
       (total, payment) => total + payment.amountCents,
       0,
     );
+    const advancePayment =
+      nextDue && nextDue.periodMonth > nextMonth
+        ? lease.payments
+            .map((payment) => ({
+              monthsPaid: lease.paymentPeriods.filter(
+                (period) =>
+                  period.status === PeriodStatus.RECEIVED &&
+                  period.paymentId === payment.id,
+              ).length,
+              paidAt: payment.receivedAt,
+            }))
+            .find((payment) => payment.monthsPaid > 1) ?? null
+        : null;
 
     return {
       id: property.id,
@@ -181,6 +201,7 @@ export async function getDashboardData() {
       hasActiveLease: true,
       dashboardNote: lease.dashboardNote,
       latestEmail: null,
+      advancePayment,
       amountOwedCents: duePeriods.reduce(
         (total, period) => total + period.amountDueCents,
         0,
@@ -229,17 +250,17 @@ export async function getDashboardData() {
         label:
           log.triggerType === TriggerType.RENT_REMINDER
             ? "Reminder sent"
-            : "Late notice",
+            : "Late notice sent",
         sentAt: log.sentAt,
       },
     };
   });
 
   const needsAttention = rowsWithEmail.filter(
-    (property) => property.status === "LATE" || property.status === "DUE",
+    (property) => property.status === "LATE",
   );
   const allGood = rowsWithEmail.filter(
-    (property) => property.status !== "LATE" && property.status !== "DUE",
+    (property) => property.status !== "LATE",
   );
 
   return {

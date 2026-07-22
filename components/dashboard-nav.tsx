@@ -84,18 +84,18 @@ export function TopBar({
             ))}
             {onAddProperty ? (
               <button
-              className={`${actionClass} ml-2 border border-zinc-300 text-zinc-900 hover:bg-zinc-50`}
-              onClick={onAddProperty}
-              type="button"
-            >
-                + Add
+                className={`${actionClass} ml-2 border border-zinc-300 text-zinc-900 hover:bg-zinc-50`}
+                onClick={onAddProperty}
+                type="button"
+              >
+                Add lease
               </button>
             ) : (
               <Link
                 className={`${actionClass} ml-2 border border-zinc-300 text-zinc-900 hover:bg-zinc-50`}
                 href={resolvedAddPropertyHref}
               >
-                + Add
+                Add lease
               </Link>
             )}
             {onAddCheck ? (
@@ -104,14 +104,14 @@ export function TopBar({
                 onClick={onAddCheck}
                 type="button"
               >
-                Add Check
+                Record payment
               </button>
             ) : (
               <Link
                 className={`${actionClass} bg-zinc-900 text-white hover:bg-zinc-800`}
                 href={resolvedAddCheckHref}
               >
-                Add Check
+                Record payment
               </Link>
             )}
             {ownerSignInHref ? (
@@ -154,7 +154,7 @@ export function TopBar({
             type="button"
           >
             <Plus aria-hidden size={20} />
-            Add
+            Add lease
           </button>
         ) : (
           <Link
@@ -162,7 +162,7 @@ export function TopBar({
             href={resolvedAddPropertyHref}
           >
             <Plus aria-hidden size={20} />
-            Add
+            Add lease
           </Link>
         )}
         {onAddCheck ? (
