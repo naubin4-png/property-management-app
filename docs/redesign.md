@@ -50,20 +50,21 @@ behavior.
 
 ### Money Bar
 
-- Show `Collected this month` and `Outstanding`.
-- `Collected this month` keeps its existing backend definition: payments whose
-  received date is in the current calendar month.
-- `Outstanding` means unpaid rent currently due, not every future unpaid lease
-  period.
-- Sum PENDING or LATE periods whose `periodMonth` is today or earlier.
-- Future unpaid periods do not contribute to Outstanding.
+- Show the current billing period prominently, then `Collected` and `Still due`.
+- The billing period defaults to the current calendar month.
+- `Collected` is the amount applied toward that billing period's rent
+  obligations.
+- `Still due` is the remaining unpaid amount for that billing period.
+- Payments covering future months may explain advance payment on a card, but
+  future obligations do not contribute to the displayed billing period totals.
 
 ### Card Groups
 
 - Use property cards rather than desktop admin tables.
-- `Needs Attention` contains leases with unpaid rent due today or earlier.
-- Future unpaid periods must not create Needs Attention cards.
-- `All Good` contains active leases without currently due unpaid rent.
+- `Unpaid` contains leases whose obligation for the displayed billing period is
+  not fully satisfied.
+- `Paid` contains leases whose obligation for the displayed billing period is
+  fully satisfied.
 - Hide an empty section instead of displaying an empty container.
 
 ### Status Color
@@ -79,11 +80,12 @@ behavior.
 ### Card Content
 
 - Show the asset name prominently.
-- Needs Attention cards show total currently due, status context, latest
-  relevant email, and an operational note.
-- All Good cards show the next pending due date and operational note.
-- Notes remain editable inline. Validate and trim before saving; invalid edits
-  never reach the database.
+- Use one consistent card structure: property name, Paid/Unpaid badge, one
+  primary payment-state line, optional secondary follow-up/next-due line, and an
+  optional note when one exists.
+- Only show a dollar amount on a card when it materially changes the action, such
+  as a partial payment with a remaining balance.
+- Advance-paid cards may show `Paid through [month]` plus the next due date.
 - Cards are keyboard and pointer accessible and open the property slide-over.
 
 ## Property Slide-Over
@@ -146,11 +148,8 @@ behavior.
   - `Demo mode - sample data, nothing is saved`
   - `Owner sign in`
 - Demo mutations remain local and reset on reload.
-- Sample Needs Attention amounts are:
-  - Harbor Office Suite 4: $4,000
-  - Riverside Warehouse: $13,600
-  - Lakeview Retail: $5,200
-- Demo Outstanding is exactly `$22,800`.
+- Demo dashboard scenarios include fully unpaid, partially paid, paid this
+  month, and advance-paid leases for the displayed billing period.
 - The demo money bar must match sample card data exactly.
 - Include realistic paid/current assets, future due dates, notes, emails, tenant
   details, lease details, periods, and payment history for panel testing.
