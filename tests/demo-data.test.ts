@@ -14,30 +14,42 @@ function card(name: string, cards = getDemoDashboardData().properties) {
 }
 
 describe("demo dashboard state", () => {
-  it("derives late and current sections from payment periods", () => {
+  it("derives unpaid and paid sections from the billing period", () => {
     const dashboard = getDemoDashboardData();
 
     assert.deepEqual(
       dashboard.needsAttention.map((property) => property.name),
-      ["Harbor Office Suite 4", "Lakeview Retail"],
+      ["Harbor Office Suite 4", "Riverside Warehouse", "Lakeview Retail"],
     );
     assert.deepEqual(
       dashboard.allGood.map((property) => property.name),
-      ["Riverside Warehouse", "88 Market Street", "Cedar Street Studio"],
+      ["88 Market Street", "Cedar Street Studio"],
     );
-    assert.equal(card("Riverside Warehouse").status, "DUE");
-    assert.equal(card("Riverside Warehouse").amountOwedCents, 1360000);
-    assert.equal(dashboard.summary.outstandingCents, 2280000);
+    assert.equal(
+      card("Riverside Warehouse").billingPeriodRemainingCents,
+      680000,
+    );
+    assert.equal(card("Lakeview Retail").billingPeriodRemainingCents, 210000);
+    assert.equal(
+      dashboard.summary.billingPeriodMonth.toISOString(),
+      "2026-07-01T00:00:00.000Z",
+    );
+    assert.equal(dashboard.summary.collectedThisMonthCents, 910000);
+    assert.equal(dashboard.summary.outstandingCents, 1290000);
   });
 
   it("explains advance-paid leases from covered payment periods", () => {
     const market = card("88 Market Street");
 
     assert.equal(market.status, "PAID");
-    assert.equal(market.advancePayment?.monthsPaid, 3);
+    assert.equal(market.advancePayment?.monthsPaid, 2);
     assert.equal(
       market.advancePayment?.paidAt.toISOString(),
-      "2026-06-04T00:00:00.000Z",
+      "2026-07-04T00:00:00.000Z",
+    );
+    assert.equal(
+      market.advancePayment?.paidThrough.toISOString(),
+      "2026-08-01T00:00:00.000Z",
     );
     assert.equal(
       market.nextDueDate?.toISOString(),
@@ -58,13 +70,17 @@ describe("demo dashboard state", () => {
     assert.equal(harbor.amountOwedCents, 0);
     assert.equal(
       harbor.nextDueDate?.toISOString(),
-      "2026-07-01T00:00:00.000Z",
+      "2026-08-01T00:00:00.000Z",
+    );
+    assert.equal(
+      harbor.billingPeriodPaidAt?.toISOString(),
+      "2026-07-22T00:00:00.000Z",
     );
     assert.deepEqual(
       dashboard.needsAttention.map((property) => property.name),
-      ["Lakeview Retail"],
+      ["Riverside Warehouse", "Lakeview Retail"],
     );
-    assert.equal(dashboard.summary.collectedThisMonthCents, 1000000);
-    assert.equal(dashboard.summary.outstandingCents, 1880000);
+    assert.equal(dashboard.summary.collectedThisMonthCents, 1310000);
+    assert.equal(dashboard.summary.outstandingCents, 890000);
   });
 });

@@ -25,7 +25,11 @@ export type DashboardProperty = {
   advancePayment: {
     monthsPaid: number;
     paidAt: Date;
+    paidThrough: Date;
   } | null;
+  billingPeriodMonth: Date | null;
+  billingPeriodPaidAt: Date | null;
+  billingPeriodRemainingCents: number;
   amountOwedCents: number;
   creditBalanceCents: number;
 };
@@ -72,7 +76,7 @@ export async function getDashboardData() {
   const nextMonth = firstDayOfNextMonth();
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
-  const [properties, collectedThisMonth, outstanding, settings] =
+  const [properties, settings] =
     await Promise.all([
       prisma.property.findMany({
         orderBy: { name: "asc" },
@@ -94,26 +98,6 @@ export async function getDashboardData() {
             },
           },
         },
-      }),
-      prisma.payment.aggregate({
-        where: {
-          receivedAt: {
-            gte: currentMonth,
-            lt: nextMonth,
-          },
-        },
-        _sum: { amountCents: true },
-      }),
-      prisma.paymentPeriod.aggregate({
-        where: {
-          status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
-          periodMonth: { lte: today },
-          lease: {
-            firstPeriodMonth: { lte: currentMonth },
-            lastPeriodMonth: { gte: currentMonth },
-          },
-        },
-        _sum: { amountDueCents: true },
       }),
       getSettings(),
     ]);
@@ -137,18 +121,24 @@ export async function getDashboardData() {
         dashboardNote: null,
         latestEmail: null,
         advancePayment: null,
+        billingPeriodMonth: null,
+        billingPeriodPaidAt: null,
+        billingPeriodRemainingCents: 0,
         amountOwedCents: 0,
         creditBalanceCents: 0,
       };
     }
 
+    const paymentById = new Map(
+      lease.payments.map((payment) => [payment.id, payment]),
+    );
+    const billingPeriod = lease.paymentPeriods.find(
+      (period) => period.periodMonth.getTime() === currentMonth.getTime(),
+    );
     const unpaidPeriods = lease.paymentPeriods.filter(
       (period) =>
         period.status === PeriodStatus.PENDING ||
         period.status === PeriodStatus.LATE,
-    );
-    const duePeriods = unpaidPeriods.filter(
-      (period) => period.periodMonth <= today,
     );
     const nextDue = unpaidPeriods[0] ?? null;
     if (
@@ -161,15 +151,6 @@ export async function getDashboardData() {
       });
       emailPeriodByLease.set(lease.id, currentMonth);
     }
-    const hasLatePeriod = duePeriods.some(
-      (period) => period.periodMonth < lateCutoff,
-    );
-    const status: DashboardStatus = hasLatePeriod
-      ? "LATE"
-      : duePeriods.length > 0
-        ? "DUE"
-        : "PAID";
-
     const allocatedCents = lease.paymentPeriods
       .filter((period) => period.status === PeriodStatus.RECEIVED)
       .reduce((total, period) => total + period.amountDueCents, 0);
@@ -177,18 +158,57 @@ export async function getDashboardData() {
       (total, payment) => total + payment.amountCents,
       0,
     );
+    const hasEarlierUnpaid = unpaidPeriods.some(
+      (period) => period.periodMonth < currentMonth,
+    );
+    const creditAppliedToBillingPeriod =
+      billingPeriod &&
+      billingPeriod.status !== PeriodStatus.RECEIVED &&
+      !hasEarlierUnpaid
+        ? Math.min(
+            Math.max(paidCents - allocatedCents, 0),
+            billingPeriod.amountDueCents,
+          )
+        : 0;
+    const billingPeriodRemainingCents = billingPeriod
+      ? billingPeriod.status === PeriodStatus.RECEIVED
+        ? 0
+        : Math.max(
+            billingPeriod.amountDueCents - creditAppliedToBillingPeriod,
+            0,
+          )
+      : 0;
+    const billingPeriodPaidAt =
+      billingPeriod?.paymentId && billingPeriod.status === PeriodStatus.RECEIVED
+        ? (paymentById.get(billingPeriod.paymentId)?.receivedAt ?? null)
+        : null;
+    const status: DashboardStatus =
+      billingPeriodRemainingCents === 0
+        ? "PAID"
+        : billingPeriod?.status === PeriodStatus.LATE ||
+            (billingPeriod?.periodMonth &&
+              billingPeriod.periodMonth < lateCutoff)
+          ? "LATE"
+          : "DUE";
+    const paidPeriodsByPayment = lease.payments.map((payment) => {
+      const paidPeriods = lease.paymentPeriods
+        .filter(
+          (period) =>
+            period.status === PeriodStatus.RECEIVED &&
+            period.paymentId === payment.id,
+        )
+        .sort((a, b) => a.periodMonth.getTime() - b.periodMonth.getTime());
+      return {
+        monthsPaid: paidPeriods.length,
+        paidAt: payment.receivedAt,
+        paidThrough: paidPeriods.at(-1)?.periodMonth,
+      };
+    });
     const advancePayment =
       nextDue && nextDue.periodMonth > nextMonth
-        ? lease.payments
-            .map((payment) => ({
-              monthsPaid: lease.paymentPeriods.filter(
-                (period) =>
-                  period.status === PeriodStatus.RECEIVED &&
-                  period.paymentId === payment.id,
-              ).length,
-              paidAt: payment.receivedAt,
-            }))
-            .find((payment) => payment.monthsPaid > 1) ?? null
+        ? paidPeriodsByPayment.find(
+            (payment) => payment.monthsPaid > 1 && payment.paidThrough,
+          ) ?? null
         : null;
 
     return {
@@ -201,11 +221,17 @@ export async function getDashboardData() {
       hasActiveLease: true,
       dashboardNote: lease.dashboardNote,
       latestEmail: null,
-      advancePayment,
-      amountOwedCents: duePeriods.reduce(
-        (total, period) => total + period.amountDueCents,
-        0,
-      ),
+      advancePayment: advancePayment
+        ? {
+            monthsPaid: advancePayment.monthsPaid,
+            paidAt: advancePayment.paidAt,
+            paidThrough: advancePayment.paidThrough!,
+          }
+        : null,
+      billingPeriodMonth: billingPeriod?.periodMonth ?? currentMonth,
+      billingPeriodPaidAt,
+      billingPeriodRemainingCents,
+      amountOwedCents: billingPeriodRemainingCents,
       creditBalanceCents: paidCents - allocatedCents,
     };
   });
@@ -257,10 +283,22 @@ export async function getDashboardData() {
   });
 
   const needsAttention = rowsWithEmail.filter(
-    (property) => property.status === "LATE",
+    (property) =>
+      property.hasActiveLease && property.billingPeriodRemainingCents > 0,
   );
   const allGood = rowsWithEmail.filter(
-    (property) => property.status !== "LATE",
+    (property) =>
+      !property.hasActiveLease || property.billingPeriodRemainingCents === 0,
+  );
+  const collectedForBillingPeriodCents = rowsWithEmail.reduce(
+    (total, property) =>
+      total +
+      Math.max((property.rentCents ?? 0) - property.billingPeriodRemainingCents, 0),
+    0,
+  );
+  const stillDueCents = rowsWithEmail.reduce(
+    (total, property) => total + property.billingPeriodRemainingCents,
+    0,
   );
 
   return {
@@ -268,8 +306,9 @@ export async function getDashboardData() {
     needsAttention,
     allGood,
     summary: {
-      collectedThisMonthCents: collectedThisMonth._sum.amountCents ?? 0,
-      outstandingCents: outstanding._sum.amountDueCents ?? 0,
+      billingPeriodMonth: currentMonth,
+      collectedThisMonthCents: collectedForBillingPeriodCents,
+      outstandingCents: stillDueCents,
     },
   };
 }

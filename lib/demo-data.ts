@@ -73,7 +73,8 @@ export function getDemoPaymentSimulation(query: {
   };
 }
 
-const demoToday = new Date("2026-06-15T00:00:00.000Z");
+const demoBillingPeriod = new Date("2026-07-01T00:00:00.000Z");
+const demoToday = new Date("2026-07-22T00:00:00.000Z");
 const demoComingMonth = new Date("2026-08-01T00:00:00.000Z");
 const firstPeriodMonth = new Date("2026-01-01T00:00:00.000Z");
 const lastPeriodMonth = new Date("2027-12-01T00:00:00.000Z");
@@ -90,25 +91,25 @@ const demoRecords: DemoPropertyRecord[] = [
     creditBalanceCents: 0,
     latestEmail: {
       label: "Late notice sent",
-      sentAt: new Date("2026-06-05T00:00:00.000Z"),
+      sentAt: new Date("2026-07-05T00:00:00.000Z"),
     },
     periods: [
       {
-        id: "harbor-office-may",
-        periodMonth: new Date("2026-05-01T00:00:00.000Z"),
+        id: "harbor-office-jun",
+        periodMonth: new Date("2026-06-01T00:00:00.000Z"),
         amountDueCents: 400000,
         status: "RECEIVED",
         paymentId: "harbor-office-payment",
       },
       {
-        id: "harbor-office-jun",
-        periodMonth: new Date("2026-06-01T00:00:00.000Z"),
+        id: "harbor-office-jul",
+        periodMonth: new Date("2026-07-01T00:00:00.000Z"),
         amountDueCents: 400000,
         status: "LATE",
       },
       {
-        id: "harbor-office-jul",
-        periodMonth: new Date("2026-07-01T00:00:00.000Z"),
+        id: "harbor-office-aug",
+        periodMonth: new Date("2026-08-01T00:00:00.000Z"),
         amountDueCents: 400000,
         status: "PENDING",
       },
@@ -116,7 +117,7 @@ const demoRecords: DemoPropertyRecord[] = [
     payments: [
       {
         id: "harbor-office-payment",
-        receivedAt: new Date("2026-05-03T00:00:00.000Z"),
+        receivedAt: new Date("2026-06-03T00:00:00.000Z"),
         amountCents: 400000,
         paymentMethod: "ACH",
         paymentReference: null,
@@ -130,29 +131,29 @@ const demoRecords: DemoPropertyRecord[] = [
     tenantName: "Noah Williams",
     tenantEmail: "noah@example.com",
     rentCents: 680000,
-    dashboardNote: "Tenant confirmed both invoices are processing",
-    creditBalanceCents: 50000,
+    dashboardNote: "Tenant confirmed payment is scheduled",
+    creditBalanceCents: 0,
     latestEmail: {
       label: "Reminder sent",
-      sentAt: new Date("2026-06-03T00:00:00.000Z"),
+      sentAt: new Date("2026-07-05T00:00:00.000Z"),
     },
     periods: [
       {
-        id: "riverside-warehouse-may",
-        periodMonth: new Date("2026-05-01T00:00:00.000Z"),
+        id: "riverside-warehouse-jun",
+        periodMonth: new Date("2026-06-01T00:00:00.000Z"),
         amountDueCents: 680000,
         status: "RECEIVED",
         paymentId: "riverside-warehouse-payment",
       },
       {
-        id: "riverside-warehouse-jun",
-        periodMonth: new Date("2026-06-01T00:00:00.000Z"),
-        amountDueCents: 1360000,
-        status: "PENDING",
-      },
-      {
         id: "riverside-warehouse-jul",
         periodMonth: new Date("2026-07-01T00:00:00.000Z"),
+        amountDueCents: 680000,
+        status: "LATE",
+      },
+      {
+        id: "riverside-warehouse-aug",
+        periodMonth: new Date("2026-08-01T00:00:00.000Z"),
         amountDueCents: 680000,
         status: "PENDING",
       },
@@ -160,7 +161,7 @@ const demoRecords: DemoPropertyRecord[] = [
     payments: [
       {
         id: "riverside-warehouse-payment",
-        receivedAt: new Date("2026-05-03T00:00:00.000Z"),
+        receivedAt: new Date("2026-06-03T00:00:00.000Z"),
         amountCents: 680000,
         paymentMethod: "ACH",
         paymentReference: null,
@@ -178,13 +179,6 @@ const demoRecords: DemoPropertyRecord[] = [
     creditBalanceCents: 0,
     latestEmail: null,
     periods: [
-      {
-        id: "market-street-jun",
-        periodMonth: new Date("2026-06-01T00:00:00.000Z"),
-        amountDueCents: 325000,
-        status: "RECEIVED",
-        paymentId: "market-street-payment",
-      },
       {
         id: "market-street-jul",
         periodMonth: new Date("2026-07-01T00:00:00.000Z"),
@@ -209,8 +203,8 @@ const demoRecords: DemoPropertyRecord[] = [
     payments: [
       {
         id: "market-street-payment",
-        receivedAt: new Date("2026-06-04T00:00:00.000Z"),
-        amountCents: 975000,
+        receivedAt: new Date("2026-07-04T00:00:00.000Z"),
+        amountCents: 650000,
         paymentMethod: "ACH",
         paymentReference: null,
       },
@@ -224,36 +218,43 @@ const demoRecords: DemoPropertyRecord[] = [
     tenantEmail: "samira@example.com",
     rentCents: 520000,
     dashboardNote: "Waiting on the tenant's updated payment date",
-    creditBalanceCents: 0,
+    creditBalanceCents: 310000,
     latestEmail: {
       label: "Late notice sent",
-      sentAt: new Date("2026-06-08T00:00:00.000Z"),
+      sentAt: new Date("2026-07-08T00:00:00.000Z"),
     },
     periods: [
-      {
-        id: "lakeview-retail-may",
-        periodMonth: new Date("2026-05-01T00:00:00.000Z"),
-        amountDueCents: 520000,
-        status: "RECEIVED",
-        paymentId: "lakeview-retail-payment",
-      },
       {
         id: "lakeview-retail-jun",
         periodMonth: new Date("2026-06-01T00:00:00.000Z"),
         amountDueCents: 520000,
-        status: "LATE",
+        status: "RECEIVED",
+        paymentId: "lakeview-retail-june-payment",
       },
       {
         id: "lakeview-retail-jul",
         periodMonth: new Date("2026-07-01T00:00:00.000Z"),
+        amountDueCents: 520000,
+        status: "LATE",
+      },
+      {
+        id: "lakeview-retail-aug",
+        periodMonth: new Date("2026-08-01T00:00:00.000Z"),
         amountDueCents: 520000,
         status: "PENDING",
       },
     ],
     payments: [
       {
-        id: "lakeview-retail-payment",
-        receivedAt: new Date("2026-05-03T00:00:00.000Z"),
+        id: "lakeview-retail-july-partial",
+        receivedAt: new Date("2026-07-10T00:00:00.000Z"),
+        amountCents: 310000,
+        paymentMethod: "ACH",
+        paymentReference: null,
+      },
+      {
+        id: "lakeview-retail-june-payment",
+        receivedAt: new Date("2026-06-03T00:00:00.000Z"),
         amountCents: 520000,
         paymentMethod: "ACH",
         paymentReference: null,
@@ -268,19 +269,19 @@ const demoRecords: DemoPropertyRecord[] = [
     tenantEmail: "jordan@example.com",
     rentCents: 275000,
     dashboardNote: "",
-    creditBalanceCents: 25000,
+    creditBalanceCents: 0,
     latestEmail: null,
     periods: [
       {
-        id: "cedar-studio-jun",
-        periodMonth: new Date("2026-06-01T00:00:00.000Z"),
+        id: "cedar-studio-jul",
+        periodMonth: new Date("2026-07-01T00:00:00.000Z"),
         amountDueCents: 275000,
         status: "RECEIVED",
         paymentId: "cedar-studio-payment",
       },
       {
-        id: "cedar-studio-jul",
-        periodMonth: new Date("2026-07-01T00:00:00.000Z"),
+        id: "cedar-studio-aug",
+        periodMonth: new Date("2026-08-01T00:00:00.000Z"),
         amountDueCents: 275000,
         status: "PENDING",
       },
@@ -288,7 +289,7 @@ const demoRecords: DemoPropertyRecord[] = [
     payments: [
       {
         id: "cedar-studio-payment",
-        receivedAt: new Date("2026-06-03T00:00:00.000Z"),
+        receivedAt: new Date("2026-07-03T00:00:00.000Z"),
         amountCents: 275000,
         paymentMethod: "ACH",
         paymentReference: null,
@@ -357,14 +358,6 @@ function getRecords(simulation?: DemoPaymentSimulation | null) {
   return applyPaymentSimulation(cloneRecords(), simulation);
 }
 
-function currentDuePeriods(record: DemoPropertyRecord) {
-  return record.periods.filter(
-    (period) =>
-      (period.status === "PENDING" || period.status === "LATE") &&
-      period.periodMonth <= demoToday,
-  );
-}
-
 function unpaidPeriods(record: DemoPropertyRecord) {
   return record.periods
     .filter(
@@ -376,13 +369,42 @@ function unpaidPeriods(record: DemoPropertyRecord) {
 function dashboardPropertyFromRecord(
   record: DemoPropertyRecord,
 ): DashboardProperty {
-  const duePeriods = currentDuePeriods(record);
+  const paymentById = new Map(
+    record.payments.map((payment) => [payment.id, payment]),
+  );
+  const billingPeriod = record.periods.find(
+    (period) => period.periodMonth.getTime() === demoBillingPeriod.getTime(),
+  );
   const nextDue = unpaidPeriods(record)[0] ?? null;
-  const status = duePeriods.some((period) => period.status === "LATE")
-    ? "LATE"
-    : duePeriods.length > 0
-      ? "DUE"
-      : "PAID";
+  const hasEarlierUnpaid = record.periods.some(
+    (period) =>
+      period.periodMonth < demoBillingPeriod &&
+      (period.status === "PENDING" || period.status === "LATE"),
+  );
+  const creditAppliedToBillingPeriod =
+    billingPeriod &&
+    billingPeriod.status !== "RECEIVED" &&
+    !hasEarlierUnpaid
+      ? Math.min(record.creditBalanceCents, billingPeriod.amountDueCents)
+      : 0;
+  const billingPeriodRemainingCents = billingPeriod
+    ? billingPeriod.status === "RECEIVED"
+      ? 0
+      : Math.max(
+          billingPeriod.amountDueCents - creditAppliedToBillingPeriod,
+          0,
+        )
+    : 0;
+  const billingPeriodPaidAt =
+    billingPeriod?.paymentId && billingPeriod.status === "RECEIVED"
+      ? (paymentById.get(billingPeriod.paymentId)?.receivedAt ?? null)
+      : null;
+  const status =
+    billingPeriodRemainingCents === 0
+      ? "PAID"
+      : billingPeriod?.status === "LATE"
+        ? "LATE"
+        : "DUE";
   const paidAheadPayment =
     nextDue && nextDue.periodMonth > demoComingMonth
       ? record.payments.find(
@@ -413,12 +435,20 @@ function dashboardPropertyFromRecord(
               period.paymentId === paidAheadPayment.id,
           ).length,
           paidAt: paidAheadPayment.receivedAt,
+          paidThrough: record.periods
+            .filter(
+              (period) =>
+                period.status === "RECEIVED" &&
+                period.paymentId === paidAheadPayment.id,
+            )
+            .sort((a, b) => a.periodMonth.getTime() - b.periodMonth.getTime())
+            .at(-1)!.periodMonth,
         }
       : null,
-    amountOwedCents: duePeriods.reduce(
-      (total, period) => total + period.amountDueCents,
-      0,
-    ),
+    billingPeriodMonth: billingPeriod?.periodMonth ?? demoBillingPeriod,
+    billingPeriodPaidAt,
+    billingPeriodRemainingCents,
+    amountOwedCents: billingPeriodRemainingCents,
     creditBalanceCents: record.creditBalanceCents,
   };
 }
@@ -440,21 +470,29 @@ export function getDemoDashboardData(
 ) {
   const properties = getRecords(simulation).map(dashboardPropertyFromRecord);
   const needsAttention = properties.filter(
-    (property) => property.status === "LATE",
+    (property) => property.billingPeriodRemainingCents > 0,
   );
-  const allGood = properties.filter((property) => property.status !== "LATE");
+  const allGood = properties.filter(
+    (property) => property.billingPeriodRemainingCents === 0,
+  );
 
   return {
     properties,
     needsAttention,
     allGood,
     summary: {
-      collectedThisMonthCents:
-        600000 + (simulation?.amountCents && simulation.amountCents > 0
-          ? simulation.amountCents
-          : 0),
+      billingPeriodMonth: demoBillingPeriod,
+      collectedThisMonthCents: properties.reduce(
+        (total, property) =>
+          total +
+          Math.max(
+            (property.rentCents ?? 0) - property.billingPeriodRemainingCents,
+            0,
+          ),
+        0,
+      ),
       outstandingCents: properties.reduce(
-        (total, property) => total + property.amountOwedCents,
+        (total, property) => total + property.billingPeriodRemainingCents,
         0,
       ),
     },

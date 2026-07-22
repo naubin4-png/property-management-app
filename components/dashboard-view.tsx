@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-
-import { saveDashboardNote } from "@/app/(dashboard)/dashboard/actions";
 import type { DashboardProperty, DashboardStatus } from "@/lib/dashboard";
 
 export type DashboardSummary = {
+  billingPeriodMonth: Date;
   collectedThisMonthCents: number;
   outstandingCents: number;
 };
@@ -15,16 +13,16 @@ export type DashboardSummary = {
 type DashboardViewProperty = DashboardProperty;
 
 const statusLabels: Record<DashboardStatus, string> = {
-  PAID: "Current",
-  DUE: "Current",
-  LATE: "Late",
+  PAID: "Paid",
+  DUE: "Unpaid",
+  LATE: "Unpaid",
   NO_LEASE: "No lease",
 };
 
 const statusStyles: Record<DashboardStatus, string> = {
   PAID: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  DUE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  LATE: "bg-red-50 text-red-700 ring-red-200",
+  DUE: "bg-amber-50 text-amber-800 ring-amber-200",
+  LATE: "bg-amber-50 text-amber-800 ring-amber-200",
   NO_LEASE: "bg-zinc-100 text-zinc-600 ring-zinc-200",
 };
 
@@ -37,15 +35,17 @@ function formatCurrency(cents: number) {
   }).format(cents / 100);
 }
 
-function formatDate(date: Date | null) {
-  if (!date) {
-    return "No upcoming rent";
-  }
-
+function formatMonthHeading(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
+    month: "long",
     year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function formatMonthName(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
     timeZone: "UTC",
   }).format(date);
 }
@@ -68,128 +68,81 @@ function StatusBadge({ status }: { status: DashboardStatus }) {
   );
 }
 
-function CardActivity({ property }: { property: DashboardViewProperty }) {
+function primaryLine(property: DashboardViewProperty) {
+  if (!property.hasActiveLease || !property.billingPeriodMonth) {
+    return "No active lease";
+  }
+
+  if (property.billingPeriodRemainingCents > 0) {
+    if (
+      property.rentCents &&
+      property.billingPeriodRemainingCents < property.rentCents
+    ) {
+      return `${formatCurrency(property.billingPeriodRemainingCents)} remaining`;
+    }
+
+    const now = new Date();
+    now.setUTCHours(0, 0, 0, 0);
+
+    return property.billingPeriodMonth > now
+      ? `Due ${formatShortDate(property.billingPeriodMonth)}`
+      : `Unpaid since ${formatShortDate(property.billingPeriodMonth)}`;
+  }
+
   if (property.advancePayment) {
-    return (
-      <span className="text-xs text-zinc-500">
-        {property.advancePayment.monthsPaid} months paid on{" "}
-        {formatShortDate(property.advancePayment.paidAt)}
-      </span>
-    );
+    return `Paid through ${formatMonthName(property.advancePayment.paidThrough)}`;
   }
 
-  if (!property.latestEmail) {
-    return null;
+  if (property.billingPeriodPaidAt) {
+    return `Paid ${formatShortDate(property.billingPeriodPaidAt)}`;
   }
 
-  return (
-    <span className="text-xs text-zinc-500">
-      {property.latestEmail.label} {formatShortDate(property.latestEmail.sentAt)}
-    </span>
-  );
+  return "Paid";
 }
 
-function amountLabel(property: DashboardViewProperty, attention: boolean) {
-  if (attention) {
-    return "Late rent";
+function secondaryLine(property: DashboardViewProperty) {
+  if (
+    property.advancePayment &&
+    property.nextDueDate &&
+    property.billingPeriodRemainingCents === 0
+  ) {
+    return `Next due ${formatShortDate(property.nextDueDate)}`;
   }
 
-  if (property.amountOwedCents > 0) {
-    return "Rent due";
+  if (
+    property.billingPeriodRemainingCents > 0 &&
+    property.rentCents &&
+    property.billingPeriodMonth &&
+    property.billingPeriodRemainingCents < property.rentCents
+  ) {
+    const statusLine =
+      property.billingPeriodMonth > new Date()
+        ? `Due ${formatShortDate(property.billingPeriodMonth)}`
+        : `Unpaid since ${formatShortDate(property.billingPeriodMonth)}`;
+    const emailLine = property.latestEmail
+      ? `${property.latestEmail.label} ${formatShortDate(property.latestEmail.sentAt)}`
+      : null;
+
+    return [statusLine, emailLine].filter(Boolean).join(" · ");
   }
 
-  return "Next due";
-}
-
-function amountValue(property: DashboardViewProperty, attention: boolean) {
-  if (attention || property.amountOwedCents > 0) {
-    return formatCurrency(property.amountOwedCents);
+  if (property.billingPeriodRemainingCents > 0 && property.latestEmail) {
+    return `${property.latestEmail.label} ${formatShortDate(property.latestEmail.sentAt)}`;
   }
 
-  return formatDate(property.nextDueDate);
-}
-
-function DashboardNote({
-  property,
-  onSaveNote,
-}: {
-  property: DashboardViewProperty;
-  onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
-}) {
-  const originalNote = property.dashboardNote ?? "";
-  const [note, setNote] = useState(originalNote);
-  const [savedNote, setSavedNote] = useState(originalNote);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  if (!property.leaseId) {
-    return <span className="text-sm text-zinc-400">No active lease</span>;
-  }
-
-  function saveNote() {
-    const normalized = note.trim();
-    if (normalized === savedNote) {
-      return;
-    }
-    if (normalized.length > 500) {
-      setError("Use 500 characters or fewer.");
-      return;
-    }
-
-    setError(null);
-    startTransition(async () => {
-      try {
-        await (onSaveNote ?? saveDashboardNote)(property.leaseId!, normalized);
-        setNote(normalized);
-        setSavedNote(normalized);
-      } catch {
-        setError("Could not save this note.");
-      }
-    });
-  }
-
-  const errorId = `note-error-${property.id}`;
-
-  return (
-    <div>
-      <input
-        aria-describedby={error ? errorId : undefined}
-        aria-invalid={error ? true : undefined}
-        aria-label={`Notes for ${property.name}`}
-        className="h-11 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-700 outline-none transition focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-200 disabled:opacity-60"
-        disabled={isPending}
-        maxLength={500}
-        onBlur={saveNote}
-        onClick={(event) => event.stopPropagation()}
-        onChange={(event) => {
-          setNote(event.target.value);
-          setError(null);
-        }}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key === "Enter") {
-            event.currentTarget.blur();
-          }
-        }}
-        placeholder="Add note"
-        value={note}
-      />
-      {error ? (
-        <p className="mt-1 text-xs text-red-700" id={errorId}>
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
+  return null;
 }
 
 export function MoneyBar({ summary }: { summary: DashboardSummary }) {
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-0">
+      <h1 className="text-lg font-semibold tracking-tight text-zinc-950">
+        {formatMonthHeading(summary.billingPeriodMonth)}
+      </h1>
+      <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-0">
         <div className="sm:border-r sm:border-zinc-200 sm:pr-6">
           <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Collected this month
+            Collected
           </dt>
           <dd className="mt-1 text-xl font-semibold tracking-tight text-zinc-950">
             {formatCurrency(summary.collectedThisMonthCents)}
@@ -197,7 +150,7 @@ export function MoneyBar({ summary }: { summary: DashboardSummary }) {
         </div>
         <div className="sm:pl-6">
           <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Unpaid rent due
+            Still due
           </dt>
           <dd className="mt-1 text-xl font-semibold tracking-tight text-zinc-950">
             {formatCurrency(summary.outstandingCents)}
@@ -209,16 +162,15 @@ export function MoneyBar({ summary }: { summary: DashboardSummary }) {
 }
 
 function PropertyCard({
-  attention,
   onOpen,
-  onSaveNote,
   property,
 }: {
-  attention: boolean;
   onOpen?: () => void;
-  onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   property: DashboardViewProperty;
 }) {
+  const supportingLine = secondaryLine(property);
+  const note = property.dashboardNote?.trim();
+
   return (
     <article
       aria-label={onOpen ? `Open ${property.name}` : undefined}
@@ -227,8 +179,8 @@ function PropertyCard({
           ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:ring-offset-2"
           : ""
       } ${
-        property.status === "LATE"
-          ? "border-red-200"
+        property.billingPeriodRemainingCents > 0
+          ? "border-amber-200"
           : "border-zinc-200"
       }`}
       onClick={onOpen}
@@ -246,52 +198,31 @@ function PropertyCard({
           <h3 className="truncate font-semibold text-zinc-950">
             {property.name}
           </h3>
-          <div className="mt-1">
-            <CardActivity property={property} />
-          </div>
+          <p className="mt-2 text-sm font-medium text-zinc-800">
+            {primaryLine(property)}
+          </p>
+          {supportingLine ? (
+            <p className="mt-1 text-xs text-zinc-500">{supportingLine}</p>
+          ) : null}
+          {note ? (
+            <p className="mt-3 border-t border-zinc-100 pt-3 text-sm text-zinc-600">
+              {note}
+            </p>
+          ) : null}
         </div>
         <StatusBadge status={property.status} />
-      </div>
-
-      <div className="mt-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          {amountLabel(property, attention)}
-        </p>
-        <p
-          className={`mt-1 font-semibold ${
-            attention || property.amountOwedCents > 0
-              ? "text-lg text-zinc-950"
-              : "text-sm text-zinc-700"
-          }`}
-        >
-          {amountValue(property, attention)}
-        </p>
-      </div>
-
-      <div
-        className="mt-4 border-t border-zinc-100 pt-3"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Notes
-        </p>
-        <DashboardNote onSaveNote={onSaveNote} property={property} />
       </div>
     </article>
   );
 }
 
 function PropertySection({
-  attention,
   onOpenProperty,
-  onSaveNote,
   properties,
   propertyBaseHref,
   title,
 }: {
-  attention: boolean;
   onOpenProperty?: (propertyId: string) => void;
-  onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   properties: DashboardViewProperty[];
   propertyBaseHref: string | null;
   title: string;
@@ -313,7 +244,6 @@ function PropertySection({
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {properties.map((property) => (
           <PropertyCard
-            attention={attention}
             key={property.id}
             onOpen={
               onOpenProperty
@@ -327,7 +257,6 @@ function PropertySection({
                       )
                   : undefined
             }
-            onSaveNote={onSaveNote}
             property={property}
           />
         ))}
@@ -339,7 +268,6 @@ function PropertySection({
 export function PropertyTable({
   needsAttention,
   allGood,
-  onSaveNote,
   onOpenProperty,
   propertyBaseHref = "/properties",
 }: {
@@ -352,20 +280,16 @@ export function PropertyTable({
   return (
     <div className="space-y-7">
       <PropertySection
-        attention
-        onSaveNote={onSaveNote}
         onOpenProperty={onOpenProperty}
         properties={needsAttention}
         propertyBaseHref={propertyBaseHref}
-        title="Late rent"
+        title="Unpaid"
       />
       <PropertySection
-        attention={false}
-        onSaveNote={onSaveNote}
         onOpenProperty={onOpenProperty}
         properties={allGood}
         propertyBaseHref={propertyBaseHref}
-        title="Current leases"
+        title="Paid"
       />
     </div>
   );
@@ -376,7 +300,6 @@ export function DashboardView({
   emptyActionHref = "/?addProperty=1",
   needsAttention,
   onAddProperty,
-  onSaveNote,
   onOpenProperty,
   propertyBaseHref = "/properties",
   summary,
@@ -426,7 +349,6 @@ export function DashboardView({
           <PropertyTable
             allGood={allGood}
             needsAttention={needsAttention}
-            onSaveNote={onSaveNote}
             onOpenProperty={onOpenProperty}
             propertyBaseHref={propertyBaseHref}
           />
