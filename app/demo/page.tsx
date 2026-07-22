@@ -5,7 +5,11 @@ import { DashboardView } from "@/components/dashboard-view";
 import { AddCheckModal } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
-import { getDemoDashboardData, getDemoPropertyDetails } from "@/lib/demo-data";
+import {
+  getDemoDashboardData,
+  getDemoPaymentSimulation,
+  getDemoPropertyDetails,
+} from "@/lib/demo-data";
 
 import {
   createDemoPropertyWithLease,
@@ -54,15 +58,19 @@ export default async function DemoPage({
     demoSaved?: string;
     editPayment?: string;
     logPayment?: string;
+    paidAmount?: string;
+    paidAt?: string;
+    paidProperty?: string;
     property?: string;
     propertyId?: string;
   }>;
 }) {
   const query = await searchParams;
+  const paymentSimulation = getDemoPaymentSimulation(query);
   const { properties, needsAttention, allGood, summary } =
-    getDemoDashboardData();
+    getDemoDashboardData(paymentSimulation);
   const selectedProperty = query.property
-    ? getDemoPropertyDetails(query.property)
+    ? getDemoPropertyDetails(query.property, paymentSimulation)
     : null;
   const paymentProperties = properties
     .filter((property) => property.hasActiveLease)
