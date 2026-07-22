@@ -16,14 +16,14 @@ type DashboardViewProperty = DashboardProperty;
 
 const statusLabels: Record<DashboardStatus, string> = {
   PAID: "Current",
-  DUE: "Due",
+  DUE: "Current",
   LATE: "Late",
   NO_LEASE: "No lease",
 };
 
 const statusStyles: Record<DashboardStatus, string> = {
   PAID: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  DUE: "bg-amber-50 text-amber-800 ring-amber-200",
+  DUE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   LATE: "bg-red-50 text-red-700 ring-red-200",
   NO_LEASE: "bg-zinc-100 text-zinc-600 ring-zinc-200",
 };
@@ -50,6 +50,14 @@ function formatDate(date: Date | null) {
   }).format(date);
 }
 
+function formatShortDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 function StatusBadge({ status }: { status: DashboardStatus }) {
   return (
     <span
@@ -60,21 +68,45 @@ function StatusBadge({ status }: { status: DashboardStatus }) {
   );
 }
 
-function EmailActivity({ property }: { property: DashboardViewProperty }) {
+function CardActivity({ property }: { property: DashboardViewProperty }) {
+  if (property.advancePayment) {
+    return (
+      <span className="text-xs text-zinc-500">
+        {property.advancePayment.monthsPaid} months paid on{" "}
+        {formatShortDate(property.advancePayment.paidAt)}
+      </span>
+    );
+  }
+
   if (!property.latestEmail) {
     return null;
   }
 
   return (
     <span className="text-xs text-zinc-500">
-      {property.latestEmail.label}{" "}
-      {property.latestEmail.sentAt.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        timeZone: "UTC",
-      })}
+      {property.latestEmail.label} {formatShortDate(property.latestEmail.sentAt)}
     </span>
   );
+}
+
+function amountLabel(property: DashboardViewProperty, attention: boolean) {
+  if (attention) {
+    return "Late rent";
+  }
+
+  if (property.amountOwedCents > 0) {
+    return "Rent due";
+  }
+
+  return "Next due";
+}
+
+function amountValue(property: DashboardViewProperty, attention: boolean) {
+  if (attention || property.amountOwedCents > 0) {
+    return formatCurrency(property.amountOwedCents);
+  }
+
+  return formatDate(property.nextDueDate);
 }
 
 function DashboardNote({
@@ -165,7 +197,7 @@ export function MoneyBar({ summary }: { summary: DashboardSummary }) {
         </div>
         <div className="sm:pl-6">
           <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Outstanding
+            Unpaid rent due
           </dt>
           <dd className="mt-1 text-xl font-semibold tracking-tight text-zinc-950">
             {formatCurrency(summary.outstandingCents)}
@@ -197,9 +229,7 @@ function PropertyCard({
       } ${
         property.status === "LATE"
           ? "border-red-200"
-          : property.status === "DUE"
-            ? "border-amber-200"
-            : "border-zinc-200"
+          : "border-zinc-200"
       }`}
       onClick={onOpen}
       onKeyDown={(event) => {
@@ -217,7 +247,7 @@ function PropertyCard({
             {property.name}
           </h3>
           <div className="mt-1">
-            <EmailActivity property={property} />
+            <CardActivity property={property} />
           </div>
         </div>
         <StatusBadge status={property.status} />
@@ -225,16 +255,16 @@ function PropertyCard({
 
       <div className="mt-4">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          {attention ? "Amount due" : "Next due"}
+          {amountLabel(property, attention)}
         </p>
         <p
           className={`mt-1 font-semibold ${
-            attention ? "text-lg text-zinc-950" : "text-sm text-zinc-700"
+            attention || property.amountOwedCents > 0
+              ? "text-lg text-zinc-950"
+              : "text-sm text-zinc-700"
           }`}
         >
-          {attention
-            ? formatCurrency(property.amountOwedCents)
-            : formatDate(property.nextDueDate)}
+          {amountValue(property, attention)}
         </p>
       </div>
 
@@ -327,7 +357,7 @@ export function PropertyTable({
         onOpenProperty={onOpenProperty}
         properties={needsAttention}
         propertyBaseHref={propertyBaseHref}
-        title="Needs Attention"
+        title="Late rent"
       />
       <PropertySection
         attention={false}
@@ -335,7 +365,7 @@ export function PropertyTable({
         onOpenProperty={onOpenProperty}
         properties={allGood}
         propertyBaseHref={propertyBaseHref}
-        title="All Good"
+        title="Current leases"
       />
     </div>
   );
@@ -369,7 +399,7 @@ export function DashboardView({
       {!hasProperties ? (
         <section className="mt-5 rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-14 text-center">
           <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-            Add your first space
+            Add your first lease
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-600">
             Add a space, tenant, and lease to start tracking rent.
@@ -380,14 +410,14 @@ export function DashboardView({
               onClick={onAddProperty}
               type="button"
             >
-              Add
+              Add lease
             </button>
           ) : (
             <Link
               className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
               href={emptyActionHref}
             >
-              Add
+              Add lease
             </Link>
           )}
         </section>
