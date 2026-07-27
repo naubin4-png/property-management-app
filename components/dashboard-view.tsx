@@ -100,13 +100,13 @@ function primaryLine(property: DashboardViewProperty) {
   return "Paid";
 }
 
-function secondaryLine(property: DashboardViewProperty) {
+function secondaryLines(property: DashboardViewProperty) {
   if (
     property.advancePayment &&
     property.nextDueDate &&
     property.billingPeriodRemainingCents === 0
   ) {
-    return `Next due ${formatShortDate(property.nextDueDate)}`;
+    return [`Next due ${formatShortDate(property.nextDueDate)}`];
   }
 
   if (
@@ -123,14 +123,16 @@ function secondaryLine(property: DashboardViewProperty) {
       ? `${property.latestEmail.label} ${formatShortDate(property.latestEmail.sentAt)}`
       : null;
 
-    return [statusLine, emailLine].filter(Boolean).join(" · ");
+    return [statusLine, emailLine].filter(Boolean);
   }
 
   if (property.billingPeriodRemainingCents > 0 && property.latestEmail) {
-    return `${property.latestEmail.label} ${formatShortDate(property.latestEmail.sentAt)}`;
+    return [
+      `${property.latestEmail.label} ${formatShortDate(property.latestEmail.sentAt)}`,
+    ];
   }
 
-  return null;
+  return [];
 }
 
 export function MoneyBar({ summary }: { summary: DashboardSummary }) {
@@ -139,8 +141,8 @@ export function MoneyBar({ summary }: { summary: DashboardSummary }) {
       <h1 className="text-lg font-semibold tracking-tight text-zinc-950">
         {formatMonthHeading(summary.billingPeriodMonth)}
       </h1>
-      <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-0">
-        <div className="sm:border-r sm:border-zinc-200 sm:pr-6">
+      <dl className="mt-3 grid grid-cols-2 gap-3 sm:gap-0">
+        <div className="border-r border-zinc-200 pr-3 sm:pr-6">
           <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Collected
           </dt>
@@ -148,7 +150,7 @@ export function MoneyBar({ summary }: { summary: DashboardSummary }) {
             {formatCurrency(summary.collectedThisMonthCents)}
           </dd>
         </div>
-        <div className="sm:pl-6">
+        <div className="pl-3 sm:pl-6">
           <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Still due
           </dt>
@@ -168,7 +170,7 @@ function PropertyCard({
   onOpen?: () => void;
   property: DashboardViewProperty;
 }) {
-  const supportingLine = secondaryLine(property);
+  const supportingLines = secondaryLines(property);
   const note = property.dashboardNote?.trim();
 
   return (
@@ -201,8 +203,14 @@ function PropertyCard({
           <p className="mt-2 text-sm font-medium text-zinc-800">
             {primaryLine(property)}
           </p>
-          {supportingLine ? (
-            <p className="mt-1 text-xs text-zinc-500">{supportingLine}</p>
+          {supportingLines.length > 0 ? (
+            <div className="mt-1 space-y-0.5">
+              {supportingLines.map((line) => (
+                <p className="text-xs text-zinc-500" key={line}>
+                  {line}
+                </p>
+              ))}
+            </div>
           ) : null}
           {note ? (
             <p className="mt-3 border-t border-zinc-100 pt-3 text-sm text-zinc-600">
@@ -316,7 +324,7 @@ export function DashboardView({
   const hasProperties = needsAttention.length > 0 || allGood.length > 0;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
+    <main className="mx-auto max-w-7xl px-4 pb-24 pt-5 sm:px-6 sm:py-7">
       <MoneyBar summary={summary} />
 
       {!hasProperties ? (
