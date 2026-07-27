@@ -136,7 +136,7 @@ export function PaymentModal({
 
   const closeControl = onClose ? (
     <button
-      aria-label="Close check form"
+      aria-label="Close payment form"
       className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
       onClick={onClose}
       type="button"
@@ -145,7 +145,7 @@ export function PaymentModal({
     </button>
   ) : (
     <Link
-      aria-label="Close check form"
+      aria-label="Close payment form"
       className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
       href={closeHref}
     >
@@ -167,7 +167,7 @@ export function PaymentModal({
               className="text-xl font-semibold tracking-tight text-zinc-950"
               id="payment-modal-title"
             >
-              {payment ? "Edit Check" : "Add Check"}
+              {payment ? "Edit payment" : "Record payment"}
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
               Payments apply automatically to the oldest unpaid rent.
@@ -309,7 +309,11 @@ export function PaymentModal({
               disabled={isPending}
               type="submit"
             >
-              {isPending ? "Saving..." : payment ? "Save Check" : "Add Check"}
+              {isPending
+                ? "Saving..."
+                : payment
+                  ? "Save payment"
+                  : "Record payment"}
             </button>
           </div>
         </form>

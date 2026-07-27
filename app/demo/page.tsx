@@ -5,7 +5,11 @@ import { DashboardView } from "@/components/dashboard-view";
 import { AddCheckModal } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
-import { getDemoDashboardData, getDemoPropertyDetails } from "@/lib/demo-data";
+import {
+  getDemoDashboardData,
+  getDemoPaymentSimulation,
+  getDemoPropertyDetails,
+} from "@/lib/demo-data";
 
 import {
   createDemoPropertyWithLease,
@@ -26,8 +30,10 @@ export const dynamic = "force-dynamic";
 
 function DemoSuccessBanner({ value }: { value?: string }) {
   const messages: Record<string, string> = {
-    check: "Demo check saved. Sample data resets on reload.",
-    "deleted-check": "Demo check deleted. Sample data resets on reload.",
+    payment: "Demo payment saved. Sample data resets on reload.",
+    check: "Demo payment saved. Sample data resets on reload.",
+    "deleted-payment": "Demo payment deleted. Sample data resets on reload.",
+    "deleted-check": "Demo payment deleted. Sample data resets on reload.",
     property: "Demo space created. Sample data resets on reload.",
   };
   const message = value ? messages[value] : null;
@@ -52,15 +58,19 @@ export default async function DemoPage({
     demoSaved?: string;
     editPayment?: string;
     logPayment?: string;
+    paidAmount?: string;
+    paidAt?: string;
+    paidProperty?: string;
     property?: string;
     propertyId?: string;
   }>;
 }) {
   const query = await searchParams;
+  const paymentSimulation = getDemoPaymentSimulation(query);
   const { properties, needsAttention, allGood, summary } =
-    getDemoDashboardData();
+    getDemoDashboardData(paymentSimulation);
   const selectedProperty = query.property
-    ? getDemoPropertyDetails(query.property)
+    ? getDemoPropertyDetails(query.property, paymentSimulation)
     : null;
   const paymentProperties = properties
     .filter((property) => property.hasActiveLease)

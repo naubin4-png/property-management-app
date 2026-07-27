@@ -5,7 +5,10 @@ import { notFound } from "next/navigation";
 import { AddCheckModal } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
-import { getDemoPropertyDetails } from "@/lib/demo-data";
+import {
+  getDemoPaymentSimulation,
+  getDemoPropertyDetails,
+} from "@/lib/demo-data";
 
 import {
   deleteDemoPayment,
@@ -26,10 +29,14 @@ export default async function DemoPropertyDetailPage({
     addCheck?: string;
     editPayment?: string;
     logPayment?: string;
+    paidAmount?: string;
+    paidAt?: string;
+    paidProperty?: string;
   }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const detail = getDemoPropertyDetails(id);
+  const paymentSimulation = getDemoPaymentSimulation(query);
+  const detail = getDemoPropertyDetails(id, paymentSimulation);
 
   if (!detail) {
     notFound();

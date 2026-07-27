@@ -20,7 +20,7 @@ type LeaseInlineEditorProps = ComponentProps<typeof LeaseInlineEditor>;
 
 const periodLabels: Record<PropertyPeriodStatus, string> = {
   RECEIVED: "Paid",
-  DUE: "Due",
+  DUE: "Unpaid",
   LATE: "Late",
   UPCOMING: "Upcoming",
 };
@@ -76,14 +76,14 @@ export function PropertyDetailContent({
             onClick={onLogPayment}
             type="button"
           >
-            Add Check
+            Record payment
           </button>
         ) : lease && logPaymentHref ? (
           <Link
             className="inline-flex min-h-11 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
             href={logPaymentHref}
           >
-            Add Check
+            Record payment
           </Link>
         ) : null}
       </div>

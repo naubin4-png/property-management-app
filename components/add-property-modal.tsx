@@ -84,14 +84,14 @@ export function AddPropertyModal({
               className="text-xl font-semibold tracking-tight text-zinc-950"
               id="add-property-modal-title"
             >
-              Add Space
+              Add lease
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
-              Step {step} of 2
+              Add the space, tenant, and rent terms. Step {step} of 2.
             </p>
           </div>
           <button
-            aria-label="Close add form"
+            aria-label="Close add lease form"
             className="inline-flex size-11 items-center justify-center rounded-full text-2xl text-zinc-500 hover:bg-zinc-100"
             onClick={close}
             type="button"
