@@ -9,6 +9,7 @@ import type { AddPropertyActionState } from "@/app/(dashboard)/properties/action
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
 import {
+  buildDemoCreatedLeaseRedirectParams,
   encodeDemoCreatedLease,
   parseDemoSessionState,
   type DemoSessionState,
@@ -137,16 +138,13 @@ export async function createDemoPropertyWithLease(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
     .slice(0, 40) || "lease"}`;
-  const params = new URLSearchParams({
-    demoSaved: "property",
-    demoLease,
-    property: propertyId,
-  });
   const currentMonth = firstDayOfCurrentMonth();
-  if (firstPeriodMonth.getTime() === currentMonth.getTime()) {
-    params.set("leaseAdded", "1");
-    params.set("propertyId", propertyId);
-  }
+  const params = buildDemoCreatedLeaseRedirectParams({
+    demoLease,
+    currentMonth,
+    firstPeriodMonth,
+    propertyId,
+  });
 
   redirect(`/demo?${params.toString()}`);
 }

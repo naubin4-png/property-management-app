@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  buildDemoCreatedLeaseRedirectParams,
   encodeDemoCreatedLease,
   getDemoDashboardData,
   getDemoCreatedLease,
@@ -142,6 +143,32 @@ describe("demo dashboard state", () => {
     assert.equal(property.billingPeriodRemainingCents, 120000);
     assert.equal(detail?.activeLease?.tenant.email, null);
     assert.equal(detail?.activeLease?.lastPeriodMonth, null);
+  });
+
+  it("keeps the current-month demo payment prompt unobscured after lease creation", () => {
+    const params = buildDemoCreatedLeaseRedirectParams({
+      currentMonth: new Date("2026-07-01T00:00:00.000Z"),
+      demoLease: "encoded-lease",
+      firstPeriodMonth: new Date("2026-07-01T00:00:00.000Z"),
+      propertyId: "demo-created-unit",
+    });
+
+    assert.equal(params.get("leaseAdded"), "1");
+    assert.equal(params.get("propertyId"), "demo-created-unit");
+    assert.equal(params.get("property"), null);
+  });
+
+  it("opens future-start demo leases because they do not need a current-month payment prompt", () => {
+    const params = buildDemoCreatedLeaseRedirectParams({
+      currentMonth: new Date("2026-07-01T00:00:00.000Z"),
+      demoLease: "encoded-lease",
+      firstPeriodMonth: new Date("2026-09-01T00:00:00.000Z"),
+      propertyId: "demo-created-unit",
+    });
+
+    assert.equal(params.get("leaseAdded"), null);
+    assert.equal(params.get("propertyId"), null);
+    assert.equal(params.get("property"), "demo-created-unit");
   });
 
   it("keeps future-start demo leases visible without adding current-month due", () => {
