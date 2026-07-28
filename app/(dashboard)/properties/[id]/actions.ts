@@ -3,12 +3,15 @@
 import { revalidatePath } from "next/cache";
 
 import { createLeaseRecord } from "@/lib/lease-creation";
+import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
 import { updateLeaseRecord } from "@/lib/lease-updates";
 import { prisma } from "@/lib/prisma";
 
 export type InlineEditState = {
+  askCurrentMonthPayment?: boolean;
   error: string | null;
+  propertyId?: string;
   saved: boolean;
 };
 
@@ -31,39 +34,38 @@ export async function createLeaseInline(
   formData: FormData,
 ): Promise<InlineEditState> {
   const tenantName = String(formData.get("tenantName") ?? "").trim();
-  const tenantEmail = String(formData.get("tenantEmail") ?? "")
-    .trim()
-    .toLowerCase();
+  const tenantEmail =
+    String(formData.get("tenantEmail") ?? "").trim().toLowerCase() || null;
   const firstPeriodMonth = parseMonth(
     String(formData.get("firstPeriodMonth") ?? ""),
   );
-  const lastPeriodMonth = parseMonth(
-    String(formData.get("lastPeriodMonth") ?? ""),
-  );
+  const rawLastPeriodMonth = String(formData.get("lastPeriodMonth") ?? "");
+  const lastPeriodMonth = rawLastPeriodMonth
+    ? parseMonth(rawLastPeriodMonth)
+    : null;
   const rentCents = parseDollarAmount(String(formData.get("rent") ?? ""));
-  const notes = String(formData.get("notes") ?? "").trim();
   const reuseTenantId =
     String(formData.get("reuseTenantId") ?? "").trim() || undefined;
 
   if (
     !tenantName ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail) ||
     !firstPeriodMonth ||
-    !lastPeriodMonth ||
     !rentCents
   ) {
     return { error: "Complete all required lease fields.", saved: false };
   }
-  if (lastPeriodMonth < firstPeriodMonth) {
+  if (tenantEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail)) {
+    return { error: "Enter a valid tenant email.", saved: false };
+  }
+  if (rawLastPeriodMonth && !lastPeriodMonth) {
+    return { error: "Choose a valid lease end month.", saved: false };
+  }
+  if (lastPeriodMonth && lastPeriodMonth < firstPeriodMonth) {
     return {
       error: "Lease end must be the same as or after the first rent month.",
       saved: false,
     };
   }
-  if (notes.length > 1000) {
-    return { error: "Use 1,000 characters or fewer for notes.", saved: false };
-  }
-
   try {
     await createLeaseRecord({
       propertyId,
@@ -72,12 +74,19 @@ export async function createLeaseInline(
       firstPeriodMonth,
       lastPeriodMonth,
       rentCents,
-      notes,
+      notes: null,
       reuseTenantId,
     });
     revalidatePath("/");
     revalidatePath(`/properties/${propertyId}`);
-    return { error: null, saved: true };
+    const currentMonth = firstDayOfCurrentMonth();
+    return {
+      askCurrentMonthPayment:
+        firstPeriodMonth.getTime() === currentMonth.getTime(),
+      error: null,
+      propertyId,
+      saved: true,
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unable to create lease.",
@@ -93,12 +102,13 @@ export async function updateTenant(
   formData: FormData,
 ): Promise<InlineEditState> {
   const name = String(formData.get("tenantName") ?? "").trim();
-  const email = String(formData.get("tenantEmail") ?? "").trim().toLowerCase();
+  const email =
+    String(formData.get("tenantEmail") ?? "").trim().toLowerCase() || null;
 
   if (!name) {
     return { error: "Tenant name is required.", saved: false };
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "Enter a valid tenant email.", saved: false };
   }
 
@@ -121,13 +131,14 @@ export async function updateLeaseInline(
   _state: InlineEditState,
   formData: FormData,
 ): Promise<InlineEditState> {
-  const lastPeriodMonth = parseMonth(
-    String(formData.get("lastPeriodMonth") ?? ""),
-  );
+  const rawLastPeriodMonth = String(formData.get("lastPeriodMonth") ?? "");
+  const lastPeriodMonth = rawLastPeriodMonth
+    ? parseMonth(rawLastPeriodMonth)
+    : null;
   const rentCents = parseDollarAmount(String(formData.get("rent") ?? ""));
   const notes = String(formData.get("notes") ?? "").trim();
 
-  if (!lastPeriodMonth) {
+  if (rawLastPeriodMonth && !lastPeriodMonth) {
     return { error: "Choose a valid lease end month.", saved: false };
   }
   if (!rentCents) {

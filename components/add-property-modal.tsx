@@ -3,8 +3,6 @@
 import {
   useActionState,
   useEffect,
-  useRef,
-  useState,
   type FocusEvent,
 } from "react";
 
@@ -25,13 +23,11 @@ export function AddPropertyModal({
   action: AddPropertyAction;
   onClose?: () => void;
 }) {
-  const [step, setStep] = useState(1);
-  const formRef = useRef<HTMLFormElement>(null);
-  const tenantNameRef = useRef<HTMLInputElement>(null);
   const [state, formAction, isPending] = useActionState(
     action,
     initialState,
   );
+  const defaultTrackingMonth = new Date().toISOString().slice(0, 7);
 
   function close() {
     if (onClose) {
@@ -58,12 +54,6 @@ export function AddPropertyModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [closeHref, onClose]);
 
-  useEffect(() => {
-    if (step === 2) {
-      tenantNameRef.current?.focus();
-    }
-  }, [step]);
-
   function keepFieldVisible(event: FocusEvent<HTMLFormElement>) {
     window.setTimeout(() => {
       event.target.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -87,7 +77,7 @@ export function AddPropertyModal({
               Add lease
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
-              Add the space, tenant, and rent terms. Step {step} of 2.
+              Add the space, tenant, and rent terms.
             </p>
           </div>
           <button
@@ -104,11 +94,10 @@ export function AddPropertyModal({
           action={formAction}
           className="mt-6 grid flex-1 content-start gap-4"
           onFocusCapture={keepFieldVisible}
-          ref={formRef}
         >
-          <div className={step === 1 ? "grid gap-4" : "hidden"}>
+          <div className="grid gap-4">
             <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-              Name
+              Property or unit name
               <input
                 autoFocus
                 className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
@@ -116,27 +105,8 @@ export function AddPropertyModal({
                 name="propertyName"
                 placeholder="e.g. 123 Main Street"
                 required
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") {
-                    return;
-                  }
-                  event.preventDefault();
-                  if (event.currentTarget.reportValidity()) {
-                    setStep(2);
-                  }
-                }}
               />
             </label>
-            <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-              Notes (optional)
-              <textarea
-                className="min-h-24 rounded-md border border-zinc-300 px-3 py-2 font-normal"
-                name="propertyNotes"
-              />
-            </label>
-          </div>
-
-          <div className={step === 2 ? "grid gap-4" : "hidden"}>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
                 Tenant name
@@ -144,37 +114,35 @@ export function AddPropertyModal({
                   className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
                   enterKeyHint="next"
                   name="tenantName"
-                  ref={tenantNameRef}
                   required
                 />
               </label>
               <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-                Tenant email
+                Tenant email (optional)
                 <input
                   className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
                   enterKeyHint="next"
                   name="tenantEmail"
-                  required
                   type="email"
                 />
               </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-                First rent due
+                Track rent from
                 <input
                   className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
+                  defaultValue={defaultTrackingMonth}
                   name="firstPeriodMonth"
                   required
                   type="month"
                 />
               </label>
               <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-                Lease ends
+                Lease ends (optional)
                 <input
                   className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
                   name="lastPeriodMonth"
-                  required
                   type="month"
                 />
               </label>
@@ -193,13 +161,6 @@ export function AddPropertyModal({
                 type="number"
               />
             </label>
-            <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-              Lease notes (optional)
-              <textarea
-                className="min-h-24 rounded-md border border-zinc-300 px-3 py-2 font-normal"
-                name="leaseNotes"
-              />
-            </label>
           </div>
 
           {state.error ? (
@@ -209,52 +170,20 @@ export function AddPropertyModal({
           ) : null}
 
           <div className="mt-auto flex justify-end gap-3 pt-3 sm:mt-0">
-            {step === 1 ? (
-              <>
-                <button
-                  className="h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium text-zinc-800"
-                  onClick={close}
-                  type="button"
-                >
-                  Cancel
-                </button>
-                <button
-                  className="h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white"
-                  onClick={() => {
-                    const propertyName = formRef.current?.elements.namedItem(
-                      "propertyName",
-                    );
-                    if (
-                      propertyName instanceof HTMLInputElement &&
-                      !propertyName.reportValidity()
-                    ) {
-                      return;
-                    }
-                    setStep(2);
-                  }}
-                  type="button"
-                >
-                  Next
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className="h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium text-zinc-800"
-                  onClick={() => setStep(1)}
-                  type="button"
-                >
-                  Back
-                </button>
-                <button
-                  className="h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-60"
-                  disabled={isPending}
-                  type="submit"
-                >
-                  {isPending ? "Creating..." : "Create"}
-                </button>
-              </>
-            )}
+            <button
+              className="h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium text-zinc-800"
+              onClick={close}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-60"
+              disabled={isPending}
+              type="submit"
+            >
+              {isPending ? "Creating..." : "Create lease"}
+            </button>
           </div>
         </form>
       </div>

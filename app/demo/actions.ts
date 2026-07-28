@@ -1,11 +1,14 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import type { PaymentActionState } from "@/app/(dashboard)/payments/actions";
 import type { InlineEditState } from "@/app/(dashboard)/properties/[id]/actions";
 import type { AddPropertyActionState } from "@/app/(dashboard)/properties/actions";
+import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
+import { encodeDemoCreatedLease } from "@/lib/demo-data";
 
 function safeReturnHref(formData: FormData, fallback: string) {
   const value = String(formData.get("returnHref") ?? "");
@@ -33,6 +36,19 @@ function withParam(href: string, key: string, value: string) {
   return query ? `${pathname}?${query}` : pathname;
 }
 
+function safeDemoHrefFromReferer(value: string | null) {
+  if (!value) {
+    return "/demo";
+  }
+
+  try {
+    const url = new URL(value);
+    return safeDemoHref(`${url.pathname}${url.search}`, "/demo");
+  } catch {
+    return safeDemoHref(value, "/demo");
+  }
+}
+
 function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   return text || null;
@@ -44,35 +60,65 @@ export async function createDemoPropertyWithLease(
 ): Promise<AddPropertyActionState> {
   const propertyName = String(formData.get("propertyName") ?? "").trim();
   const tenantName = String(formData.get("tenantName") ?? "").trim();
-  const tenantEmail = String(formData.get("tenantEmail") ?? "")
-    .trim()
-    .toLowerCase();
+  const tenantEmail =
+    String(formData.get("tenantEmail") ?? "").trim().toLowerCase() || null;
   const firstPeriodMonth = parseMonth(
     String(formData.get("firstPeriodMonth") ?? ""),
   );
-  const lastPeriodMonth = parseMonth(
-    String(formData.get("lastPeriodMonth") ?? ""),
-  );
+  const rawLastPeriodMonth = String(formData.get("lastPeriodMonth") ?? "");
+  const lastPeriodMonth = rawLastPeriodMonth
+    ? parseMonth(rawLastPeriodMonth)
+    : null;
   const rentCents = parseDollarAmount(String(formData.get("rent") ?? ""));
 
   if (
     !propertyName ||
     !tenantName ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail) ||
     !firstPeriodMonth ||
-    !lastPeriodMonth ||
     !rentCents
   ) {
     return { error: "Complete all required fields." };
   }
 
-  if (lastPeriodMonth < firstPeriodMonth) {
+  if (tenantEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail)) {
+    return { error: "Enter a valid tenant email." };
+  }
+
+  if (rawLastPeriodMonth && !lastPeriodMonth) {
+    return { error: "Choose a valid lease end month." };
+  }
+
+  if (lastPeriodMonth && lastPeriodMonth < firstPeriodMonth) {
     return {
       error: "Lease end must be the same as or after the first rent month.",
     };
   }
 
-  redirect("/demo?demoSaved=property");
+  const demoLease = encodeDemoCreatedLease({
+    propertyName,
+    tenantName,
+    tenantEmail,
+    firstPeriodMonth,
+    lastPeriodMonth,
+    rentCents,
+  });
+  const propertyId = `demo-created-${propertyName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 40) || "lease"}`;
+  const params = new URLSearchParams({
+    demoSaved: "property",
+    demoLease,
+    property: propertyId,
+  });
+  const currentMonth = firstDayOfCurrentMonth();
+  if (firstPeriodMonth.getTime() === currentMonth.getTime()) {
+    params.set("leaseAdded", "1");
+    params.set("propertyId", propertyId);
+  }
+
+  redirect(`/demo?${params.toString()}`);
 }
 
 export async function logDemoPayment(
@@ -134,18 +180,6 @@ export async function deleteDemoPayment(
   );
 }
 
-export async function saveDemoDashboardNote(leaseId: string, note: string) {
-  const normalizedNote = note.trim();
-
-  if (!leaseId) {
-    throw new Error("A lease is required to save a note.");
-  }
-
-  if (normalizedNote.length > 500) {
-    throw new Error("Notes must be 500 characters or fewer.");
-  }
-}
-
 export async function updateDemoTenant(
   _propertyId: string,
   _tenantId: string,
@@ -153,12 +187,13 @@ export async function updateDemoTenant(
   formData: FormData,
 ): Promise<InlineEditState> {
   const name = String(formData.get("tenantName") ?? "").trim();
-  const email = String(formData.get("tenantEmail") ?? "").trim().toLowerCase();
+  const email =
+    String(formData.get("tenantEmail") ?? "").trim().toLowerCase() || null;
 
   if (!name) {
     return { error: "Tenant name is required.", saved: false };
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "Enter a valid tenant email.", saved: false };
   }
 
@@ -166,18 +201,19 @@ export async function updateDemoTenant(
 }
 
 export async function updateDemoLeaseInline(
-  _propertyId: string,
+  propertyId: string,
   _leaseId: string,
   _state: InlineEditState,
   formData: FormData,
 ): Promise<InlineEditState> {
-  const lastPeriodMonth = parseMonth(
-    String(formData.get("lastPeriodMonth") ?? ""),
-  );
+  const rawLastPeriodMonth = String(formData.get("lastPeriodMonth") ?? "");
+  const lastPeriodMonth = rawLastPeriodMonth
+    ? parseMonth(rawLastPeriodMonth)
+    : null;
   const rentCents = parseDollarAmount(String(formData.get("rent") ?? ""));
   const notes = String(formData.get("notes") ?? "").trim();
 
-  if (!lastPeriodMonth) {
+  if (rawLastPeriodMonth && !lastPeriodMonth) {
     return { error: "Choose a valid lease end month.", saved: false };
   }
   if (!rentCents) {
@@ -187,7 +223,15 @@ export async function updateDemoLeaseInline(
     return { error: "Use 1,000 characters or fewer for notes.", saved: false };
   }
 
-  return { error: null, saved: true };
+  const requestHeaders = await headers();
+  const returnUrl = new URL(
+    safeDemoHrefFromReferer(requestHeaders.get("referer")),
+    "http://demo.local",
+  );
+  returnUrl.searchParams.set("noteProperty", propertyId);
+  returnUrl.searchParams.set("note", notes);
+
+  redirect(`${returnUrl.pathname}?${returnUrl.searchParams.toString()}`);
 }
 
 export async function saveDemoEmailSettings(formData: FormData) {

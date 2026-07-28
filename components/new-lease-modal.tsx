@@ -25,6 +25,7 @@ export function NewLeaseModal({
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const [reuseTenantId, setReuseTenantId] = useState("");
   const [tenantMessage, setTenantMessage] = useState("");
+  const defaultTrackingMonth = new Date().toISOString().slice(0, 7);
   const [state, action, pending] = useActionState(
     createLeaseInline.bind(null, propertyId),
     initialState,
@@ -45,10 +46,20 @@ export function NewLeaseModal({
 
   useEffect(() => {
     if (state.saved) {
-      router.push(closeHref);
+      router.push(
+        state.askCurrentMonthPayment && state.propertyId
+          ? `/?property=${state.propertyId}&leaseAdded=1&propertyId=${state.propertyId}`
+          : closeHref,
+      );
       router.refresh();
     }
-  }, [closeHref, router, state.saved]);
+  }, [
+    closeHref,
+    router,
+    state.askCurrentMonthPayment,
+    state.propertyId,
+    state.saved,
+  ]);
 
   async function checkTenant(email: string) {
     const tenant = await findTenantByEmail(email);
@@ -111,13 +122,12 @@ export function NewLeaseModal({
               />
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-              Tenant email
+              Tenant email (optional)
               <input
                 className="h-11 rounded-lg border border-zinc-300 px-3 font-normal"
                 enterKeyHint="next"
                 name="tenantEmail"
                 onBlur={(event) => void checkTenant(event.currentTarget.value)}
-                required
                 type="email"
               />
             </label>
@@ -129,20 +139,20 @@ export function NewLeaseModal({
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-              First rent due
+              Track rent from
               <input
                 className="h-11 rounded-lg border border-zinc-300 px-3 font-normal"
+                defaultValue={defaultTrackingMonth}
                 name="firstPeriodMonth"
                 required
                 type="month"
               />
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-              Lease ends
+              Lease ends (optional)
               <input
                 className="h-11 rounded-lg border border-zinc-300 px-3 font-normal"
                 name="lastPeriodMonth"
-                required
                 type="month"
               />
             </label>
@@ -160,15 +170,6 @@ export function NewLeaseModal({
               type="number"
             />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-            Notes
-            <textarea
-              className="min-h-24 rounded-lg border border-zinc-300 px-3 py-2 font-normal"
-              maxLength={1000}
-              name="notes"
-            />
-          </label>
-
           {state.error ? (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
               {state.error}

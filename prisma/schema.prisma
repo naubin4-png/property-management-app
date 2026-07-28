@@ -32,7 +32,7 @@ model Property {
 model Tenant {
   id        String   @id @default(uuid())
   name      String
-  email     String
+  email     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -48,7 +48,7 @@ model Lease {
   tenant     Tenant   @relation(fields: [tenantId], references: [id])
 
   firstPeriodMonth DateTime @db.Date
-  lastPeriodMonth  DateTime @db.Date
+  lastPeriodMonth  DateTime? @db.Date
   rentCents        Int
   notes            String?
   dashboardNote    String?

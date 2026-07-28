@@ -28,14 +28,16 @@ type DemoEmailActivity = {
   sentAt: Date;
 } | null;
 
-type DemoPropertyRecord = {
+export type DemoPropertyRecord = {
   id: string;
   name: string;
   leaseId: string;
+  firstPeriodMonth?: Date;
+  lastPeriodMonth?: Date | null;
   tenantName: string;
-  tenantEmail: string;
+  tenantEmail: string | null;
   rentCents: number;
-  dashboardNote: string;
+  note: string;
   creditBalanceCents: number;
   latestEmail: DemoEmailActivity;
   periods: DemoPeriod[];
@@ -46,6 +48,29 @@ export type DemoPaymentSimulation = {
   amountCents: number;
   propertyId: string;
   receivedAt: Date;
+};
+
+export type DemoNoteSimulation = {
+  note: string;
+  propertyId: string;
+};
+
+export type DemoCreatedLeaseInput = {
+  propertyName: string;
+  tenantName: string;
+  tenantEmail: string | null;
+  firstPeriodMonth: Date;
+  lastPeriodMonth: Date | null;
+  rentCents: number;
+};
+
+type EncodedDemoLease = {
+  propertyName: string;
+  tenantName: string;
+  tenantEmail: string | null;
+  firstPeriodMonth: string;
+  lastPeriodMonth: string | null;
+  rentCents: number;
 };
 
 export function getDemoPaymentSimulation(query: {
@@ -73,11 +98,118 @@ export function getDemoPaymentSimulation(query: {
   };
 }
 
+export function getDemoNoteSimulation(query: {
+  note?: string;
+  noteProperty?: string;
+}): DemoNoteSimulation | null {
+  if (!query.noteProperty || query.note === undefined) {
+    return null;
+  }
+
+  return {
+    note: query.note,
+    propertyId: query.noteProperty,
+  };
+}
+
 const demoBillingPeriod = new Date("2026-07-01T00:00:00.000Z");
 const demoToday = new Date("2026-07-22T00:00:00.000Z");
 const demoComingMonth = new Date("2026-08-01T00:00:00.000Z");
 const firstPeriodMonth = new Date("2026-01-01T00:00:00.000Z");
 const lastPeriodMonth = new Date("2027-12-01T00:00:00.000Z");
+
+function encodeBase64Url(value: string) {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function decodeBase64Url(value: string) {
+  return Buffer.from(value, "base64url").toString("utf8");
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 40);
+}
+
+export function encodeDemoCreatedLease(input: DemoCreatedLeaseInput) {
+  const payload: EncodedDemoLease = {
+    propertyName: input.propertyName,
+    tenantName: input.tenantName,
+    tenantEmail: input.tenantEmail,
+    firstPeriodMonth: input.firstPeriodMonth.toISOString(),
+    lastPeriodMonth: input.lastPeriodMonth?.toISOString() ?? null,
+    rentCents: input.rentCents,
+  };
+
+  return encodeBase64Url(JSON.stringify(payload));
+}
+
+export function getDemoCreatedLease(query: {
+  demoLease?: string;
+}): DemoPropertyRecord | null {
+  if (!query.demoLease) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(query.demoLease)) as Partial<
+      EncodedDemoLease
+    >;
+    const firstTrackedMonth = new Date(payload.firstPeriodMonth ?? "");
+    const lastTrackedMonth = payload.lastPeriodMonth
+      ? new Date(payload.lastPeriodMonth)
+      : null;
+    const rentCents = Number(payload.rentCents);
+
+    if (
+      !payload.propertyName ||
+      !payload.tenantName ||
+      !Number.isInteger(rentCents) ||
+      rentCents <= 0 ||
+      !Number.isFinite(firstTrackedMonth.getTime()) ||
+      (lastTrackedMonth && !Number.isFinite(lastTrackedMonth.getTime())) ||
+      (lastTrackedMonth && lastTrackedMonth < firstTrackedMonth)
+    ) {
+      return null;
+    }
+
+    const id = `demo-created-${slugify(payload.propertyName) || "lease"}`;
+    const coversCurrent =
+      firstTrackedMonth <= demoBillingPeriod &&
+      (!lastTrackedMonth || lastTrackedMonth >= demoBillingPeriod);
+    const visiblePeriodMonth = coversCurrent
+      ? demoBillingPeriod
+      : firstTrackedMonth;
+
+    return {
+      id,
+      name: payload.propertyName,
+      leaseId: `${id}-lease`,
+      firstPeriodMonth: firstTrackedMonth,
+      lastPeriodMonth: lastTrackedMonth,
+      tenantName: payload.tenantName,
+      tenantEmail: payload.tenantEmail ?? null,
+      rentCents,
+      note: "",
+      creditBalanceCents: 0,
+      latestEmail: null,
+      periods: [
+        {
+          id: `${id}-${visiblePeriodMonth.toISOString().slice(0, 7)}`,
+          periodMonth: visiblePeriodMonth,
+          amountDueCents: rentCents,
+          status: coversCurrent ? "LATE" : "PENDING",
+        },
+      ],
+      payments: [],
+    };
+  } catch {
+    return null;
+  }
+}
 
 const demoRecords: DemoPropertyRecord[] = [
   {
@@ -87,7 +219,7 @@ const demoRecords: DemoPropertyRecord[] = [
     tenantName: "Maya Chen",
     tenantEmail: "maya@example.com",
     rentCents: 400000,
-    dashboardNote: "Call about the remaining balance",
+    note: "Call about the remaining balance",
     creditBalanceCents: 0,
     latestEmail: {
       label: "Late notice sent",
@@ -131,7 +263,7 @@ const demoRecords: DemoPropertyRecord[] = [
     tenantName: "Noah Williams",
     tenantEmail: "noah@example.com",
     rentCents: 680000,
-    dashboardNote: "Tenant confirmed payment is scheduled",
+    note: "Tenant confirmed payment is scheduled",
     creditBalanceCents: 0,
     latestEmail: {
       label: "Reminder sent",
@@ -175,7 +307,7 @@ const demoRecords: DemoPropertyRecord[] = [
     tenantName: "Avery Johnson",
     tenantEmail: "avery@example.com",
     rentCents: 325000,
-    dashboardNote: "Renewal conversation in August",
+    note: "Renewal conversation in August",
     creditBalanceCents: 0,
     latestEmail: null,
     periods: [
@@ -217,7 +349,7 @@ const demoRecords: DemoPropertyRecord[] = [
     tenantName: "Samira Patel",
     tenantEmail: "samira@example.com",
     rentCents: 520000,
-    dashboardNote: "Waiting on the tenant's updated payment date",
+    note: "Waiting on the tenant's updated payment date",
     creditBalanceCents: 310000,
     latestEmail: {
       label: "Late notice sent",
@@ -268,7 +400,7 @@ const demoRecords: DemoPropertyRecord[] = [
     tenantName: "Jordan Lee",
     tenantEmail: "jordan@example.com",
     rentCents: 275000,
-    dashboardNote: "",
+    note: "",
     creditBalanceCents: 0,
     latestEmail: null,
     periods: [
@@ -298,9 +430,15 @@ const demoRecords: DemoPropertyRecord[] = [
   },
 ];
 
-function cloneRecords() {
+function cloneRecords(): DemoPropertyRecord[] {
   return demoRecords.map((record) => ({
     ...record,
+    firstPeriodMonth: record.firstPeriodMonth
+      ? new Date(record.firstPeriodMonth)
+      : undefined,
+    lastPeriodMonth: record.lastPeriodMonth
+      ? new Date(record.lastPeriodMonth)
+      : record.lastPeriodMonth,
     latestEmail: record.latestEmail
       ? { ...record.latestEmail, sentAt: new Date(record.latestEmail.sentAt) }
       : null,
@@ -313,6 +451,22 @@ function cloneRecords() {
       receivedAt: new Date(payment.receivedAt),
     })),
   }));
+}
+
+function applyNoteSimulation(
+  records: DemoPropertyRecord[],
+  simulation?: DemoNoteSimulation | null,
+) {
+  if (!simulation) {
+    return records;
+  }
+
+  const record = records.find((item) => item.id === simulation.propertyId);
+  if (record) {
+    record.note = simulation.note.trim();
+  }
+
+  return records;
 }
 
 function applyPaymentSimulation(
@@ -354,8 +508,20 @@ function applyPaymentSimulation(
   return records;
 }
 
-function getRecords(simulation?: DemoPaymentSimulation | null) {
-  return applyPaymentSimulation(cloneRecords(), simulation);
+function getRecords(
+  simulation?: DemoPaymentSimulation | null,
+  createdLease?: DemoPropertyRecord | null,
+  noteSimulation?: DemoNoteSimulation | null,
+) {
+  const records = cloneRecords();
+  if (createdLease) {
+    records.push(createdLease);
+  }
+
+  return applyPaymentSimulation(
+    applyNoteSimulation(records, noteSimulation),
+    simulation,
+  );
 }
 
 function unpaidPeriods(record: DemoPropertyRecord) {
@@ -399,8 +565,11 @@ function dashboardPropertyFromRecord(
     billingPeriod?.paymentId && billingPeriod.status === "RECEIVED"
       ? (paymentById.get(billingPeriod.paymentId)?.receivedAt ?? null)
       : null;
+  const activeForBillingPeriod = Boolean(billingPeriod);
   const status =
-    billingPeriodRemainingCents === 0
+    !activeForBillingPeriod
+      ? "NO_LEASE"
+      : billingPeriodRemainingCents === 0
       ? "PAID"
       : billingPeriod?.status === "LATE"
         ? "LATE"
@@ -424,8 +593,8 @@ function dashboardPropertyFromRecord(
     rentCents: record.rentCents,
     nextDueDate: nextDue?.periodMonth ?? null,
     status,
-    hasActiveLease: true,
-    dashboardNote: record.dashboardNote,
+    hasActiveLease: activeForBillingPeriod,
+    note: record.note,
     latestEmail: record.latestEmail,
     advancePayment: paidAheadPayment
       ? {
@@ -467,8 +636,12 @@ function periodStatus(period: DemoPeriod): PropertyPeriodStatus {
 
 export function getDemoDashboardData(
   simulation?: DemoPaymentSimulation | null,
+  createdLease?: DemoPropertyRecord | null,
+  noteSimulation?: DemoNoteSimulation | null,
 ) {
-  const properties = getRecords(simulation).map(dashboardPropertyFromRecord);
+  const properties = getRecords(simulation, createdLease, noteSimulation).map(
+    dashboardPropertyFromRecord,
+  );
   const needsAttention = properties.filter(
     (property) => property.billingPeriodRemainingCents > 0,
   );
@@ -502,8 +675,12 @@ export function getDemoDashboardData(
 export function getDemoPropertyDetails(
   propertyId: string,
   simulation?: DemoPaymentSimulation | null,
+  createdLease?: DemoPropertyRecord | null,
+  noteSimulation?: DemoNoteSimulation | null,
 ): PropertyDetailData | null {
-  const record = getRecords(simulation).find((item) => item.id === propertyId);
+  const record = getRecords(simulation, createdLease, noteSimulation).find(
+    (item) => item.id === propertyId,
+  );
 
   if (!record) {
     return null;
@@ -512,7 +689,7 @@ export function getDemoPropertyDetails(
   return {
     id: record.id,
     name: record.name,
-    notes: record.dashboardNote,
+    notes: null,
     activeLease: {
       id: record.leaseId,
       tenant: {
@@ -521,10 +698,12 @@ export function getDemoPropertyDetails(
         email: record.tenantEmail,
       },
       rentCents: record.rentCents,
-      firstPeriodMonth,
-      lastPeriodMonth,
-      notes: "Demo lease details can be edited safely.",
-      dashboardNote: record.dashboardNote,
+      firstPeriodMonth: record.firstPeriodMonth ?? firstPeriodMonth,
+      lastPeriodMonth:
+        record.lastPeriodMonth === undefined
+          ? lastPeriodMonth
+          : record.lastPeriodMonth,
+      notes: record.note || null,
       creditBalanceCents: record.creditBalanceCents,
       periods: record.periods.map((period) => ({
         id: period.id,

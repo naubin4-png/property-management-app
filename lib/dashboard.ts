@@ -4,6 +4,7 @@ import {
   firstDayOfCurrentMonth,
   firstDayOfNextMonth,
 } from "@/lib/lease-math";
+import { leaseCoversMonth } from "@/lib/lease-periods";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 
@@ -17,7 +18,7 @@ export type DashboardProperty = {
   nextDueDate: Date | null;
   status: DashboardStatus;
   hasActiveLease: boolean;
-  dashboardNote: string | null;
+  note: string | null;
   latestEmail: {
     label: string;
     sentAt: Date;
@@ -38,7 +39,13 @@ async function ensureDashboardPeriods() {
   const currentMonth = firstDayOfCurrentMonth();
   const nextMonth = firstDayOfNextMonth();
   const activeLeases = await prisma.lease.findMany({
-    where: { lastPeriodMonth: { gte: currentMonth } },
+    where: {
+      firstPeriodMonth: { lte: nextMonth },
+      OR: [
+        { lastPeriodMonth: null },
+        { lastPeriodMonth: { gte: currentMonth } },
+      ],
+    },
     select: {
       id: true,
       firstPeriodMonth: true,
@@ -51,8 +58,11 @@ async function ensureDashboardPeriods() {
     [currentMonth, nextMonth]
       .filter(
         (periodMonth) =>
-          periodMonth >= lease.firstPeriodMonth &&
-          periodMonth <= lease.lastPeriodMonth,
+          leaseCoversMonth({
+            firstPeriodMonth: lease.firstPeriodMonth,
+            lastPeriodMonth: lease.lastPeriodMonth,
+            month: periodMonth,
+          }),
       )
       .map((periodMonth) => ({
         leaseId: lease.id,
@@ -84,7 +94,10 @@ export async function getDashboardData() {
           leases: {
             where: {
               firstPeriodMonth: { lte: currentMonth },
-              lastPeriodMonth: { gte: currentMonth },
+              OR: [
+                { lastPeriodMonth: null },
+                { lastPeriodMonth: { gte: currentMonth } },
+              ],
             },
             orderBy: { firstPeriodMonth: "desc" },
             take: 1,
@@ -118,7 +131,7 @@ export async function getDashboardData() {
         nextDueDate: null,
         status: "NO_LEASE",
         hasActiveLease: false,
-        dashboardNote: null,
+        note: null,
         latestEmail: null,
         advancePayment: null,
         billingPeriodMonth: null,
@@ -142,8 +155,11 @@ export async function getDashboardData() {
     );
     const nextDue = unpaidPeriods[0] ?? null;
     if (
-      currentMonth >= lease.firstPeriodMonth &&
-      currentMonth <= lease.lastPeriodMonth
+      leaseCoversMonth({
+        firstPeriodMonth: lease.firstPeriodMonth,
+        lastPeriodMonth: lease.lastPeriodMonth,
+        month: currentMonth,
+      })
     ) {
       emailLookupKeys.push({
         leaseId: lease.id,
@@ -219,7 +235,7 @@ export async function getDashboardData() {
       nextDueDate: nextDue?.periodMonth ?? null,
       status,
       hasActiveLease: true,
-      dashboardNote: lease.dashboardNote,
+      note: lease.notes,
       latestEmail: null,
       advancePayment: advancePayment
         ? {

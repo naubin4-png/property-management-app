@@ -12,16 +12,15 @@ export type PropertyDetailData = {
   notes: string | null;
   activeLease: {
     id: string;
-    tenant: {
-      id: string;
-      name: string;
-      email: string;
-    };
-    rentCents: number;
-    firstPeriodMonth: Date;
-    lastPeriodMonth: Date;
+      tenant: {
+        id: string;
+        name: string;
+        email: string | null;
+      };
+      rentCents: number;
+      firstPeriodMonth: Date;
+      lastPeriodMonth: Date | null;
     notes: string | null;
-    dashboardNote: string | null;
     creditBalanceCents: number;
     periods: {
       id: string;
@@ -73,7 +72,9 @@ export async function getPropertyDetails(
   const lateCutoff = new Date(today);
   lateCutoff.setUTCDate(lateCutoff.getUTCDate() - settings.gracePeriodDays);
   const activeLease =
-    property.leases.find((lease) => lease.lastPeriodMonth >= currentMonth) ?? null;
+    property.leases.find(
+      (lease) => !lease.lastPeriodMonth || lease.lastPeriodMonth >= currentMonth,
+    ) ?? null;
   const payments = property.leases
     .flatMap((lease) => lease.payments)
     .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
@@ -94,7 +95,6 @@ export async function getPropertyDetails(
           firstPeriodMonth: activeLease.firstPeriodMonth,
           lastPeriodMonth: activeLease.lastPeriodMonth,
           notes: activeLease.notes,
-          dashboardNote: activeLease.dashboardNote,
           creditBalanceCents:
             activeLease.payments.reduce(
               (total, payment) => total + payment.amountCents,

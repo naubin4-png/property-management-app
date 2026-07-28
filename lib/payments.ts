@@ -1,6 +1,10 @@
 import { PeriodStatus, Prisma, type PrismaClient } from "@prisma/client";
 
-import { enumerateMonths } from "@/lib/lease-periods";
+import { firstDayOfCurrentMonth } from "@/lib/lease-math";
+import {
+  addMonths,
+  enumerateLeaseMonths,
+} from "@/lib/lease-periods";
 
 type TransactionClient = Omit<
   PrismaClient,
@@ -15,6 +19,13 @@ type PaymentInput = {
   paymentReference: string | null;
   notes: string | null;
   clientRequestId: string;
+};
+
+type LeaseForAllocation = {
+  id: string;
+  firstPeriodMonth: Date;
+  rentCents: number;
+  lastPeriodMonth: Date | null;
 };
 
 async function getCreditBalance(
@@ -43,6 +54,82 @@ async function getCreditBalance(
   return (
     (payments._sum.amountCents ?? 0) - (allocated._sum.amountDueCents ?? 0)
   );
+}
+
+async function ensurePaymentPeriodsThrough(
+  tx: TransactionClient,
+  lease: LeaseForAllocation,
+  minimumThrough: Date,
+) {
+  await tx.paymentPeriod.createMany({
+    data: enumerateLeaseMonths({
+      firstPeriodMonth: lease.firstPeriodMonth,
+      lastPeriodMonth: lease.lastPeriodMonth,
+      minimumThrough,
+    }).map((periodMonth) => ({
+      leaseId: lease.id,
+      periodMonth,
+      amountDueCents: lease.rentCents,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+async function getUnpaidPeriods(tx: TransactionClient, leaseId: string) {
+  return tx.paymentPeriod.findMany({
+    where: {
+      leaseId,
+      status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
+    },
+    orderBy: { periodMonth: "asc" },
+  });
+}
+
+async function ensureEnoughOpenEndedPeriods(
+  tx: TransactionClient,
+  lease: LeaseForAllocation,
+  monthsToCover: number,
+) {
+  let unpaidPeriods = await getUnpaidPeriods(tx, lease.id);
+
+  if (monthsToCover <= unpaidPeriods.length) {
+    return unpaidPeriods;
+  }
+
+  if (lease.lastPeriodMonth) {
+    throw new Error("Payment exceeds remaining rent on this lease.");
+  }
+
+  const latestPeriod = await tx.paymentPeriod.findFirst({
+    where: { leaseId: lease.id },
+    orderBy: { periodMonth: "desc" },
+    select: { periodMonth: true },
+  });
+  let periodMonth = addMonths(
+    latestPeriod?.periodMonth ?? lease.firstPeriodMonth,
+    latestPeriod ? 1 : 0,
+  );
+  const missingCount = monthsToCover - unpaidPeriods.length;
+
+  await tx.paymentPeriod.createMany({
+    data: Array.from({ length: missingCount }, () => {
+      const data = {
+        leaseId: lease.id,
+        periodMonth,
+        amountDueCents: lease.rentCents,
+      };
+      periodMonth = addMonths(periodMonth, 1);
+      return data;
+    }),
+    skipDuplicates: true,
+  });
+
+  unpaidPeriods = await getUnpaidPeriods(tx, lease.id);
+  if (monthsToCover > unpaidPeriods.length) {
+    throw new Error("Payment exceeds remaining rent on this lease.");
+  }
+
+  return unpaidPeriods;
 }
 
 export async function allocatePayment(
@@ -83,29 +170,12 @@ export async function allocatePayment(
   const effectiveAmount = creditBalance + input.amountCents;
   const monthsToCover = Math.floor(effectiveAmount / lease.rentCents);
 
-  await tx.paymentPeriod.createMany({
-    data: enumerateMonths(
-      lease.firstPeriodMonth,
-      lease.lastPeriodMonth,
-    ).map((periodMonth) => ({
-      leaseId: lease.id,
-      periodMonth,
-      amountDueCents: lease.rentCents,
-    })),
-    skipDuplicates: true,
-  });
-
-  const unpaidPeriods = await tx.paymentPeriod.findMany({
-    where: {
-      leaseId: lease.id,
-      status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
-    },
-    orderBy: { periodMonth: "asc" },
-  });
-
-  if (monthsToCover > unpaidPeriods.length) {
-    throw new Error("Payment exceeds remaining rent on this lease.");
-  }
+  await ensurePaymentPeriodsThrough(tx, lease, firstDayOfCurrentMonth());
+  const unpaidPeriods = await ensureEnoughOpenEndedPeriods(
+    tx,
+    lease,
+    monthsToCover,
+  );
 
   const payment = existingPaymentId
     ? await tx.payment.update({

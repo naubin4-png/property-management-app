@@ -1,5 +1,5 @@
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
-import { enumerateMonths } from "@/lib/lease-periods";
+import { enumerateLeaseMonths } from "@/lib/lease-periods";
 import { prisma } from "@/lib/prisma";
 
 export async function createLeaseRecord({
@@ -14,18 +14,22 @@ export async function createLeaseRecord({
 }: {
   propertyId: string;
   tenantName: string;
-  tenantEmail: string;
+  tenantEmail: string | null;
   firstPeriodMonth: Date;
-  lastPeriodMonth: Date;
+  lastPeriodMonth: Date | null;
   rentCents: number;
-  notes: string;
+  notes: string | null;
   reuseTenantId?: string;
 }) {
+  const currentMonth = firstDayOfCurrentMonth();
   await prisma.$transaction(async (tx) => {
     const activeLease = await tx.lease.findFirst({
       where: {
         propertyId,
-        lastPeriodMonth: { gte: firstDayOfCurrentMonth() },
+        OR: [
+          { lastPeriodMonth: null },
+          { lastPeriodMonth: { gte: currentMonth } },
+        ],
       },
       select: { id: true },
     });
@@ -51,18 +55,20 @@ export async function createLeaseRecord({
         firstPeriodMonth,
         lastPeriodMonth,
         rentCents,
-        notes: notes || null,
+        notes,
       },
     });
 
     await tx.paymentPeriod.createMany({
-      data: enumerateMonths(firstPeriodMonth, lastPeriodMonth).map(
-        (periodMonth) => ({
-          leaseId: lease.id,
-          periodMonth,
-          amountDueCents: rentCents,
-        }),
-      ),
+      data: enumerateLeaseMonths({
+        firstPeriodMonth,
+        lastPeriodMonth,
+        minimumThrough: currentMonth,
+      }).map((periodMonth) => ({
+        leaseId: lease.id,
+        periodMonth,
+        amountDueCents: rentCents,
+      })),
     });
   });
 }

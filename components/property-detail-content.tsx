@@ -66,9 +66,6 @@ export function PropertyDetailContent({
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
             {detail.name}
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            {detail.notes || "No space notes"}
-          </p>
         </div>
         {lease && onLogPayment ? (
           <button
@@ -99,12 +96,18 @@ export function PropertyDetailContent({
                 <p className="mt-1 font-semibold text-zinc-950">
                   {lease.tenant.name}
                 </p>
-                <a
-                  className="mt-0.5 inline-flex min-h-11 items-center text-sm text-zinc-600 hover:text-zinc-950"
-                  href={tenantEmailHref ?? `mailto:${lease.tenant.email}`}
-                >
-                  {lease.tenant.email}
-                </a>
+                {lease.tenant.email ? (
+                  <a
+                    className="mt-0.5 inline-flex min-h-11 items-center text-sm text-zinc-600 hover:text-zinc-950"
+                    href={tenantEmailHref ?? `mailto:${lease.tenant.email}`}
+                  >
+                    {lease.tenant.email}
+                  </a>
+                ) : (
+                  <p className="mt-0.5 flex min-h-11 items-center text-sm text-zinc-500">
+                    No email on file
+                  </p>
+                )}
                 {showInlineEditing ? (
                   <TenantInlineEditor
                     action={tenantAction}
@@ -138,13 +141,15 @@ export function PropertyDetailContent({
               <div>
                 <dt className="text-xs text-zinc-500">Lease ends</dt>
                 <dd className="mt-0.5 text-sm font-medium text-zinc-800">
-                  {formatMonth(lease.lastPeriodMonth)}
+                  {lease.lastPeriodMonth
+                    ? formatMonth(lease.lastPeriodMonth)
+                    : "Open-ended"}
                 </dd>
               </div>
             </dl>
-            {lease.dashboardNote || lease.notes ? (
+            {lease.notes ? (
               <p className="mt-4 border-t border-zinc-100 pt-3 text-sm text-zinc-600">
-                {lease.dashboardNote || lease.notes}
+                {lease.notes}
               </p>
             ) : null}
           </section>

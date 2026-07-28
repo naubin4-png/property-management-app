@@ -25,6 +25,66 @@ export function enumerateMonths(start: Date, end: Date) {
   return months;
 }
 
+export function addMonths(date: Date, count: number) {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + count, 1),
+  );
+}
+
+export function maxMonth(a: Date, b: Date) {
+  return a > b ? a : b;
+}
+
+export function leaseCoversMonth({
+  firstPeriodMonth,
+  lastPeriodMonth,
+  month,
+}: {
+  firstPeriodMonth: Date;
+  lastPeriodMonth: Date | null;
+  month: Date;
+}) {
+  return (
+    firstPeriodMonth <= month &&
+    (lastPeriodMonth === null || lastPeriodMonth >= month)
+  );
+}
+
+export function leasePeriodGenerationEnd({
+  firstPeriodMonth,
+  lastPeriodMonth,
+  minimumThrough,
+}: {
+  firstPeriodMonth: Date;
+  lastPeriodMonth: Date | null;
+  minimumThrough: Date;
+}) {
+  if (lastPeriodMonth) {
+    return lastPeriodMonth;
+  }
+
+  return maxMonth(firstPeriodMonth, minimumThrough);
+}
+
+export function enumerateLeaseMonths({
+  firstPeriodMonth,
+  lastPeriodMonth,
+  minimumThrough,
+}: {
+  firstPeriodMonth: Date;
+  lastPeriodMonth: Date | null;
+  minimumThrough: Date;
+}) {
+  return enumerateMonths(
+    firstPeriodMonth,
+    leasePeriodGenerationEnd({
+      firstPeriodMonth,
+      lastPeriodMonth,
+      minimumThrough,
+    }),
+  );
+}
+
 export function parseDollarAmount(value: string) {
   const normalized = value.trim().replace(/[$,]/g, "");
 

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount } from "@/lib/lease-periods";
 import {
   allocatePayment,
@@ -60,14 +61,16 @@ function parsePaymentInput(formData: FormData) {
 }
 
 async function findActiveLease(propertyId: string) {
-  const currentMonth = new Date();
-  currentMonth.setUTCDate(1);
-  currentMonth.setUTCHours(0, 0, 0, 0);
+  const currentMonth = firstDayOfCurrentMonth();
 
   return prisma.lease.findFirst({
     where: {
       propertyId,
-      lastPeriodMonth: { gte: currentMonth },
+      firstPeriodMonth: { lte: currentMonth },
+      OR: [
+        { lastPeriodMonth: null },
+        { lastPeriodMonth: { gte: currentMonth } },
+      ],
     },
     orderBy: { firstPeriodMonth: "desc" },
     select: { id: true },

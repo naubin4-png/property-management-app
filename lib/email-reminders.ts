@@ -9,7 +9,7 @@ type ReminderPeriod = {
   amountDueCents: number;
   lease: {
     id: string;
-    tenant: { id: string; name: string; email: string };
+    tenant: { id: string; name: string; email: string | null };
     property: { name: string };
   };
 };
@@ -40,6 +40,11 @@ export async function processReminderPeriods(
     const subject = renderTemplate(template.subject, period);
     const body = renderTemplate(template.body, period);
     const tenant = period.lease.tenant;
+
+    if (!tenant.email) {
+      skipped += 1;
+      continue;
+    }
 
     try {
       const log = await prisma.emailLog.create({
@@ -112,7 +117,13 @@ export async function findReminderPeriods(
     where: {
       periodMonth,
       status: { in: statuses },
-      lease: { lastPeriodMonth: { gte: currentMonth } },
+      lease: {
+        firstPeriodMonth: { lte: currentMonth },
+        OR: [
+          { lastPeriodMonth: null },
+          { lastPeriodMonth: { gte: currentMonth } },
+        ],
+      },
     },
     include: {
       lease: {
