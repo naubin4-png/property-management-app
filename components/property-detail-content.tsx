@@ -137,7 +137,7 @@ function LedgerRow({
           <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-lg px-1 text-sm font-medium text-zinc-700 hover:text-zinc-950">
             Actions
           </summary>
-          <div className="mt-1 flex items-center gap-4 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 shadow-sm sm:absolute">
+          <div className="mt-1 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-sm">
             <Link
               className="inline-flex min-h-11 items-center text-sm font-medium text-zinc-700 hover:text-zinc-950"
               href={editHref}
