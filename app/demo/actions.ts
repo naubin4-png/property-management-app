@@ -8,7 +8,11 @@ import type { InlineEditState } from "@/app/(dashboard)/properties/[id]/actions"
 import type { AddPropertyActionState } from "@/app/(dashboard)/properties/actions";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
-import { encodeDemoCreatedLease } from "@/lib/demo-data";
+import {
+  encodeDemoCreatedLease,
+  parseDemoSessionState,
+  type DemoSessionState,
+} from "@/lib/demo-data";
 import { unknownEmailPlaceholders } from "@/lib/email-reminders";
 
 function safeReturnHref(formData: FormData, fallback: string) {
@@ -53,6 +57,31 @@ function safeDemoHrefFromReferer(value: string | null) {
 function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   return text || null;
+}
+
+function serializeDemoSession(session: DemoSessionState) {
+  return JSON.stringify(session);
+}
+
+async function readDemoSession() {
+  const cookieStore = await cookies();
+  return {
+    cookieStore,
+    session: parseDemoSessionState(
+      cookieStore.get("demo-detail-session")?.value,
+    ),
+  };
+}
+
+function writeDemoSession(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  session: DemoSessionState,
+) {
+  cookieStore.set("demo-detail-session", serializeDemoSession(session), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/demo",
+  });
 }
 
 export async function createDemoPropertyWithLease(
@@ -130,6 +159,11 @@ export async function logDemoPayment(
   const amountCents = parseDollarAmount(String(formData.get("amount") ?? ""));
   const receivedAtValue = String(formData.get("receivedAt") ?? "");
   const receivedAt = new Date(`${receivedAtValue}T00:00:00.000Z`);
+  const paymentMethod = optionalString(formData.get("paymentMethod"));
+  const notes = optionalString(formData.get("notes"));
+  const clientRequestId =
+    String(formData.get("clientRequestId") ?? "").trim() ||
+    `demo-payment-${Date.now()}`;
 
   if (!propertyId || !receivedAtValue) {
     return { error: "Property, amount, and date received are required." };
@@ -143,39 +177,50 @@ export async function logDemoPayment(
     return { error: "Enter a valid date received." };
   }
 
-  optionalString(formData.get("paymentMethod"));
-  optionalString(formData.get("notes"));
-
-  const href = withParam(
-    withParam(
-      withParam(
-        withParam(safeReturnHref(formData, "/demo"), "demoSaved", "payment"),
-        "paidProperty",
-        propertyId,
-      ),
-      "paidAmount",
-      String(amountCents),
-    ),
-    "paidAt",
-    receivedAtValue,
+  const { cookieStore, session } = await readDemoSession();
+  session.deletedPaymentIds = session.deletedPaymentIds.filter(
+    (id) => id !== clientRequestId,
   );
+  session.payments = [
+    ...session.payments.filter((payment) => payment.id !== clientRequestId),
+    {
+      id: clientRequestId,
+      amountCents,
+      notes,
+      paymentMethod,
+      propertyId,
+      receivedAt: receivedAtValue,
+    },
+  ];
+  writeDemoSession(cookieStore, session);
+
+  const href = withParam(safeReturnHref(formData, "/demo"), "demoSaved", "payment");
 
   redirect(href);
 }
 
 export async function editDemoPayment(
-  _paymentId: string,
+  paymentId: string,
   _state: PaymentActionState,
   formData: FormData,
 ): Promise<PaymentActionState> {
-  return logDemoPayment(_state, formData);
+  const nextFormData = new FormData();
+  for (const [key, value] of formData.entries()) {
+    nextFormData.append(key, value);
+  }
+  nextFormData.set("clientRequestId", paymentId);
+  return logDemoPayment(_state, nextFormData);
 }
 
 export async function deleteDemoPayment(
-  _paymentId: string,
+  paymentId: string,
   _propertyId: string,
   returnHref: string,
 ) {
+  const { cookieStore, session } = await readDemoSession();
+  session.deletedPaymentIds = [...new Set([...session.deletedPaymentIds, paymentId])];
+  session.payments = session.payments.filter((payment) => payment.id !== paymentId);
+  writeDemoSession(cookieStore, session);
   redirect(
     withParam(safeDemoHref(returnHref, "/demo"), "demoSaved", "deleted-payment"),
   );
@@ -233,6 +278,53 @@ export async function updateDemoLeaseInline(
   returnUrl.searchParams.set("note", notes);
 
   redirect(`${returnUrl.pathname}?${returnUrl.searchParams.toString()}`);
+}
+
+export async function updateDemoPropertyDetails(
+  propertyId: string,
+  _leaseId: string,
+  _state: InlineEditState,
+  formData: FormData,
+): Promise<InlineEditState> {
+  const propertyName = String(formData.get("propertyName") ?? "").trim();
+  const tenantName = String(formData.get("tenantName") ?? "").trim();
+  const tenantEmail =
+    String(formData.get("tenantEmail") ?? "").trim().toLowerCase() || null;
+  const rawLastPeriodMonth = String(formData.get("lastPeriodMonth") ?? "");
+  const lastPeriodMonth = rawLastPeriodMonth
+    ? parseMonth(rawLastPeriodMonth)
+    : null;
+  const rentCents = parseDollarAmount(String(formData.get("rent") ?? ""));
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  if (!propertyName || !tenantName) {
+    return { error: "Property and tenant names are required.", saved: false };
+  }
+  if (tenantEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail)) {
+    return { error: "Enter a valid tenant email.", saved: false };
+  }
+  if (rawLastPeriodMonth && !lastPeriodMonth) {
+    return { error: "Choose a valid lease end month.", saved: false };
+  }
+  if (!rentCents) {
+    return { error: "Enter a valid monthly rent.", saved: false };
+  }
+  if (notes.length > 1000) {
+    return { error: "Use 1,000 characters or fewer for notes.", saved: false };
+  }
+
+  const { cookieStore, session } = await readDemoSession();
+  session.detailEdits[propertyId] = {
+    lastPeriodMonth: rawLastPeriodMonth || null,
+    note: notes,
+    propertyName,
+    rentCents,
+    tenantEmail,
+    tenantName,
+  };
+  writeDemoSession(cookieStore, session);
+
+  return { error: null, saved: true };
 }
 
 export async function saveDemoEmailSettings(formData: FormData) {

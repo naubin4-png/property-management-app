@@ -63,7 +63,6 @@ export async function createPropertyWithLease(
       const property = await tx.property.create({
         data: {
           name: propertyName,
-          notes: null,
         },
       });
       const tenant = await tx.tenant.create({

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { AddCheckModal } from "@/components/payment-modal";
@@ -10,6 +11,7 @@ import {
   getDemoNoteSimulation,
   getDemoPaymentSimulation,
   getDemoPropertyDetails,
+  parseDemoSessionState,
 } from "@/lib/demo-data";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 
@@ -17,8 +19,7 @@ import {
   deleteDemoPayment,
   editDemoPayment,
   logDemoPayment,
-  updateDemoLeaseInline,
-  updateDemoTenant,
+  updateDemoPropertyDetails,
 } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,14 @@ export default async function DemoPropertyDetailPage({
     noteProperty?: string;
   }>;
 }) {
-  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const [{ id }, query, cookieStore] = await Promise.all([
+    params,
+    searchParams,
+    cookies(),
+  ]);
+  const demoSession = parseDemoSessionState(
+    cookieStore.get("demo-detail-session")?.value,
+  );
   const paymentSimulation = getDemoPaymentSimulation(query);
   const noteSimulation = getDemoNoteSimulation(query);
   const createdLease = getDemoCreatedLease(query);
@@ -49,6 +57,7 @@ export default async function DemoPropertyDetailPage({
     paymentSimulation,
     createdLease,
     noteSimulation,
+    demoSession,
   );
 
   if (!detail) {
@@ -85,13 +94,12 @@ export default async function DemoPropertyDetailPage({
     <>
       <PropertyPanel closeHref={dashboardHref} title={detail.name}>
         <PropertyDetailContent
+          detailsAction={updateDemoPropertyDetails}
           detail={detail}
-          leaseAction={updateDemoLeaseInline}
           logPaymentHref={leaseCoversCurrentMonth ? addCheckHref : undefined}
           paymentDeleteAction={deleteDemoPayment}
           paymentReturnHref={detailHref}
-          tenantAction={updateDemoTenant}
-          tenantEmailHref={`/demo/email?property=${detail.id}`}
+          remindersHref={`/demo/email?property=${detail.id}`}
         />
       </PropertyPanel>
 
@@ -125,9 +133,19 @@ export default async function DemoPropertyDetailPage({
           payment={{
             ...editingPayment,
             clientRequestId: randomUUID(),
-            notes: null,
+            notes: editingPayment.notes,
           }}
-          properties={[{ id: detail.id, name: detail.name }]}
+          properties={[
+            {
+              id: detail.id,
+              name: detail.name,
+              rentCents: lease?.rentCents,
+              creditBalanceCents: lease?.creditBalanceCents,
+              nextDueDate:
+                lease?.periods.find((period) => period.status !== "RECEIVED")
+                  ?.periodMonth ?? null,
+            },
+          ]}
           returnHref={detailHref}
           selectedPropertyId={detail.id}
         />

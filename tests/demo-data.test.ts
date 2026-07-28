@@ -9,6 +9,7 @@ import {
   getDemoEmailData,
   getDemoNoteSimulation,
   getDemoPropertyDetails,
+  type DemoSessionState,
   type DemoPaymentSimulation,
 } from "../lib/demo-data";
 
@@ -177,7 +178,6 @@ describe("demo dashboard state", () => {
     const detail = getDemoPropertyDetails("cedar-studio", null, null, noteSimulation);
 
     assert.equal(cedar.note, "Call tenant before Friday");
-    assert.equal(detail?.notes, null);
     assert.equal(detail?.activeLease?.notes, "Call tenant before Friday");
   });
 
@@ -261,5 +261,47 @@ describe("demo dashboard state", () => {
     );
 
     assert.equal(lakeviewLog?.error, null);
+  });
+
+  it("applies session-scoped demo detail edits and payment deletion to the shared detail model", () => {
+    const session: DemoSessionState = {
+      deletedPaymentIds: ["lakeview-retail-july-partial"],
+      payments: [],
+      detailEdits: {
+        "lakeview-retail": {
+          lastPeriodMonth: null,
+          note: "Updated demo note",
+          propertyName: "Lakeview Retail Updated",
+          rentCents: 530000,
+          tenantEmail: null,
+          tenantName: "Samira Updated",
+        },
+      },
+    };
+    const dashboard = getDemoDashboardData(null, null, null, session);
+    const detail = getDemoPropertyDetails(
+      "lakeview-retail",
+      null,
+      null,
+      null,
+      session,
+    );
+
+    assert.equal(detail?.name, "Lakeview Retail Updated");
+    assert.equal(detail?.activeLease?.tenant.name, "Samira Updated");
+    assert.equal(detail?.activeLease?.tenant.email, null);
+    assert.equal(detail?.activeLease?.lastPeriodMonth, null);
+    assert.equal(detail?.activeLease?.notes, "Updated demo note");
+    assert.equal(
+      detail?.payments.some(
+        (payment) => payment.id === "lakeview-retail-july-partial",
+      ),
+      false,
+    );
+    assert.equal(
+      dashboard.properties.find((property) => property.id === "lakeview-retail")
+        ?.note,
+      "Updated demo note",
+    );
   });
 });

@@ -53,6 +53,7 @@ export default async function PropertyDetailPage({
           }
           newLeaseHref={`/properties/${detail.id}?newLease=1`}
           paymentReturnHref={`/properties/${detail.id}`}
+          remindersHref={`/email?property=${detail.id}`}
         />
       </PropertyPanel>
 

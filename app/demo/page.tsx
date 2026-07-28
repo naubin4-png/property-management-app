@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { AddPropertyModal } from "@/components/add-property-modal";
@@ -13,6 +14,7 @@ import {
   getDemoNoteSimulation,
   getDemoPaymentSimulation,
   getDemoPropertyDetails,
+  parseDemoSessionState,
 } from "@/lib/demo-data";
 
 import {
@@ -20,8 +22,7 @@ import {
   deleteDemoPayment,
   editDemoPayment,
   logDemoPayment,
-  updateDemoLeaseInline,
-  updateDemoTenant,
+  updateDemoPropertyDetails,
 } from "./actions";
 
 export const metadata = {
@@ -72,18 +73,27 @@ export default async function DemoPage({
     noteProperty?: string;
   }>;
 }) {
-  const query = await searchParams;
+  const [query, cookieStore] = await Promise.all([searchParams, cookies()]);
+  const demoSession = parseDemoSessionState(
+    cookieStore.get("demo-detail-session")?.value,
+  );
   const paymentSimulation = getDemoPaymentSimulation(query);
   const noteSimulation = getDemoNoteSimulation(query);
   const createdLease = getDemoCreatedLease(query);
   const { properties, needsAttention, allGood, summary } =
-    getDemoDashboardData(paymentSimulation, createdLease, noteSimulation);
+    getDemoDashboardData(
+      paymentSimulation,
+      createdLease,
+      noteSimulation,
+      demoSession,
+    );
   const selectedProperty = query.property
     ? getDemoPropertyDetails(
         query.property,
         paymentSimulation,
         createdLease,
         noteSimulation,
+        demoSession,
       )
     : null;
   const queryState = new URLSearchParams();
@@ -163,8 +173,8 @@ export default async function DemoPage({
       {selectedProperty ? (
         <PropertyPanel closeHref={demoBase} title={selectedProperty.name}>
           <PropertyDetailContent
+            detailsAction={updateDemoPropertyDetails}
             detail={selectedProperty}
-            leaseAction={updateDemoLeaseInline}
             logPaymentHref={
               selectedLeaseCoversBillingMonth
                 ? `${selectedPropertyHref}&addCheck=1&propertyId=${selectedProperty.id}`
@@ -172,8 +182,7 @@ export default async function DemoPage({
             }
             paymentDeleteAction={deleteDemoPayment}
             paymentReturnHref={selectedPropertyHref}
-            tenantAction={updateDemoTenant}
-            tenantEmailHref={`/demo/email?property=${selectedProperty.id}`}
+            remindersHref={`/demo/email?property=${selectedProperty.id}`}
           />
         </PropertyPanel>
       ) : null}
@@ -195,9 +204,21 @@ export default async function DemoPage({
           payment={{
             ...editingPayment,
             clientRequestId: randomUUID(),
-            notes: null,
+            notes: editingPayment.notes,
           }}
-          properties={[{ id: selectedProperty.id, name: selectedProperty.name }]}
+          properties={[
+            {
+              id: selectedProperty.id,
+              name: selectedProperty.name,
+              rentCents: selectedProperty.activeLease?.rentCents,
+              creditBalanceCents:
+                selectedProperty.activeLease?.creditBalanceCents,
+              nextDueDate:
+                selectedProperty.activeLease?.periods.find(
+                  (period) => period.status !== "RECEIVED",
+                )?.periodMonth ?? null,
+            },
+          ]}
           returnHref={selectedPropertyHref}
           selectedPropertyId={selectedProperty.id}
         />

@@ -23,7 +23,6 @@ export type EditablePayment = {
   amountCents: number;
   receivedAt: Date;
   paymentMethod: string | null;
-  paymentReference: string | null;
   notes: string | null;
   clientRequestId: string;
 };
@@ -257,7 +256,7 @@ export function PaymentModal({
           ) : null}
 
           <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-            Payment Method
+            Payment method
             <select
               className="h-11 rounded-md border border-zinc-300 bg-white px-3 font-normal"
               defaultValue={payment?.paymentMethod ?? ""}
@@ -272,7 +271,7 @@ export function PaymentModal({
           </label>
 
           <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-            Notes
+            Payment memo
             <textarea
               className="min-h-11 resize-none rounded-md border border-zinc-300 px-3 py-2.5 font-normal transition-[min-height] focus:min-h-24"
               defaultValue={payment?.notes ?? ""}

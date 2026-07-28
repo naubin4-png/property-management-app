@@ -1,32 +1,44 @@
 import { PeriodStatus } from "@prisma/client";
 
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
+import {
+  firstDayOfCurrentMonth,
+  firstDayOfNextMonth,
+} from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
-import { getSettings } from "@/lib/settings";
+import {
+  deriveCreditBalance,
+  deriveCurrentRentSummary,
+  deriveRentLedger,
+  type CurrentRentSummary,
+  type RentLedgerRow,
+} from "@/lib/rent-ledger";
 
 export type PropertyPeriodStatus = "RECEIVED" | "DUE" | "LATE" | "UPCOMING";
 
 export type PropertyDetailData = {
   id: string;
   name: string;
-  notes: string | null;
   activeLease: {
     id: string;
       tenant: {
         id: string;
         name: string;
         email: string | null;
+        leaseUseCount: number;
       };
       rentCents: number;
       firstPeriodMonth: Date;
       lastPeriodMonth: Date | null;
     notes: string | null;
     creditBalanceCents: number;
+    currentRent: CurrentRentSummary | null;
+    ledger: RentLedgerRow[];
     periods: {
       id: string;
       periodMonth: Date;
       amountDueCents: number;
       status: PropertyPeriodStatus;
+      paymentId: string | null;
     }[];
   } | null;
   payments: {
@@ -34,43 +46,52 @@ export type PropertyDetailData = {
     receivedAt: Date;
     amountCents: number;
     paymentMethod: string | null;
-    paymentReference: string | null;
+    notes: string | null;
   }[];
 };
 
 export async function getPropertyDetails(
   propertyId: string,
 ): Promise<PropertyDetailData | null> {
-  const [property, settings] = await Promise.all([
-    prisma.property.findUnique({
-      where: { id: propertyId },
-      include: {
-        leases: {
-          orderBy: { firstPeriodMonth: "desc" },
-          include: {
-            tenant: true,
-            paymentPeriods: {
-              orderBy: { periodMonth: "asc" },
+  const currentMonth = firstDayOfCurrentMonth();
+  const nextMonth = firstDayOfNextMonth();
+  const property = await prisma.property.findUnique({
+    where: { id: propertyId },
+    include: {
+      leases: {
+        orderBy: { firstPeriodMonth: "desc" },
+        include: {
+          tenant: {
+            include: {
+              _count: {
+                select: { leases: true },
+              },
             },
-            payments: {
-              orderBy: { receivedAt: "desc" },
+          },
+          paymentPeriods: {
+            where: {
+              OR: [
+                { periodMonth: { lte: nextMonth } },
+                { status: PeriodStatus.RECEIVED },
+                { paymentId: { not: null } },
+              ],
             },
+            orderBy: { periodMonth: "asc" },
+          },
+          payments: {
+            orderBy: [{ receivedAt: "desc" }, { createdAt: "desc" }],
           },
         },
       },
-    }),
-    getSettings(),
-  ]);
+    },
+  });
 
   if (!property) {
     return null;
   }
 
-  const currentMonth = firstDayOfCurrentMonth();
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
-  const lateCutoff = new Date(today);
-  lateCutoff.setUTCDate(lateCutoff.getUTCDate() - settings.gracePeriodDays);
   const activeLease =
     property.leases.find(
       (lease) => !lease.lastPeriodMonth || lease.lastPeriodMonth >= currentMonth,
@@ -79,10 +100,25 @@ export async function getPropertyDetails(
     .flatMap((lease) => lease.payments)
     .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
 
+  const emailLogs = activeLease
+    ? await prisma.emailLog.findMany({
+        where: {
+          leaseId: activeLease.id,
+          periodMonth: currentMonth,
+        },
+        orderBy: { sentAt: "desc" },
+      })
+    : [];
+  const creditBalanceCents = activeLease
+    ? deriveCreditBalance({
+        payments: activeLease.payments,
+        periods: activeLease.paymentPeriods,
+      })
+    : 0;
+
   return {
     id: property.id,
     name: property.name,
-    notes: property.notes,
     activeLease: activeLease
       ? {
           id: activeLease.id,
@@ -90,29 +126,35 @@ export async function getPropertyDetails(
             id: activeLease.tenant.id,
             name: activeLease.tenant.name,
             email: activeLease.tenant.email,
+            leaseUseCount: activeLease.tenant._count.leases,
           },
           rentCents: activeLease.rentCents,
           firstPeriodMonth: activeLease.firstPeriodMonth,
           lastPeriodMonth: activeLease.lastPeriodMonth,
           notes: activeLease.notes,
-          creditBalanceCents:
-            activeLease.payments.reduce(
-              (total, payment) => total + payment.amountCents,
-              0,
-            ) -
-            activeLease.paymentPeriods
-              .filter((period) => period.status === PeriodStatus.RECEIVED)
-              .reduce((total, period) => total + period.amountDueCents, 0),
+          creditBalanceCents,
+          currentRent: deriveCurrentRentSummary({
+            creditBalanceCents,
+            emailLogs,
+            periods: activeLease.paymentPeriods,
+          }),
+          ledger: deriveRentLedger({
+            creditBalanceCents,
+            payments: activeLease.payments,
+            periods: activeLease.paymentPeriods,
+            today,
+          }),
           periods: activeLease.paymentPeriods.map((period) => ({
             id: period.id,
             periodMonth: period.periodMonth,
             amountDueCents: period.amountDueCents,
+            paymentId: period.paymentId,
             status:
               period.status === PeriodStatus.RECEIVED
                 ? "RECEIVED"
                 : period.periodMonth > today
                   ? "UPCOMING"
-                  : period.periodMonth < lateCutoff
+                  : period.status === PeriodStatus.LATE
                     ? "LATE"
                     : "DUE",
           })),
@@ -123,7 +165,7 @@ export async function getPropertyDetails(
       receivedAt: payment.receivedAt,
       amountCents: payment.amountCents,
       paymentMethod: payment.paymentMethod,
-      paymentReference: payment.paymentReference,
+      notes: payment.notes,
     })),
   };
 }

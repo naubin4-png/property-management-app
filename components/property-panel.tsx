@@ -160,8 +160,7 @@ export function PropertyPanel({
             : "transform 180ms ease-out",
         }}
       >
-        <div className="flex min-h-16 items-center justify-between border-b border-zinc-200 bg-white px-4 sm:px-6">
-          <p className="truncate pr-4 text-sm font-medium text-zinc-600">{title}</p>
+        <div className="flex min-h-16 items-center justify-end border-b border-zinc-200 bg-white px-4 sm:px-6">
           {onClose ? (
             <button
               aria-label="Close details"
