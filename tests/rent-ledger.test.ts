@@ -133,4 +133,72 @@ describe("rent activity ledger derivation", () => {
       sentAt: date("2026-07-05"),
     });
   });
+
+  it("has no current rent summary for a future tracking-start lease", () => {
+    const current = deriveCurrentRentSummary({
+      creditBalanceCents: 0,
+      periods: [
+        {
+          id: "sep",
+          periodMonth: month("2026-09"),
+          amountDueCents: 140000,
+          status: PeriodStatus.PENDING,
+          paymentId: null,
+        },
+      ],
+      emailLogs: [],
+    });
+
+    assert.equal(current, null);
+  });
+
+  it("shows reverted periods as unpaid after a payment deletion removes allocation", () => {
+    const ledger = deriveRentLedger({
+      creditBalanceCents: 0,
+      today: date("2026-07-28"),
+      periods: [
+        {
+          id: "jul",
+          periodMonth: month("2026-07"),
+          amountDueCents: 90000,
+          status: PeriodStatus.PENDING,
+          paymentId: null,
+        },
+        {
+          id: "aug",
+          periodMonth: month("2026-08"),
+          amountDueCents: 90000,
+          status: PeriodStatus.PENDING,
+          paymentId: null,
+        },
+      ],
+      payments: [],
+    });
+
+    assert.equal(
+      ledger.some((row) => row.kind === "payment"),
+      false,
+    );
+    assert.deepEqual(
+      ledger
+        .filter((row) => row.kind === "charge")
+        .map((row) => ({
+          activity: row.activity,
+          context: row.context,
+          status: row.status,
+        })),
+      [
+        {
+          activity: "August 2026 rent",
+          context: "Upcoming rent period",
+          status: "Upcoming",
+        },
+        {
+          activity: "July 2026 rent",
+          context: "$900.00 remaining",
+          status: "Unpaid",
+        },
+      ],
+    );
+  });
 });

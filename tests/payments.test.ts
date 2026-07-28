@@ -11,9 +11,11 @@ function month(value: string) {
 
 function createMockTransaction({
   lastPeriodMonth,
+  payments: initialPayments = [],
   periods = [],
 }: {
   lastPeriodMonth: Date | null;
+  payments?: Array<{ id: string; amountCents: number }>;
   periods?: Array<{
     id: string;
     periodMonth: Date;
@@ -28,7 +30,9 @@ function createMockTransaction({
     lastPeriodMonth,
     rentCents: 100000,
   };
-  const payments: Array<{ id: string; amountCents: number }> = [];
+  const payments: Array<{ id: string; amountCents: number }> = [
+    ...initialPayments,
+  ];
   const paymentPeriods = [...periods];
   let paymentCounter = 0;
 
@@ -37,12 +41,15 @@ function createMockTransaction({
       findUnique: async () => lease,
     },
     payment: {
-      aggregate: async () => ({
+      aggregate: async ({
+        where,
+      }: {
+        where?: { id?: { not?: string } };
+      } = {}) => ({
         _sum: {
-          amountCents: payments.reduce(
-            (total, payment) => total + payment.amountCents,
-            0,
-          ),
+          amountCents: payments
+            .filter((payment) => payment.id !== where?.id?.not)
+            .reduce((total, payment) => total + payment.amountCents, 0),
         },
       }),
       create: async ({ data }: { data: { amountCents: number } }) => {
@@ -58,10 +65,18 @@ function createMockTransaction({
       },
     },
     paymentPeriod: {
-      aggregate: async () => ({
+      aggregate: async ({
+        where,
+      }: {
+        where?: { paymentId?: { not?: string } };
+      } = {}) => ({
         _sum: {
           amountDueCents: paymentPeriods
-            .filter((period) => period.status === PeriodStatus.RECEIVED)
+            .filter(
+              (period) =>
+                period.status === PeriodStatus.RECEIVED &&
+                period.paymentId !== where?.paymentId?.not,
+            )
             .reduce((total, period) => total + period.amountDueCents, 0),
         },
       }),
@@ -114,12 +129,17 @@ function createMockTransaction({
           paymentId: string | null;
         }>;
       }) => {
+        let updated = 0;
         for (const period of paymentPeriods) {
-          if (where.id?.in.includes(period.id) || where.paymentId) {
+          if (
+            where.id?.in.includes(period.id) ||
+            (where.paymentId && period.paymentId === where.paymentId)
+          ) {
             Object.assign(period, data);
+            updated += 1;
           }
         }
-        return { count: paymentPeriods.length };
+        return { count: updated };
       },
     },
   };
@@ -171,6 +191,74 @@ describe("payment allocation", () => {
     assert.deepEqual(
       paymentPeriods.map((period) => period.status),
       [PeriodStatus.RECEIVED, PeriodStatus.RECEIVED, PeriodStatus.RECEIVED],
+    );
+  });
+
+  it("reallocates an edited payment and reopens no-longer-covered periods", async () => {
+    const { paymentPeriods, tx } = createMockTransaction({
+      lastPeriodMonth: null,
+      payments: [{ id: "payment-1", amountCents: 200000 }],
+      periods: [
+        {
+          id: "jul",
+          periodMonth: month("2026-07"),
+          amountDueCents: 100000,
+          status: PeriodStatus.RECEIVED,
+          paymentId: "payment-1",
+        },
+        {
+          id: "aug",
+          periodMonth: month("2026-08"),
+          amountDueCents: 100000,
+          status: PeriodStatus.RECEIVED,
+          paymentId: "payment-1",
+        },
+      ],
+    });
+
+    (tx as {
+      payment: {
+        update: (input: {
+          data: { amountCents: number };
+          where: { id: string };
+        }) => Promise<{ id: string; amountCents: number }>;
+      };
+    }).payment.update = async ({ data, where }) => {
+      return { id: where.id, amountCents: data.amountCents };
+    };
+
+    await allocatePayment(
+      tx as never,
+      {
+        leaseId: "lease-1",
+        amountCents: 100000,
+        receivedAt: new Date("2026-07-16T00:00:00.000Z"),
+        paymentMethod: "CHECK",
+        paymentReference: null,
+        notes: "Edited to one month",
+        clientRequestId: "edit",
+      },
+      "payment-1",
+    );
+
+    assert.deepEqual(
+      paymentPeriods.map((period) => ({
+        month: period.periodMonth.toISOString().slice(0, 7),
+        paymentId: period.paymentId,
+        status: period.status,
+      })),
+      [
+        {
+          month: "2026-07",
+          paymentId: "payment-1",
+          status: PeriodStatus.RECEIVED,
+        },
+        {
+          month: "2026-08",
+          paymentId: null,
+          status: PeriodStatus.PENDING,
+        },
+      ],
     );
   });
 });
