@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { createLeaseRecord } from "@/lib/lease-creation";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
-import { updateLeaseRecord } from "@/lib/lease-updates";
+import {
+  updateLeaseRecord,
+  updatePropertyLeaseDetails,
+} from "@/lib/lease-updates";
 import { prisma } from "@/lib/prisma";
 
 export type InlineEditState = {
@@ -162,6 +165,65 @@ export async function updateLeaseInline(
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unable to update lease.",
+      saved: false,
+    };
+  }
+}
+
+export async function updatePropertyDetails(
+  propertyId: string,
+  leaseId: string,
+  _state: InlineEditState,
+  formData: FormData,
+): Promise<InlineEditState> {
+  const propertyName = String(formData.get("propertyName") ?? "").trim();
+  const tenantName = String(formData.get("tenantName") ?? "").trim();
+  const tenantEmail =
+    String(formData.get("tenantEmail") ?? "").trim().toLowerCase() || null;
+  const rawLastPeriodMonth = String(formData.get("lastPeriodMonth") ?? "");
+  const lastPeriodMonth = rawLastPeriodMonth
+    ? parseMonth(rawLastPeriodMonth)
+    : null;
+  const rentCents = parseDollarAmount(String(formData.get("rent") ?? ""));
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  if (!propertyName || !tenantName) {
+    return { error: "Property and tenant names are required.", saved: false };
+  }
+  if (!leaseId) {
+    return { error: "Lease not found.", saved: false };
+  }
+  if (tenantEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail)) {
+    return { error: "Enter a valid tenant email.", saved: false };
+  }
+  if (rawLastPeriodMonth && !lastPeriodMonth) {
+    return { error: "Choose a valid lease end month.", saved: false };
+  }
+  if (!rentCents) {
+    return { error: "Enter a valid monthly rent.", saved: false };
+  }
+  if (notes.length > 1000) {
+    return { error: "Use 1,000 characters or fewer for notes.", saved: false };
+  }
+
+  try {
+    await updatePropertyLeaseDetails({
+      propertyId,
+      leaseId,
+      lastPeriodMonth,
+      propertyName,
+      rentCents,
+      tenantEmail,
+      tenantName,
+      notes,
+    });
+    revalidatePath(`/properties/${propertyId}`);
+    revalidatePath("/");
+    return { error: null, saved: true };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Unable to update details.",
       saved: false,
     };
   }

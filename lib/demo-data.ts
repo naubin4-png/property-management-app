@@ -1,10 +1,15 @@
 import type { EmailSettingsViewData } from "@/components/email-settings-view";
+import { PeriodStatus, TriggerType } from "@prisma/client";
 import type { DashboardProperty } from "@/lib/dashboard";
 import type {
   PropertyDetailData,
   PropertyPeriodStatus,
 } from "@/lib/property-details";
 import { defaultEmailSettings } from "@/lib/settings";
+import {
+  deriveCurrentRentSummary,
+  deriveRentLedger,
+} from "@/lib/rent-ledger";
 
 type DemoPeriodStatus = "PENDING" | "RECEIVED" | "LATE";
 
@@ -22,6 +27,7 @@ type DemoPayment = {
   amountCents: number;
   paymentMethod: string | null;
   paymentReference: string | null;
+  notes: string | null;
 };
 
 type DemoEmailActivity = {
@@ -54,6 +60,29 @@ export type DemoPaymentSimulation = {
 export type DemoNoteSimulation = {
   note: string;
   propertyId: string;
+};
+
+export type DemoSessionState = {
+  deletedPaymentIds: string[];
+  detailEdits: Record<
+    string,
+    {
+      lastPeriodMonth: string | null;
+      note: string;
+      propertyName: string;
+      rentCents: number;
+      tenantEmail: string | null;
+      tenantName: string;
+    }
+  >;
+  payments: {
+    amountCents: number;
+    id: string;
+    notes: string | null;
+    paymentMethod: string | null;
+    propertyId: string;
+    receivedAt: string;
+  }[];
 };
 
 export type DemoCreatedLeaseInput = {
@@ -111,6 +140,37 @@ export function getDemoNoteSimulation(query: {
     note: query.note,
     propertyId: query.noteProperty,
   };
+}
+
+export function parseDemoSessionState(value?: string): DemoSessionState {
+  if (!value) {
+    return { deletedPaymentIds: [], detailEdits: {}, payments: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<DemoSessionState>;
+    return {
+      deletedPaymentIds: Array.isArray(parsed.deletedPaymentIds)
+        ? parsed.deletedPaymentIds.filter((id): id is string => typeof id === "string")
+        : [],
+      detailEdits:
+        parsed.detailEdits && typeof parsed.detailEdits === "object"
+          ? parsed.detailEdits
+          : {},
+      payments: Array.isArray(parsed.payments)
+        ? parsed.payments.filter(
+            (payment) =>
+              typeof payment.id === "string" &&
+              typeof payment.propertyId === "string" &&
+              Number.isInteger(payment.amountCents) &&
+              payment.amountCents > 0 &&
+              typeof payment.receivedAt === "string",
+          )
+        : [],
+    };
+  } catch {
+    return { deletedPaymentIds: [], detailEdits: {}, payments: [] };
+  }
 }
 
 const demoBillingPeriod = new Date("2026-07-01T00:00:00.000Z");
@@ -254,6 +314,7 @@ const demoRecords: DemoPropertyRecord[] = [
         amountCents: 400000,
         paymentMethod: "ACH",
         paymentReference: null,
+        notes: null,
       },
     ],
   },
@@ -298,6 +359,7 @@ const demoRecords: DemoPropertyRecord[] = [
         amountCents: 680000,
         paymentMethod: "ACH",
         paymentReference: null,
+        notes: null,
       },
     ],
   },
@@ -340,6 +402,7 @@ const demoRecords: DemoPropertyRecord[] = [
         amountCents: 650000,
         paymentMethod: "ACH",
         paymentReference: null,
+        notes: "Two months paid at once",
       },
     ],
   },
@@ -384,6 +447,7 @@ const demoRecords: DemoPropertyRecord[] = [
         amountCents: 310000,
         paymentMethod: "ACH",
         paymentReference: null,
+        notes: "Partial July payment",
       },
       {
         id: "lakeview-retail-june-payment",
@@ -391,6 +455,7 @@ const demoRecords: DemoPropertyRecord[] = [
         amountCents: 520000,
         paymentMethod: "ACH",
         paymentReference: null,
+        notes: null,
       },
     ],
   },
@@ -426,6 +491,7 @@ const demoRecords: DemoPropertyRecord[] = [
         amountCents: 275000,
         paymentMethod: "ACH",
         paymentReference: null,
+        notes: null,
       },
     ],
   },
@@ -508,7 +574,118 @@ function applyPaymentSimulation(
     amountCents: simulation.amountCents,
     paymentMethod: "CHECK",
     paymentReference: null,
+    notes: null,
   });
+
+  return records;
+}
+
+function resetPayment(record: DemoPropertyRecord, paymentId: string) {
+  const existingPayment = record.payments.find(
+    (payment) => payment.id === paymentId,
+  );
+  const coveredCents = record.periods
+    .filter((period) => period.paymentId === paymentId)
+    .reduce((total, period) => total + period.amountDueCents, 0);
+  if (existingPayment) {
+    record.creditBalanceCents = Math.max(
+      record.creditBalanceCents -
+        Math.max(existingPayment.amountCents - coveredCents, 0),
+      0,
+    );
+  }
+  record.payments = record.payments.filter((payment) => payment.id !== paymentId);
+  for (const period of record.periods) {
+    if (period.paymentId === paymentId) {
+      period.paymentId = undefined;
+      period.status = period.periodMonth <= demoToday ? "LATE" : "PENDING";
+    }
+  }
+}
+
+function applyDemoPayment(
+  record: DemoPropertyRecord,
+  payment: {
+    amountCents: number;
+    id: string;
+    notes: string | null;
+    paymentMethod: string | null;
+    receivedAt: Date;
+  },
+) {
+  resetPayment(record, payment.id);
+  let remainingCents = payment.amountCents + record.creditBalanceCents;
+
+  for (const period of unpaidPeriods(record)) {
+    if (remainingCents < period.amountDueCents) {
+      break;
+    }
+    period.status = "RECEIVED";
+    period.paymentId = payment.id;
+    remainingCents -= period.amountDueCents;
+  }
+
+  record.creditBalanceCents = remainingCents;
+  record.payments.unshift({
+    id: payment.id,
+    receivedAt: payment.receivedAt,
+    amountCents: payment.amountCents,
+    paymentMethod: payment.paymentMethod,
+    paymentReference: null,
+    notes: payment.notes,
+  });
+}
+
+function applyDemoSession(
+  records: DemoPropertyRecord[],
+  session?: DemoSessionState | null,
+) {
+  if (!session) {
+    return records;
+  }
+
+  for (const record of records) {
+    const edit = session.detailEdits[record.id];
+    if (edit) {
+      record.name = edit.propertyName;
+      record.tenantName = edit.tenantName;
+      record.tenantEmail = edit.tenantEmail;
+      record.rentCents = edit.rentCents;
+      record.note = edit.note;
+      record.lastPeriodMonth = edit.lastPeriodMonth
+        ? new Date(`${edit.lastPeriodMonth}-01T00:00:00.000Z`)
+        : null;
+      for (const period of record.periods) {
+        if (!period.paymentId && period.status !== "RECEIVED") {
+          period.amountDueCents = edit.rentCents;
+        }
+      }
+      if (record.lastPeriodMonth) {
+        record.periods = record.periods.filter(
+          (period) =>
+            period.periodMonth <= record.lastPeriodMonth! ||
+            period.status === "RECEIVED" ||
+            Boolean(period.paymentId),
+        );
+      }
+    }
+
+    for (const paymentId of session.deletedPaymentIds) {
+      resetPayment(record, paymentId);
+    }
+  }
+
+  for (const payment of session.payments) {
+    const record = records.find((item) => item.id === payment.propertyId);
+    const receivedAt = new Date(`${payment.receivedAt}T00:00:00.000Z`);
+    if (!record || !Number.isFinite(receivedAt.getTime())) {
+      continue;
+    }
+    applyDemoPayment(record, {
+      ...payment,
+      receivedAt,
+    });
+  }
 
   return records;
 }
@@ -517,15 +694,16 @@ function getRecords(
   simulation?: DemoPaymentSimulation | null,
   createdLease?: DemoPropertyRecord | null,
   noteSimulation?: DemoNoteSimulation | null,
+  session?: DemoSessionState | null,
 ) {
   const records = cloneRecords();
   if (createdLease) {
     records.push(cloneRecord(createdLease));
   }
 
-  return applyPaymentSimulation(
-    applyNoteSimulation(records, noteSimulation),
-    simulation,
+  return applyDemoSession(
+    applyPaymentSimulation(applyNoteSimulation(records, noteSimulation), simulation),
+    session,
   );
 }
 
@@ -643,8 +821,9 @@ export function getDemoDashboardData(
   simulation?: DemoPaymentSimulation | null,
   createdLease?: DemoPropertyRecord | null,
   noteSimulation?: DemoNoteSimulation | null,
+  session?: DemoSessionState | null,
 ) {
-  const properties = getRecords(simulation, createdLease, noteSimulation).map(
+  const properties = getRecords(simulation, createdLease, noteSimulation, session).map(
     dashboardPropertyFromRecord,
   );
   const needsAttention = properties.filter(
@@ -682,25 +861,56 @@ export function getDemoPropertyDetails(
   simulation?: DemoPaymentSimulation | null,
   createdLease?: DemoPropertyRecord | null,
   noteSimulation?: DemoNoteSimulation | null,
+  session?: DemoSessionState | null,
 ): PropertyDetailData | null {
-  const record = getRecords(simulation, createdLease, noteSimulation).find(
+  const record = getRecords(simulation, createdLease, noteSimulation, session).find(
     (item) => item.id === propertyId,
   );
 
   if (!record) {
     return null;
   }
+  const ledgerPeriods = record.periods.map((period) => ({
+    id: period.id,
+    periodMonth: period.periodMonth,
+    amountDueCents: period.amountDueCents,
+    status:
+      period.status === "RECEIVED"
+        ? PeriodStatus.RECEIVED
+        : period.status === "LATE"
+          ? PeriodStatus.LATE
+          : PeriodStatus.PENDING,
+    paymentId: period.paymentId ?? null,
+  }));
+  const ledgerPayments = record.payments.map((payment) => ({
+    id: payment.id,
+    receivedAt: payment.receivedAt,
+    amountCents: payment.amountCents,
+    paymentMethod: payment.paymentMethod,
+    notes: payment.notes,
+  }));
+  const successfulEmailLogs = record.latestEmail
+    ? [
+        {
+          triggerType: record.latestEmail.label.startsWith("Reminder")
+            ? TriggerType.RENT_REMINDER
+            : TriggerType.LATE_NOTICE,
+          sentAt: record.latestEmail.sentAt,
+          error: null,
+        },
+      ]
+    : [];
 
   return {
     id: record.id,
     name: record.name,
-    notes: null,
     activeLease: {
       id: record.leaseId,
       tenant: {
         id: `${record.id}-tenant`,
         name: record.tenantName,
         email: record.tenantEmail,
+        leaseUseCount: 1,
       },
       rentCents: record.rentCents,
       firstPeriodMonth: record.firstPeriodMonth ?? firstPeriodMonth,
@@ -710,10 +920,22 @@ export function getDemoPropertyDetails(
           : record.lastPeriodMonth,
       notes: record.note || null,
       creditBalanceCents: record.creditBalanceCents,
+      currentRent: deriveCurrentRentSummary({
+        creditBalanceCents: record.creditBalanceCents,
+        emailLogs: successfulEmailLogs,
+        periods: ledgerPeriods,
+      }),
+      ledger: deriveRentLedger({
+        creditBalanceCents: record.creditBalanceCents,
+        payments: ledgerPayments,
+        periods: ledgerPeriods,
+        today: demoToday,
+      }),
       periods: record.periods.map((period) => ({
         id: period.id,
         periodMonth: period.periodMonth,
         amountDueCents: period.amountDueCents,
+        paymentId: period.paymentId ?? null,
         status: periodStatus(period),
       })),
     },
@@ -722,7 +944,7 @@ export function getDemoPropertyDetails(
       receivedAt: payment.receivedAt,
       amountCents: payment.amountCents,
       paymentMethod: payment.paymentMethod,
-      paymentReference: payment.paymentReference,
+      notes: payment.notes,
     })),
   };
 }

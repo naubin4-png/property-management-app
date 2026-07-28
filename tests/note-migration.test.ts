@@ -6,11 +6,22 @@ const migrationSql = readFileSync(
   "prisma/migrations/20260728000000_optional_email_open_ended_leases/migration.sql",
   "utf8",
 );
+const removeLegacyNoteFieldsSql = readFileSync(
+  "prisma/migrations/20260728120000_remove_legacy_note_fields/migration.sql",
+  "utf8",
+);
 
 describe("note consolidation migration", () => {
   it("preserves conflicting legacy dashboard and property notes with labels", () => {
     assert.match(migrationSql, /Dashboard note:/);
     assert.match(migrationSql, /Property note:/);
     assert.match(migrationSql, /UPDATE "Lease"/);
+  });
+
+  it("removes obsolete note columns only after preserving remaining legacy values", () => {
+    assert.match(removeLegacyNoteFieldsSql, /Property note:/);
+    assert.match(removeLegacyNoteFieldsSql, /Dashboard note:/);
+    assert.match(removeLegacyNoteFieldsSql, /ALTER TABLE "Property" DROP COLUMN "notes"/);
+    assert.match(removeLegacyNoteFieldsSql, /ALTER TABLE "Lease" DROP COLUMN "dashboardNote"/);
   });
 });

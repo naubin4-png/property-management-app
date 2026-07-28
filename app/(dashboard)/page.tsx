@@ -98,6 +98,7 @@ export default async function DashboardPage({
             }
             newLeaseHref={`/?property=${selectedProperty.id}&newLease=1`}
             paymentReturnHref={`/?property=${selectedProperty.id}`}
+            remindersHref={`/email?property=${selectedProperty.id}`}
           />
         </PropertyPanel>
       ) : null}
