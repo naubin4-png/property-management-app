@@ -35,6 +35,22 @@ export type DashboardProperty = {
   creditBalanceCents: number;
 };
 
+export function dashboardEmailActivityFromLog(
+  log: { triggerType: TriggerType; sentAt: Date; error: string | null } | null,
+) {
+  if (!log || log.error) {
+    return null;
+  }
+
+  return {
+    label:
+      log.triggerType === TriggerType.RENT_REMINDER
+        ? "Reminder sent"
+        : "Late notice sent",
+    sentAt: log.sentAt,
+  };
+}
+
 async function ensureDashboardPeriods() {
   const currentMonth = firstDayOfCurrentMonth();
   const nextMonth = firstDayOfNextMonth();
@@ -260,6 +276,7 @@ export async function getDashboardData() {
               leaseId: key.leaseId,
               periodMonth: key.periodMonth,
             })),
+            error: null,
           },
           orderBy: { sentAt: "desc" },
         })
@@ -288,13 +305,7 @@ export async function getDashboardData() {
     }
     return {
       ...row,
-      latestEmail: {
-        label:
-          log.triggerType === TriggerType.RENT_REMINDER
-            ? "Reminder sent"
-            : "Late notice sent",
-        sentAt: log.sentAt,
-      },
+      latestEmail: dashboardEmailActivityFromLog(log),
     };
   });
 
