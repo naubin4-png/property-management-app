@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import type { PaymentActionState } from "@/app/(dashboard)/payments/actions";
@@ -9,6 +9,7 @@ import type { AddPropertyActionState } from "@/app/(dashboard)/properties/action
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
 import { encodeDemoCreatedLease } from "@/lib/demo-data";
+import { unknownEmailPlaceholders } from "@/lib/email-reminders";
 
 function safeReturnHref(formData: FormData, fallback: string) {
   const value = String(formData.get("returnHref") ?? "");
@@ -237,7 +238,6 @@ export async function updateDemoLeaseInline(
 export async function saveDemoEmailSettings(formData: FormData) {
   const integerFields = [
     "daysBeforeReminder",
-    "daysAfterLateNotice",
     "gracePeriodDays",
   ];
   const textFields = [
@@ -260,5 +260,69 @@ export async function saveDemoEmailSettings(formData: FormData) {
     }
   }
 
+  const settings = {
+    sendBeforeDue: formData.get("sendBeforeDue") === "on",
+    sendAfterDue: formData.get("sendAfterDue") === "on",
+    daysBeforeReminder: Number.parseInt(
+      String(formData.get("daysBeforeReminder") ?? ""),
+      10,
+    ),
+    gracePeriodDays: Number.parseInt(
+      String(formData.get("gracePeriodDays") ?? ""),
+      10,
+    ),
+    reminderEmailSubject: String(formData.get("reminderEmailSubject") ?? "").trim(),
+    reminderEmailBody: String(formData.get("reminderEmailBody") ?? "").trim(),
+    lateNoticeSubject: String(formData.get("lateNoticeSubject") ?? "").trim(),
+    lateNoticeBody: String(formData.get("lateNoticeBody") ?? "").trim(),
+  };
+  const unknownPlaceholders = unknownEmailPlaceholders(
+    settings.reminderEmailSubject,
+    settings.reminderEmailBody,
+    settings.lateNoticeSubject,
+    settings.lateNoticeBody,
+  );
+
+  if (unknownPlaceholders.length > 0) {
+    throw new Error(
+      `Unsupported placeholder${unknownPlaceholders.length === 1 ? "" : "s"}: ${unknownPlaceholders.join(", ")}.`,
+    );
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set("demo-reminder-settings", JSON.stringify(settings), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/demo/email",
+  });
+
   redirect("/demo/email?saved=1");
+}
+
+export async function retryDemoEmailDelivery(formData: FormData) {
+  const logId = String(formData.get("logId") ?? "");
+  const property = String(formData.get("property") ?? "");
+
+  if (!logId) {
+    throw new Error("Delivery log is required.");
+  }
+
+  const cookieStore = await cookies();
+  const currentValue = cookieStore.get("demo-retried-email-logs")?.value;
+  let retriedLogIds: string[] = [];
+  try {
+    const parsed = currentValue ? JSON.parse(currentValue) : [];
+    retriedLogIds = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    retriedLogIds = [];
+  }
+  const nextLogIds = [...new Set([...retriedLogIds, logId])];
+
+  cookieStore.set("demo-retried-email-logs", JSON.stringify(nextLogIds), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/demo/email",
+  });
+
+  redirect(property ? `/demo/email?property=${property}` : "/demo/email");
 }

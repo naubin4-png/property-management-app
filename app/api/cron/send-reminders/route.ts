@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (settings.sendAfterDue) {
-    const target = shiftedDate(today, -settings.daysAfterLateNotice);
+    const target = shiftedDate(today, -settings.gracePeriodDays);
     if (target.getUTCDate() === 1) {
       const periods = await findReminderPeriods(target, [
         PeriodStatus.PENDING,

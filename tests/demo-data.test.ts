@@ -5,6 +5,8 @@ import {
   encodeDemoCreatedLease,
   getDemoDashboardData,
   getDemoCreatedLease,
+  getDemoEmailCoverage,
+  getDemoEmailData,
   getDemoNoteSimulation,
   getDemoPropertyDetails,
   type DemoPaymentSimulation,
@@ -196,5 +198,68 @@ describe("demo dashboard state", () => {
     const property = card("No Note Unit", dashboard.properties);
 
     assert.equal(property.note, "");
+  });
+
+  it("derives demo email coverage from active leases and optional tenant email", () => {
+    const coverage = getDemoEmailCoverage();
+
+    assert.equal(coverage.activeCount, 5);
+    assert.equal(coverage.canReceiveCount, 4);
+    assert.deepEqual(coverage.missingEmail, [
+      {
+        propertyId: "cedar-studio",
+        propertyName: "Cedar Street Studio",
+        tenantName: "Jordan Lee",
+      },
+    ]);
+  });
+
+  it("uses session-scoped demo reminder settings with realistic delivery statuses", () => {
+    const data = getDemoEmailData({
+      sendBeforeDue: false,
+      sendAfterDue: true,
+      daysBeforeReminder: 8,
+      gracePeriodDays: 4,
+      reminderEmailSubject: "Custom reminder",
+      reminderEmailBody: "Reminder body",
+      lateNoticeSubject: "Custom late notice",
+      lateNoticeBody: "Late body",
+    });
+
+    assert.equal(data.settings.daysBeforeReminder, 8);
+    assert.equal(data.settings.gracePeriodDays, 4);
+    assert.deepEqual(
+      data.emailLogs.map((log) => ({
+        propertyId: log.propertyId,
+        triggerType: log.triggerType,
+        error: log.error,
+      })),
+      [
+        {
+          propertyId: "harbor-office",
+          triggerType: "LATE_NOTICE",
+          error: null,
+        },
+        {
+          propertyId: "riverside-warehouse",
+          triggerType: "RENT_REMINDER",
+          error: null,
+        },
+        {
+          propertyId: "lakeview-retail",
+          triggerType: "LATE_NOTICE",
+          error: "Mailbox unavailable",
+        },
+      ],
+    );
+  });
+
+  it("simulates retrying a failed demo delivery for the browser session", () => {
+    const data = getDemoEmailData(undefined, ["demo-email-lakeview-failed"]);
+    const lakeviewLog = data.emailLogs.find(
+      (log) => log.id === "demo-email-lakeview-failed",
+    );
+
+    assert.equal(lakeviewLog?.error, null);
   });
 });

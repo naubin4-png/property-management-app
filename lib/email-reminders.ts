@@ -1,10 +1,10 @@
-import { PeriodStatus, TriggerType } from "@prisma/client";
+import { PeriodStatus, Prisma, TriggerType } from "@prisma/client";
 
 import { formatMoney, formatMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
 import { getEmailFromAddress, getResendClient } from "@/lib/resend";
 
-type ReminderPeriod = {
+export type ReminderPeriod = {
   periodMonth: Date;
   amountDueCents: number;
   lease: {
@@ -14,12 +14,35 @@ type ReminderPeriod = {
   };
 };
 
-type EmailTemplate = {
+export type EmailTemplate = {
   subject: string;
   body: string;
 };
 
-function renderTemplate(template: string, period: ReminderPeriod) {
+export const supportedEmailPlaceholders = [
+  "{tenant_name}",
+  "{property_name}",
+  "{amount_due}",
+  "{due_date}",
+] as const;
+
+const supportedPlaceholderSet = new Set<string>(supportedEmailPlaceholders);
+
+export function unknownEmailPlaceholders(...templates: string[]) {
+  const unknown = new Set<string>();
+
+  for (const template of templates) {
+    for (const match of template.matchAll(/\{[a-zA-Z0-9_]+\}/g)) {
+      if (!supportedPlaceholderSet.has(match[0])) {
+        unknown.add(match[0]);
+      }
+    }
+  }
+
+  return [...unknown].sort();
+}
+
+export function renderTemplate(template: string, period: ReminderPeriod) {
   return template
     .replaceAll("{tenant_name}", period.lease.tenant.name)
     .replaceAll("{property_name}", period.lease.property.name)
@@ -27,10 +50,128 @@ function renderTemplate(template: string, period: ReminderPeriod) {
     .replaceAll("{due_date}", formatMonth(period.periodMonth));
 }
 
+export function shiftedUtcDate(date: Date, days: number) {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+export function firstOfMonthOrNull(date: Date) {
+  return date.getUTCDate() === 1 ? date : null;
+}
+
+export function reminderPeriodForToday(today: Date, daysBeforeReminder: number) {
+  return firstOfMonthOrNull(shiftedUtcDate(today, daysBeforeReminder));
+}
+
+export function lateNoticePeriodForToday(today: Date, gracePeriodDays: number) {
+  return firstOfMonthOrNull(shiftedUtcDate(today, -gracePeriodDays));
+}
+
+type ExistingEmailLog = {
+  id: string;
+  error: string | null;
+};
+
+type ReminderProcessingDeps = {
+  createProcessingLog: (input: {
+    leaseId: string;
+    periodMonth: Date;
+    subject: string;
+    tenantId: string;
+    toAddress: string;
+    triggerType: TriggerType;
+  }) => Promise<ExistingEmailLog>;
+  findExistingLog: (input: {
+    periodMonth: Date;
+    tenantId: string;
+    triggerType: TriggerType;
+  }) => Promise<ExistingEmailLog | null>;
+  markFailed: (id: string, error: string) => Promise<void>;
+  markSent: (id: string, resendMessageId?: string) => Promise<void>;
+  claimFailedLog: (id: string) => Promise<boolean>;
+  sendEmail: (input: {
+    body: string;
+    subject: string;
+    toAddress: string;
+  }) => Promise<{ id?: string }>;
+};
+
+const defaultReminderProcessingDeps: ReminderProcessingDeps = {
+  async createProcessingLog(input) {
+    return prisma.emailLog.create({
+      data: {
+        tenantId: input.tenantId,
+        leaseId: input.leaseId,
+        periodMonth: input.periodMonth,
+        toAddress: input.toAddress,
+        subject: input.subject,
+        triggerType: input.triggerType,
+        error: "Processing",
+      },
+      select: { id: true, error: true },
+    });
+  },
+  async findExistingLog(input) {
+    return prisma.emailLog.findUnique({
+      where: {
+        tenantId_triggerType_periodMonth: {
+          tenantId: input.tenantId,
+          triggerType: input.triggerType,
+          periodMonth: input.periodMonth,
+        },
+      },
+      select: { id: true, error: true },
+    });
+  },
+  async markFailed(id, error) {
+    await prisma.emailLog.update({
+      where: { id },
+      data: { error },
+    });
+  },
+  async markSent(id, resendMessageId) {
+    await prisma.emailLog.update({
+      where: { id },
+      data: {
+        resendMessageId,
+        error: null,
+      },
+    });
+  },
+  async claimFailedLog(id) {
+    const result = await prisma.emailLog.updateMany({
+      where: {
+        id,
+        error: { not: null },
+        NOT: { error: "Processing" },
+      },
+      data: { error: "Processing" },
+    });
+
+    return result.count === 1;
+  },
+  async sendEmail(input) {
+    const result = await getResendClient().emails.send({
+      from: getEmailFromAddress(),
+      to: input.toAddress,
+      subject: input.subject,
+      text: input.body,
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    return { id: result.data?.id };
+  },
+};
+
 export async function processReminderPeriods(
   periods: ReminderPeriod[],
   triggerType: TriggerType,
   template: EmailTemplate,
+  deps = defaultReminderProcessingDeps,
 ) {
   let sent = 0;
   let failed = 0;
@@ -46,53 +187,55 @@ export async function processReminderPeriods(
       continue;
     }
 
+    let log: ExistingEmailLog;
     try {
-      const log = await prisma.emailLog.create({
-        data: {
+      const existingLog = await deps.findExistingLog({
+        tenantId: tenant.id,
+        triggerType,
+        periodMonth: period.periodMonth,
+      });
+
+      if (existingLog) {
+        if (existingLog.error === null) {
+          skipped += 1;
+          continue;
+        }
+
+        const claimed = await deps.claimFailedLog(existingLog.id);
+        if (!claimed) {
+          skipped += 1;
+          continue;
+        }
+        log = existingLog;
+      } else {
+        log = await deps.createProcessingLog({
           tenantId: tenant.id,
           leaseId: period.lease.id,
           periodMonth: period.periodMonth,
           toAddress: tenant.email,
           subject,
           triggerType,
-          error: "Processing",
-        },
-      });
+        });
+      }
 
       try {
-        const result = await getResendClient().emails.send({
-          from: getEmailFromAddress(),
-          to: tenant.email,
+        const result = await deps.sendEmail({
+          toAddress: tenant.email,
           subject,
-          text: body,
+          body,
         });
-
-        if (result.error) {
-          throw new Error(result.error.message);
-        }
-
-        await prisma.emailLog.update({
-          where: { id: log.id },
-          data: {
-            resendMessageId: result.data?.id,
-            error: null,
-          },
-        });
+        await deps.markSent(log.id, result.id);
         sent += 1;
       } catch (error) {
-        await prisma.emailLog.update({
-          where: { id: log.id },
-          data: {
-            error: error instanceof Error ? error.message : "Email send failed.",
-          },
-        });
+        await deps.markFailed(
+          log.id,
+          error instanceof Error ? error.message : "Email send failed.",
+        );
         failed += 1;
       }
     } catch (error) {
       if (
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
         skipped += 1;

@@ -1,3 +1,4 @@
+import type { EmailSettingsViewData } from "@/components/email-settings-view";
 import type { DashboardProperty } from "@/lib/dashboard";
 import type {
   PropertyDetailData,
@@ -398,7 +399,7 @@ const demoRecords: DemoPropertyRecord[] = [
     name: "Cedar Street Studio",
     leaseId: "cedar-lease",
     tenantName: "Jordan Lee",
-    tenantEmail: "jordan@example.com",
+    tenantEmail: null,
     rentCents: 275000,
     note: "",
     creditBalanceCents: 0,
@@ -726,23 +727,69 @@ export function getDemoPropertyDetails(
   };
 }
 
-export function getDemoEmailData() {
+export function getDemoEmailCoverage() {
+  const activeRecords = demoRecords.filter((record) =>
+    record.periods.some(
+      (period) => period.periodMonth.getTime() === demoBillingPeriod.getTime(),
+    ),
+  );
+
   return {
-    settings: defaultEmailSettings,
+    activeCount: activeRecords.length,
+    canReceiveCount: activeRecords.filter((record) => record.tenantEmail).length,
+    missingEmail: activeRecords
+      .filter((record) => !record.tenantEmail)
+      .map((record) => ({
+        propertyId: record.id,
+        propertyName: record.name,
+        tenantName: record.tenantName,
+      })),
+  };
+}
+
+export function getDemoEmailData(
+  settings: EmailSettingsViewData = defaultEmailSettings,
+  retriedLogIds: string[] = [],
+) {
+  const retriedLogs = new Set(retriedLogIds);
+
+  return {
+    settings,
     emailLogs: [
       {
         id: "demo-email-harbor",
+        propertyId: "harbor-office",
+        propertyName: "Harbor Office Suite 4",
+        tenantName: "Maya Chen",
         subject: "Rent past due for Harbor Office Suite 4",
         toAddress: "maya@example.com",
         sentAt: new Date("2026-06-05T00:00:00.000Z"),
+        triggerType: "LATE_NOTICE" as const,
         error: null,
       },
       {
         id: "demo-email-riverside",
+        propertyId: "riverside-warehouse",
+        propertyName: "Riverside Warehouse",
+        tenantName: "Noah Patel",
         subject: "Rent reminder for Riverside Warehouse",
         toAddress: "noah@example.com",
         sentAt: new Date("2026-06-03T00:00:00.000Z"),
+        triggerType: "RENT_REMINDER" as const,
         error: null,
+      },
+      {
+        id: "demo-email-lakeview-failed",
+        propertyId: "lakeview-retail",
+        propertyName: "Lakeview Retail",
+        tenantName: "Samira Ali",
+        subject: "Rent past due for Lakeview Retail",
+        toAddress: "samira@example.com",
+        sentAt: new Date("2026-06-08T00:00:00.000Z"),
+        triggerType: "LATE_NOTICE" as const,
+        error: retriedLogs.has("demo-email-lakeview-failed")
+          ? null
+          : "Mailbox unavailable",
       },
     ],
   };
