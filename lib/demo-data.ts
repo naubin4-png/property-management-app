@@ -430,8 +430,8 @@ const demoRecords: DemoPropertyRecord[] = [
   },
 ];
 
-function cloneRecords(): DemoPropertyRecord[] {
-  return demoRecords.map((record) => ({
+function cloneRecord(record: DemoPropertyRecord): DemoPropertyRecord {
+  return {
     ...record,
     firstPeriodMonth: record.firstPeriodMonth
       ? new Date(record.firstPeriodMonth)
@@ -450,7 +450,11 @@ function cloneRecords(): DemoPropertyRecord[] {
       ...payment,
       receivedAt: new Date(payment.receivedAt),
     })),
-  }));
+  };
+}
+
+function cloneRecords(): DemoPropertyRecord[] {
+  return demoRecords.map(cloneRecord);
 }
 
 function applyNoteSimulation(
@@ -515,7 +519,7 @@ function getRecords(
 ) {
   const records = cloneRecords();
   if (createdLease) {
-    records.push(createdLease);
+    records.push(cloneRecord(createdLease));
   }
 
   return applyPaymentSimulation(

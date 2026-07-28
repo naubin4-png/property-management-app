@@ -88,6 +88,36 @@ describe("demo dashboard state", () => {
     assert.equal(dashboard.summary.outstandingCents, 890000);
   });
 
+  it("does not duplicate a simulated payment between dashboard and detail reads", () => {
+    const createdLease = getDemoCreatedLease({
+      demoLease: encodeDemoCreatedLease({
+        propertyName: "Single Payment Unit",
+        tenantName: "Morgan Tenant",
+        tenantEmail: null,
+        firstPeriodMonth: new Date("2026-07-01T00:00:00.000Z"),
+        lastPeriodMonth: null,
+        rentCents: 180000,
+      }),
+    });
+    assert.ok(createdLease);
+
+    const simulation: DemoPaymentSimulation = {
+      propertyId: createdLease.id,
+      amountCents: 180000,
+      receivedAt: new Date("2026-07-28T00:00:00.000Z"),
+    };
+
+    getDemoDashboardData(simulation, createdLease);
+    const detail = getDemoPropertyDetails(
+      createdLease.id,
+      simulation,
+      createdLease,
+    );
+
+    assert.equal(detail?.payments.length, 1);
+    assert.equal(detail?.payments[0].amountCents, 180000);
+  });
+
   it("shows a current-month demo lease with optional email as unpaid", () => {
     const createdLease = getDemoCreatedLease({
       demoLease: encodeDemoCreatedLease({
