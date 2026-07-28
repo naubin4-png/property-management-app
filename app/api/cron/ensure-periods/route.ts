@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
   const leases = await prisma.lease.findMany({
     where: {
       firstPeriodMonth: { lte: targetMonth },
-      lastPeriodMonth: { gte: targetMonth },
+      OR: [
+        { lastPeriodMonth: null },
+        { lastPeriodMonth: { gte: targetMonth } },
+      ],
     },
     select: { id: true, rentCents: true },
   });

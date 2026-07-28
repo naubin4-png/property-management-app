@@ -171,7 +171,7 @@ function PropertyCard({
   property: DashboardViewProperty;
 }) {
   const supportingLines = secondaryLines(property);
-  const note = property.dashboardNote?.trim();
+  const note = property.note?.trim();
 
   return (
     <article
@@ -281,7 +281,6 @@ export function PropertyTable({
 }: {
   needsAttention: DashboardViewProperty[];
   allGood: DashboardViewProperty[];
-  onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   onOpenProperty?: (propertyId: string) => void;
   propertyBaseHref?: string | null;
 }) {
@@ -316,7 +315,6 @@ export function DashboardView({
   emptyActionHref?: string;
   needsAttention: DashboardViewProperty[];
   onAddProperty?: () => void;
-  onSaveNote?: (leaseId: string, note: string) => Promise<void> | void;
   onOpenProperty?: (propertyId: string) => void;
   propertyBaseHref?: string | null;
   summary: DashboardSummary;

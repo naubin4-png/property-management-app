@@ -14,7 +14,11 @@ import type { PropertyDetailData } from "@/lib/property-details";
 
 const initialState: InlineEditState = { error: null, saved: false };
 
-function nextMonthValue(date: Date) {
+function nextMonthValue(date: Date | null) {
+  if (!date) {
+    return "";
+  }
+
   const next = new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1),
   );
@@ -77,13 +81,12 @@ export function TenantInlineEditor({
         />
       </label>
       <label className="grid gap-1 text-xs font-medium text-zinc-600">
-        Tenant email
+        Tenant email (optional)
         <input
           className="h-11 rounded-lg border border-zinc-300 px-3 text-sm font-normal text-zinc-900"
-          defaultValue={tenant.email}
+          defaultValue={tenant.email ?? ""}
           enterKeyHint="done"
           name="tenantEmail"
-          required
           type="email"
         />
       </label>
@@ -164,7 +167,7 @@ export function LeaseInlineEditor({
         const formData = new FormData(event.currentTarget);
         const end = String(formData.get("lastPeriodMonth") ?? "");
         const rent = Number(formData.get("rent"));
-        if (end < minimumEnd) {
+        if (minimumEnd && end < minimumEnd) {
           event.preventDefault();
           setClientError("Choose a month after the current lease end.");
         } else if (!Number.isFinite(rent) || rent <= 0) {
@@ -176,18 +179,18 @@ export function LeaseInlineEditor({
       }}
     >
       <p className="text-xs leading-5 text-zinc-500">
-        Lease edits must extend the end month. New rent applies only to future
-        periods.
+        Lease edits preserve any existing fixed end month. New rent applies only
+        to future periods.
       </p>
       <label className="grid gap-1 text-xs font-medium text-zinc-600">
-        Extend through
+        Lease ends (optional)
         <input
           className="h-11 rounded-lg border border-zinc-300 px-3 text-sm font-normal text-zinc-900"
           defaultValue={minimumEnd}
-          min={minimumEnd}
+          min={minimumEnd || undefined}
           name="lastPeriodMonth"
           ref={endRef}
-          required
+          required={Boolean(minimumEnd)}
           type="month"
         />
       </label>

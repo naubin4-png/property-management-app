@@ -16,7 +16,7 @@ export async function updateLeaseRecord({
 }: {
   propertyId: string;
   leaseId: string;
-  lastPeriodMonth: Date;
+  lastPeriodMonth: Date | null;
   rentCents: number;
   notes: string;
 }) {
@@ -29,19 +29,19 @@ export async function updateLeaseRecord({
       throw new Error("Lease not found.");
     }
 
-    if (lastPeriodMonth <= lease.lastPeriodMonth) {
+    if (!lastPeriodMonth && lease.lastPeriodMonth) {
+      throw new Error("Choose a valid lease end month.");
+    }
+
+    if (
+      lastPeriodMonth &&
+      lease.lastPeriodMonth &&
+      lastPeriodMonth <= lease.lastPeriodMonth
+    ) {
       throw new Error(
         "Leases can only be extended, not shortened. Choose a later end month.",
       );
     }
-
-    const extensionStart = new Date(
-      Date.UTC(
-        lease.lastPeriodMonth.getUTCFullYear(),
-        lease.lastPeriodMonth.getUTCMonth() + 1,
-        1,
-      ),
-    );
 
     await tx.lease.update({
       where: { id: lease.id },
@@ -51,16 +51,26 @@ export async function updateLeaseRecord({
         notes: notes || null,
       },
     });
-    await tx.paymentPeriod.createMany({
-      data: enumerateMonths(extensionStart, lastPeriodMonth).map(
-        (periodMonth) => ({
-          leaseId: lease.id,
-          periodMonth,
-          amountDueCents: rentCents,
-        }),
-      ),
-      skipDuplicates: true,
-    });
+    if (lastPeriodMonth && lease.lastPeriodMonth) {
+      const extensionStart = new Date(
+        Date.UTC(
+          lease.lastPeriodMonth.getUTCFullYear(),
+          lease.lastPeriodMonth.getUTCMonth() + 1,
+          1,
+        ),
+      );
+
+      await tx.paymentPeriod.createMany({
+        data: enumerateMonths(extensionStart, lastPeriodMonth).map(
+          (periodMonth) => ({
+            leaseId: lease.id,
+            periodMonth,
+            amountDueCents: rentCents,
+          }),
+        ),
+        skipDuplicates: true,
+      });
+    }
     await tx.paymentPeriod.updateMany({
       where: {
         leaseId: lease.id,
