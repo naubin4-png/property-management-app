@@ -47,26 +47,44 @@ function PaymentDeleteForm({
   propertyId: string;
   returnHref: string;
 }) {
-  return (
-    <form
-      action={action.bind(null, paymentId, propertyId, returnHref)}
-      onSubmit={(event) => {
-        if (
-          !window.confirm(
-            "Delete this payment? Any rent periods it covered will be recalculated and may become unpaid again.",
-          )
-        ) {
-          event.preventDefault();
-        }
-      }}
-    >
+  const [confirming, setConfirming] = useState(false);
+
+  if (!confirming) {
+    return (
       <button
         className="inline-flex min-h-11 items-center text-sm font-medium text-red-700 hover:text-red-900"
-        type="submit"
+        onClick={() => setConfirming(true)}
+        type="button"
       >
         Delete
       </button>
-    </form>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-900">
+      <p>
+        Deleting recalculates rent and may make covered periods unpaid again.
+      </p>
+      <form
+        action={action.bind(null, paymentId, propertyId, returnHref)}
+        className="flex flex-wrap gap-2"
+      >
+        <button
+          className="inline-flex min-h-11 items-center rounded-md bg-red-700 px-3 text-sm font-medium text-white hover:bg-red-800"
+          type="submit"
+        >
+          Confirm delete
+        </button>
+        <button
+          className="inline-flex min-h-11 items-center rounded-md border border-red-200 bg-white px-3 text-sm font-medium text-red-800"
+          onClick={() => setConfirming(false)}
+          type="button"
+        >
+          Cancel
+        </button>
+      </form>
+    </div>
   );
 }
 
