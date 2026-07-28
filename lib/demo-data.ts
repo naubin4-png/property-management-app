@@ -208,6 +208,32 @@ export function encodeDemoCreatedLease(input: DemoCreatedLeaseInput) {
   return encodeBase64Url(JSON.stringify(payload));
 }
 
+export function buildDemoCreatedLeaseRedirectParams({
+  currentMonth,
+  demoLease,
+  firstPeriodMonth,
+  propertyId,
+}: {
+  currentMonth: Date;
+  demoLease: string;
+  firstPeriodMonth: Date;
+  propertyId: string;
+}) {
+  const params = new URLSearchParams({
+    demoSaved: "property",
+    demoLease,
+  });
+
+  if (firstPeriodMonth.getTime() === currentMonth.getTime()) {
+    params.set("leaseAdded", "1");
+    params.set("propertyId", propertyId);
+  } else {
+    params.set("property", propertyId);
+  }
+
+  return params;
+}
+
 export function getDemoCreatedLease(query: {
   demoLease?: string;
 }): DemoPropertyRecord | null {
