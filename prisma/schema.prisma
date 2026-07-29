@@ -91,6 +91,7 @@ model Property {
 
   leases Lease[]
 
+  @@unique([id, workspaceId])
   @@index([workspaceId])
 }
 
@@ -106,6 +107,7 @@ model Tenant {
   leases    Lease[]
   emailLogs EmailLog[]
 
+  @@unique([id, workspaceId])
   @@index([workspaceId])
 }
 
@@ -129,6 +131,7 @@ model Lease {
   paymentPeriods PaymentPeriod[]
   payments       Payment[]
 
+  @@unique([id, workspaceId])
   @@index([workspaceId])
 }
 
@@ -150,6 +153,7 @@ model PaymentPeriod {
   updatedAt DateTime @updatedAt
 
   @@unique([leaseId, periodMonth])
+  @@unique([id, workspaceId])
   @@index([workspaceId])
 }
 
@@ -172,6 +176,7 @@ model Payment {
 
   coveredPeriods PaymentPeriod[]
 
+  @@unique([id, workspaceId])
   @@unique([workspaceId, clientRequestId])
   @@index([workspaceId])
 }
