@@ -148,7 +148,7 @@ async function createSession() {
       "osascript",
       [
         "-e",
-        `delay 5
+        `delay 12
 tell application "Google Chrome"
   set unsafeCount to 0
   repeat with browserWindow in windows
