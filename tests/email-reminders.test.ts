@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { TriggerType } from "@prisma/client";
+import { EmailDeliveryStatus, TriggerType } from "@prisma/client";
 
 import { dashboardEmailActivityFromLog } from "../lib/dashboard";
 import {
@@ -35,7 +35,7 @@ function period(overrides: Partial<ReminderPeriod> = {}): ReminderPeriod {
 }
 
 function deps(options: {
-  existing?: { id: string; error: string | null } | null;
+  existing?: { id: string; status: EmailDeliveryStatus } | null;
   sendFails?: boolean;
   claimSucceeds?: boolean;
 } = {}) {
@@ -43,7 +43,7 @@ function deps(options: {
     createProcessingLog: 0,
     findExistingLog: 0,
     markFailed: 0,
-    markSent: 0,
+    markAccepted: 0,
     claimFailedLog: 0,
     sendEmail: 0,
   };
@@ -53,7 +53,7 @@ function deps(options: {
     impl: {
       async createProcessingLog() {
         calls.createProcessingLog += 1;
-        return { id: "log-new", error: "Processing" };
+        return { id: "log-new", status: EmailDeliveryStatus.PROCESSING };
       },
       async findExistingLog() {
         calls.findExistingLog += 1;
@@ -62,8 +62,8 @@ function deps(options: {
       async markFailed() {
         calls.markFailed += 1;
       },
-      async markSent() {
-        calls.markSent += 1;
+      async markAccepted() {
+        calls.markAccepted += 1;
       },
       async claimFailedLog() {
         calls.claimFailedLog += 1;
@@ -148,7 +148,7 @@ describe("email reminder delivery processing", () => {
     assert.deepEqual(result, { sent: 1, failed: 0, skipped: 0 });
     assert.equal(setup.calls.createProcessingLog, 1);
     assert.equal(setup.calls.sendEmail, 1);
-    assert.equal(setup.calls.markSent, 1);
+    assert.equal(setup.calls.markAccepted, 1);
     assert.equal(setup.calls.markFailed, 0);
   });
 
@@ -162,13 +162,13 @@ describe("email reminder delivery processing", () => {
     );
 
     assert.deepEqual(result, { sent: 0, failed: 1, skipped: 0 });
-    assert.equal(setup.calls.markSent, 0);
+    assert.equal(setup.calls.markAccepted, 0);
     assert.equal(setup.calls.markFailed, 1);
   });
 
   it("retries failed logs but deduplicates successful logs", async () => {
     const retrySetup = deps({
-      existing: { id: "log-failed", error: "Mailbox unavailable" },
+      existing: { id: "log-failed", status: EmailDeliveryStatus.FAILED },
     });
     const retryResult = await processReminderPeriods(
       [period()],
@@ -181,7 +181,9 @@ describe("email reminder delivery processing", () => {
     assert.equal(retrySetup.calls.claimFailedLog, 1);
     assert.equal(retrySetup.calls.createProcessingLog, 0);
 
-    const dedupeSetup = deps({ existing: { id: "log-sent", error: null } });
+    const dedupeSetup = deps({
+      existing: { id: "log-sent", status: EmailDeliveryStatus.DELIVERED },
+    });
     const dedupeResult = await processReminderPeriods(
       [period()],
       TriggerType.LATE_NOTICE,
@@ -195,7 +197,10 @@ describe("email reminder delivery processing", () => {
 
   it("does not reclaim an in-flight retry as another send", async () => {
     const setup = deps({
-      existing: { id: "log-processing", error: "Processing" },
+      existing: {
+        id: "log-processing",
+        status: EmailDeliveryStatus.PROCESSING,
+      },
       claimSucceeds: false,
     });
     const result = await processReminderPeriods(

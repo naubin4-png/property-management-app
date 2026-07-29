@@ -15,6 +15,7 @@ export type EmailSettingsViewData = {
   lateNoticeBody: string;
   replyToEmail?: string;
   timezone?: string;
+  emailEnabled?: boolean;
 };
 
 export type EmailCoverageViewData = {
@@ -35,6 +36,13 @@ export type EmailLogViewData = {
   toAddress: string;
   sentAt: Date;
   triggerType: "RENT_REMINDER" | "LATE_NOTICE";
+  status:
+    | "PROCESSING"
+    | "ACCEPTED"
+    | "DELIVERED"
+    | "FAILED"
+    | "BOUNCED"
+    | "COMPLAINED";
   error: string | null;
 };
 
@@ -44,6 +52,18 @@ const fieldClass =
 function messageType(triggerType: EmailLogViewData["triggerType"]) {
   return triggerType === "RENT_REMINDER" ? "Rent reminder" : "Late notice";
 }
+
+const deliveryStatus = {
+  PROCESSING: { label: "Processing", tone: "bg-amber-50 text-amber-800" },
+  ACCEPTED: { label: "Accepted", tone: "bg-blue-50 text-blue-700" },
+  DELIVERED: { label: "Delivered", tone: "bg-emerald-50 text-emerald-700" },
+  FAILED: { label: "Failed", tone: "bg-red-50 text-red-700" },
+  BOUNCED: { label: "Bounced", tone: "bg-red-50 text-red-700" },
+  COMPLAINED: { label: "Complaint", tone: "bg-red-50 text-red-700" },
+} satisfies Record<
+  EmailLogViewData["status"],
+  { label: string; tone: string }
+>;
 
 function PlaceholderHelp() {
   return (
@@ -113,6 +133,7 @@ export function EmailSettingsView({
   emailLogs,
   filteredPropertyId,
   filteredPropertyName,
+  providerReadiness,
   retryAction,
   saved,
   settings,
@@ -122,6 +143,7 @@ export function EmailSettingsView({
   emailLogs: EmailLogViewData[];
   filteredPropertyId?: string | null;
   filteredPropertyName?: string | null;
+  providerReadiness?: { configured: boolean; missing: string[] };
   retryAction?: (formData: FormData) => Promise<void>;
   saved?: boolean;
   settings: EmailSettingsViewData;
@@ -141,6 +163,20 @@ export function EmailSettingsView({
         <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Reminder settings saved.
         </p>
+      ) : null}
+
+      {!providerReadiness?.configured ? (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <MailWarning aria-hidden className="mt-0.5 size-5 shrink-0" />
+          <div>
+            <p className="font-semibold">Tenant email delivery is not configured</p>
+            <p className="mt-1 text-amber-900">
+              Reminder schedules can be prepared, but no tenant email will be
+              sent until the sending domain, provider, and delivery webhook are
+              activated.
+            </p>
+          </div>
+        </div>
       ) : null}
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
@@ -218,6 +254,27 @@ export function EmailSettingsView({
             Billing months, grace periods, and reminder timing use this
             timezone.
           </p>
+          <label className="mt-4 flex min-h-11 items-center gap-3 rounded-xl bg-zinc-50 p-4">
+            <input
+              className="size-5 shrink-0"
+              defaultChecked={
+                providerReadiness?.configured && settings.emailEnabled
+              }
+              disabled={!providerReadiness?.configured}
+              name="emailEnabled"
+              type="checkbox"
+            />
+            <span>
+              <span className="block text-sm font-medium text-zinc-900">
+                Enable automatic tenant email
+              </span>
+              <span className="block text-sm text-zinc-500">
+                {!providerReadiness?.configured
+                  ? "Available after provider activation."
+                  : "Cron jobs may send configured reminders and late notices."}
+              </span>
+            </span>
+          </label>
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
@@ -352,11 +409,18 @@ export function EmailSettingsView({
               <span>Status</span>
             </div>
             <div className="divide-y divide-zinc-100">
-              {emailLogs.map((log) => (
-                <div
-                  className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[8rem_1fr_9rem_8rem] sm:gap-4"
-                  key={log.id}
-                >
+              {emailLogs.map((log) => {
+                const status = deliveryStatus[log.status];
+                const failed =
+                  log.status === "FAILED" ||
+                  log.status === "BOUNCED" ||
+                  log.status === "COMPLAINED";
+
+                return (
+                  <div
+                    className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[8rem_1fr_9rem_8rem] sm:gap-4"
+                    key={log.id}
+                  >
                   <div className="text-zinc-600">{formatMonth(log.sentAt)}</div>
                   <div>
                     <p className="font-medium text-zinc-950">
@@ -369,20 +433,16 @@ export function EmailSettingsView({
                   <div className="text-zinc-700">{messageType(log.triggerType)}</div>
                   <div className="flex flex-wrap items-center gap-2 sm:block">
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
-                        log.error
-                          ? "bg-red-50 text-red-700"
-                          : "bg-emerald-50 text-emerald-700"
-                      }`}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${status.tone}`}
                     >
-                      {log.error ? (
+                      {failed ? (
                         <AlertCircle aria-hidden className="size-3.5" />
                       ) : (
                         <CheckCircle2 aria-hidden className="size-3.5" />
                       )}
-                      {log.error ? "Failed" : "Sent"}
+                      {status.label}
                     </span>
-                    {log.error && retryAction ? (
+                    {log.status === "FAILED" && retryAction ? (
                       <form action={retryAction} className="inline-block sm:mt-2">
                         <input name="logId" type="hidden" value={log.id} />
                         {filteredPropertyId ? (
@@ -401,8 +461,9 @@ export function EmailSettingsView({
                       </form>
                     ) : null}
                   </div>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

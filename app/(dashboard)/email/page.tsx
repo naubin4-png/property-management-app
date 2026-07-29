@@ -1,6 +1,7 @@
 import { EmailSettingsView } from "@/components/email-settings-view";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
+import { emailProviderReadiness } from "@/lib/resend";
 import { firstDayOfWorkspaceMonth } from "@/lib/workspace-time";
 import { getWorkspaceContext } from "@/lib/workspace-context";
 
@@ -14,6 +15,7 @@ export default async function EmailSettingsPage({
   searchParams: Promise<{ property?: string; saved?: string }>;
 }) {
   const { property, saved } = await searchParams;
+  const providerReadiness = emailProviderReadiness();
   const { workspaceId, email, timezone } = await getWorkspaceContext();
   const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
   const [settings, activeLeases, filteredProperty, propertyLeaseIds] =
@@ -99,7 +101,9 @@ export default async function EmailSettingsPage({
         sentAt: log.sentAt,
         triggerType: log.triggerType,
         error: log.error,
+        status: log.status,
       }))}
+      providerReadiness={providerReadiness}
       filteredPropertyId={property}
       filteredPropertyName={filteredProperty?.name}
       retryAction={retryEmailDelivery}

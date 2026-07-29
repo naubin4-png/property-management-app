@@ -63,6 +63,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 RESEND_API_KEY=
 EMAIL_FROM=              # e.g. reminders@yourdomain.com — must match a verified Resend domain
+RESEND_WEBHOOK_SECRET=   # Resend webhook signing secret
 CRON_SECRET=
 ```
 
@@ -510,11 +511,18 @@ Two email triggers: a reminder before rent is due, and a late notice after if un
 - Substitution happens server-side at send time; no escaping issues since the body becomes plain-text email content.
 
 **Recent Emails section:**
-- Last 20 `EmailLog` entries: Date Sent, Recipient, Subject, Status (Sent / Failed)
+- Last 20 `EmailLog` entries: Date Sent, Recipient, Subject, Status
+  (Processing / Accepted / Delivered / Failed / Bounced / Complaint)
 - Gives the owner confidence the automation is working
 
 **Sending behavior:**
-- All emails sent via Resend using `EMAIL_FROM` env var as the sender address.
+- All emails are sent via Resend using `EMAIL_FROM` as the sender and the
+  workspace Reply-to address.
+- Tenant delivery is fail-closed unless the workspace toggle and Resend API,
+  sender, and webhook configuration are all present.
+- Signed Resend webhooks update accepted messages to delivered, failed, bounced,
+  or complained. Provider event IDs are stored uniquely so retries are
+  idempotent.
 - Reminder fires once per (tenant, period) when `today == periodMonth - daysBeforeReminder` AND status is PENDING.
 - Late notice fires once per (tenant, period) when `today == periodMonth + daysAfterLateNotice` AND status is PENDING or LATE.
 - Both deduped via `EmailLog` (matching tenantId + triggerType + periodMonth).
