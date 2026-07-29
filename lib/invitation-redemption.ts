@@ -66,7 +66,7 @@ export async function redeemInvitationInTransaction(
     },
   });
   if (claimed.count !== 1) {
-    throw new Error("Invitation was already used.");
+    return { redeemed: false, reason: "claim_lost" } as const;
   }
 
   await tx.workspaceMembership.create({

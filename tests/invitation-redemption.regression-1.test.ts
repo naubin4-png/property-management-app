@@ -213,5 +213,9 @@ describe("workspace invitation redemption lifecycle", () => {
         attempt.status === "fulfilled" && attempt.value.redeemed === true,
     ).length;
     assert.equal(redeemedCount, 1);
+    assert.equal(
+      attempts.every((attempt) => attempt.status === "fulfilled"),
+      true,
+    );
   });
 });

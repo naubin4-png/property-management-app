@@ -27,15 +27,38 @@ export async function redeemWorkspaceInvitation(user: {
   const now = new Date();
 
   try {
-    return await prisma.$transaction(
+    const redemption = await prisma.$transaction(
       (tx) =>
         redeemInvitationInTransaction(tx, {
           email,
           now,
           userId: user.id,
-        }),
+      }),
       transactionOptions,
     );
+    if (redemption.reason !== "claim_lost") {
+      return redemption;
+    }
+
+    const membership = await prisma.workspaceMembership.findFirst({
+      where: { userId: user.id },
+      select: { revokedAt: true, workspaceId: true },
+    });
+    if (membership) {
+      if (membership.revokedAt) {
+        return {
+          redeemed: false,
+          reason: "access_revoked",
+          workspaceId: membership.workspaceId,
+        } as const;
+      }
+      return {
+        redeemed: false,
+        reason: "already_member",
+        workspaceId: membership.workspaceId,
+      } as const;
+    }
+    return { redeemed: false, reason: "invitation_required" } as const;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
