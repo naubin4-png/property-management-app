@@ -154,6 +154,7 @@ describe("payment allocation", () => {
     });
 
     await allocatePayment(tx as never, {
+      workspaceId: "workspace-1",
       leaseId: "lease-1",
       amountCents: 50000,
       receivedAt: new Date("2026-07-10T00:00:00.000Z"),
@@ -175,6 +176,7 @@ describe("payment allocation", () => {
     });
 
     await allocatePayment(tx as never, {
+      workspaceId: "workspace-1",
       leaseId: "lease-1",
       amountCents: 300000,
       receivedAt: new Date("2026-07-10T00:00:00.000Z"),
@@ -230,6 +232,7 @@ describe("payment allocation", () => {
     await allocatePayment(
       tx as never,
       {
+        workspaceId: "workspace-1",
         leaseId: "lease-1",
         amountCents: 100000,
         receivedAt: new Date("2026-07-16T00:00:00.000Z"),

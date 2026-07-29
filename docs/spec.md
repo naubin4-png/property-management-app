@@ -4,6 +4,27 @@
 > allocation, credit handling, email, cron, and deployment.
 > UI/navigation/route behavior has been superseded by `docs/redesign.md`.
 
+## Client-readiness ownership addendum
+
+The platform is multi-workspace and invite-only. This section supersedes older
+single-owner and global-settings language elsewhere in this historical spec.
+
+- Every customer-owned row belongs to a `Workspace`.
+- Supabase users receive access only through `WorkspaceMembership`; the initial
+  role is `OWNER`, with `MEMBER` reserved for future collaboration.
+- Server code resolves the authenticated Supabase user and workspace. Browser
+  workspace IDs, user IDs, and ownership claims are never trusted.
+- `WorkspaceInvitation` is email-normalized, expiring, revocable, single-use,
+  and redeemed atomically from a verified Google identity.
+- `naubin4@gmail.com` is represented by its stable Supabase user UUID for
+  platform administration and separately owns `Developer Test Workspace`.
+  Platform-admin status does not grant customer-workspace membership.
+- `AppSettings`, reminder processing, and `EmailLog` are workspace-owned.
+- Browser-facing `anon` and `authenticated` database roles have no direct
+  application-table privileges. RLS is enabled as defense in depth; privileged
+  Prisma access still requires application-level workspace authorization.
+- The public demo uses session-local sample state and never application tables.
+
 ## Overview
 
 A simple web app for one owner to track rent across a portfolio of ~40–60 commercial leases. The owner cares about three things:

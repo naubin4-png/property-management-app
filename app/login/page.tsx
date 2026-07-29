@@ -1,4 +1,4 @@
-import { signInWithEmail, signInWithGoogle } from "./actions";
+import { signInWithGoogle } from "./actions";
 import Link from "next/link";
 
 export default async function LoginPage({
@@ -22,49 +22,10 @@ export default async function LoginPage({
           </p>
         ) : null}
 
-        <form action={signInWithEmail} className="mt-6 space-y-4">
-          <div>
-            <label className="text-sm font-medium text-zinc-800" htmlFor="email">
-              Email
-            </label>
-            <input
-              autoFocus
-              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-900"
-              enterKeyHint="next"
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-zinc-800" htmlFor="password">
-              Password
-            </label>
-            <input
-              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-900"
-              enterKeyHint="done"
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-            />
-          </div>
-
+        <form action={signInWithGoogle} className="mt-6">
           <button
+            autoFocus
             className="h-11 w-full rounded-md bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-            type="submit"
-          >
-            Sign in
-          </button>
-        </form>
-
-        <form action={signInWithGoogle} className="mt-3">
-          <button
-            className="h-11 w-full rounded-md border border-zinc-300 bg-white text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50"
             type="submit"
           >
             Continue with Google

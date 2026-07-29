@@ -14,12 +14,16 @@ export const defaultEmailSettings = {
     "Hi {tenant_name},\n\nOur records show that rent of {amount_due} for {property_name} was due on {due_date} and has not yet been received. Please let me know the status.\n\nThanks!",
 };
 
-export async function getSettings() {
+export async function getSettings(
+  workspaceId: string,
+  replyToEmail = "unconfigured@example.invalid",
+) {
   return prisma.appSettings.upsert({
-    where: { id: "singleton" },
+    where: { workspaceId },
     update: {},
     create: {
-      id: "singleton",
+      workspaceId,
+      replyToEmail,
       ...defaultEmailSettings,
     },
   });

@@ -51,11 +51,12 @@ export function dashboardEmailActivityFromLog(
   };
 }
 
-async function ensureDashboardPeriods() {
+async function ensureDashboardPeriods(workspaceId: string) {
   const currentMonth = firstDayOfCurrentMonth();
   const nextMonth = firstDayOfNextMonth();
   const activeLeases = await prisma.lease.findMany({
     where: {
+      workspaceId,
       firstPeriodMonth: { lte: nextMonth },
       OR: [
         { lastPeriodMonth: null },
@@ -81,6 +82,7 @@ async function ensureDashboardPeriods() {
           }),
       )
       .map((periodMonth) => ({
+        workspaceId,
         leaseId: lease.id,
         periodMonth,
         amountDueCents: lease.rentCents,
@@ -95,8 +97,8 @@ async function ensureDashboardPeriods() {
   }
 }
 
-export async function getDashboardData() {
-  await ensureDashboardPeriods();
+export async function getDashboardData(workspaceId: string) {
+  await ensureDashboardPeriods(workspaceId);
 
   const currentMonth = firstDayOfCurrentMonth();
   const nextMonth = firstDayOfNextMonth();
@@ -105,6 +107,7 @@ export async function getDashboardData() {
   const [properties, settings] =
     await Promise.all([
       prisma.property.findMany({
+        where: { workspaceId },
         orderBy: { name: "asc" },
         include: {
           leases: {
@@ -128,7 +131,7 @@ export async function getDashboardData() {
           },
         },
       }),
-      getSettings(),
+      getSettings(workspaceId),
     ]);
 
   const emailLookupKeys: { leaseId: string; periodMonth: Date }[] = [];
@@ -272,6 +275,7 @@ export async function getDashboardData() {
     emailLookupKeys.length > 0
       ? await prisma.emailLog.findMany({
           where: {
+            workspaceId,
             OR: emailLookupKeys.map((key) => ({
               leaseId: key.leaseId,
               periodMonth: key.periodMonth,

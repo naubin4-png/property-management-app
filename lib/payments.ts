@@ -12,6 +12,7 @@ type TransactionClient = Omit<
 >;
 
 type PaymentInput = {
+  workspaceId: string;
   leaseId: string;
   amountCents: number;
   receivedAt: Date;
@@ -23,6 +24,7 @@ type PaymentInput = {
 
 type LeaseForAllocation = {
   id: string;
+  workspaceId: string;
   firstPeriodMonth: Date;
   rentCents: number;
   lastPeriodMonth: Date | null;
@@ -31,12 +33,14 @@ type LeaseForAllocation = {
 async function getCreditBalance(
   tx: TransactionClient,
   leaseId: string,
+  workspaceId: string,
   excludedPaymentId?: string,
 ) {
   const [payments, allocated] = await Promise.all([
     tx.payment.aggregate({
       where: {
         leaseId,
+        workspaceId,
         ...(excludedPaymentId ? { id: { not: excludedPaymentId } } : {}),
       },
       _sum: { amountCents: true },
@@ -44,6 +48,7 @@ async function getCreditBalance(
     tx.paymentPeriod.aggregate({
       where: {
         leaseId,
+        workspaceId,
         status: PeriodStatus.RECEIVED,
         ...(excludedPaymentId ? { paymentId: { not: excludedPaymentId } } : {}),
       },
@@ -67,6 +72,7 @@ async function ensurePaymentPeriodsThrough(
       lastPeriodMonth: lease.lastPeriodMonth,
       minimumThrough,
     }).map((periodMonth) => ({
+      workspaceId: lease.workspaceId,
       leaseId: lease.id,
       periodMonth,
       amountDueCents: lease.rentCents,
@@ -75,10 +81,15 @@ async function ensurePaymentPeriodsThrough(
   });
 }
 
-async function getUnpaidPeriods(tx: TransactionClient, leaseId: string) {
+async function getUnpaidPeriods(
+  tx: TransactionClient,
+  leaseId: string,
+  workspaceId: string,
+) {
   return tx.paymentPeriod.findMany({
     where: {
       leaseId,
+      workspaceId,
       status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
     },
     orderBy: { periodMonth: "asc" },
@@ -90,7 +101,7 @@ async function ensureEnoughOpenEndedPeriods(
   lease: LeaseForAllocation,
   monthsToCover: number,
 ) {
-  let unpaidPeriods = await getUnpaidPeriods(tx, lease.id);
+  let unpaidPeriods = await getUnpaidPeriods(tx, lease.id, lease.workspaceId);
 
   if (monthsToCover <= unpaidPeriods.length) {
     return unpaidPeriods;
@@ -101,7 +112,7 @@ async function ensureEnoughOpenEndedPeriods(
   }
 
   const latestPeriod = await tx.paymentPeriod.findFirst({
-    where: { leaseId: lease.id },
+    where: { leaseId: lease.id, workspaceId: lease.workspaceId },
     orderBy: { periodMonth: "desc" },
     select: { periodMonth: true },
   });
@@ -114,6 +125,7 @@ async function ensureEnoughOpenEndedPeriods(
   await tx.paymentPeriod.createMany({
     data: Array.from({ length: missingCount }, () => {
       const data = {
+        workspaceId: lease.workspaceId,
         leaseId: lease.id,
         periodMonth,
         amountDueCents: lease.rentCents,
@@ -124,7 +136,7 @@ async function ensureEnoughOpenEndedPeriods(
     skipDuplicates: true,
   });
 
-  unpaidPeriods = await getUnpaidPeriods(tx, lease.id);
+  unpaidPeriods = await getUnpaidPeriods(tx, lease.id, lease.workspaceId);
   if (monthsToCover > unpaidPeriods.length) {
     throw new Error("Payment exceeds remaining rent on this lease.");
   }
@@ -142,9 +154,10 @@ export async function allocatePayment(
   }
 
   const lease = await tx.lease.findUnique({
-    where: { id: input.leaseId },
+    where: { id: input.leaseId, workspaceId: input.workspaceId },
     select: {
       id: true,
+      workspaceId: true,
       firstPeriodMonth: true,
       rentCents: true,
       lastPeriodMonth: true,
@@ -165,6 +178,7 @@ export async function allocatePayment(
   const creditBalance = await getCreditBalance(
     tx,
     lease.id,
+    lease.workspaceId,
     existingPaymentId,
   );
   const effectiveAmount = creditBalance + input.amountCents;
@@ -179,7 +193,7 @@ export async function allocatePayment(
 
   const payment = existingPaymentId
     ? await tx.payment.update({
-        where: { id: existingPaymentId },
+        where: { id: existingPaymentId, workspaceId: input.workspaceId },
         data: {
           receivedAt: input.receivedAt,
           amountCents: input.amountCents,

@@ -9,6 +9,7 @@ import {
 } from "@/lib/email-reminders";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
+import { getWorkspaceContext } from "@/lib/workspace-context";
 
 function checked(formData: FormData, name: string) {
   return formData.get(name) === "on";
@@ -31,6 +32,7 @@ function requiredText(formData: FormData, name: string) {
 }
 
 export async function saveEmailSettings(formData: FormData) {
+  const { workspaceId, email } = await getWorkspaceContext();
   const gracePeriodDays = nonNegativeInteger(formData, "gracePeriodDays");
   const reminderEmailSubject = requiredText(formData, "reminderEmailSubject");
   const reminderEmailBody = requiredText(formData, "reminderEmailBody");
@@ -50,9 +52,10 @@ export async function saveEmailSettings(formData: FormData) {
   }
 
   await prisma.appSettings.upsert({
-    where: { id: "singleton" },
+    where: { workspaceId },
     create: {
-      id: "singleton",
+      workspaceId,
+      replyToEmail: email ?? "unconfigured@example.invalid",
       sendBeforeDue: checked(formData, "sendBeforeDue"),
       sendAfterDue: checked(formData, "sendAfterDue"),
       daysBeforeReminder: nonNegativeInteger(formData, "daysBeforeReminder"),
@@ -82,6 +85,7 @@ export async function saveEmailSettings(formData: FormData) {
 }
 
 export async function retryEmailDelivery(formData: FormData) {
+  const { workspaceId } = await getWorkspaceContext();
   const logId = String(formData.get("logId") ?? "");
   const property = String(formData.get("property") ?? "");
 
@@ -89,8 +93,8 @@ export async function retryEmailDelivery(formData: FormData) {
     throw new Error("Delivery log is required.");
   }
 
-  const log = await prisma.emailLog.findUnique({
-    where: { id: logId },
+  const log = await prisma.emailLog.findFirst({
+    where: { id: logId, workspaceId },
     select: {
       error: true,
       leaseId: true,
@@ -105,9 +109,9 @@ export async function retryEmailDelivery(formData: FormData) {
   }
 
   const [settings, lease] = await Promise.all([
-    getSettings(),
-    prisma.lease.findUnique({
-      where: { id: log.leaseId },
+    getSettings(workspaceId),
+    prisma.lease.findFirst({
+      where: { id: log.leaseId, workspaceId },
       include: {
         property: { select: { name: true } },
         tenant: { select: { id: true, name: true, email: true } },
@@ -144,6 +148,8 @@ export async function retryEmailDelivery(formData: FormData) {
     ],
     log.triggerType,
     template,
+    undefined,
+    workspaceId,
   );
 
   revalidatePath("/");
