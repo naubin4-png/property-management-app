@@ -34,6 +34,7 @@ function createMockTransaction({
     ...initialPayments,
   ];
   const paymentPeriods = [...periods];
+  const createdPaymentInputs: unknown[] = [];
   let paymentCounter = 0;
 
   const tx = {
@@ -53,6 +54,7 @@ function createMockTransaction({
         },
       }),
       create: async ({ data }: { data: { amountCents: number } }) => {
+        createdPaymentInputs.push(data);
         const payment = {
           id: `payment-${(paymentCounter += 1)}`,
           amountCents: data.amountCents,
@@ -144,17 +146,18 @@ function createMockTransaction({
     },
   };
 
-  return { paymentPeriods, tx };
+  return { createdPaymentInputs, paymentPeriods, tx };
 }
 
 describe("payment allocation", () => {
   it("keeps a partial payment as credit without marking a period received", async () => {
-    const { paymentPeriods, tx } = createMockTransaction({
+    const { createdPaymentInputs, paymentPeriods, tx } = createMockTransaction({
       lastPeriodMonth: null,
     });
 
     await allocatePayment(tx as never, {
       workspaceId: "workspace-1",
+      currentMonth: month("2026-07"),
       leaseId: "lease-1",
       amountCents: 50000,
       receivedAt: new Date("2026-07-10T00:00:00.000Z"),
@@ -168,6 +171,18 @@ describe("payment allocation", () => {
       paymentPeriods.map((period) => period.status),
       [PeriodStatus.PENDING],
     );
+    assert.deepEqual(createdPaymentInputs, [
+      {
+        workspaceId: "workspace-1",
+        leaseId: "lease-1",
+        amountCents: 50000,
+        receivedAt: new Date("2026-07-10T00:00:00.000Z"),
+        paymentMethod: "CHECK",
+        paymentReference: null,
+        notes: null,
+        clientRequestId: "partial",
+      },
+    ]);
   });
 
   it("creates enough future periods for open-ended multi-month advance payments", async () => {
