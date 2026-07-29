@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# ephemeral production QA authentication state
+/.qa/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

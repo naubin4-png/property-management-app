@@ -134,6 +134,39 @@ For user-facing work:
 - Report concise before/after evidence in the final response.
 - Do not create permanent verification diaries unless explicitly requested.
 
+## Durable Production QA Authentication
+
+The production login remains Google-only. Automated QA must never restore a
+password form or add a hidden public bypass.
+
+From a dedicated isolated worktree that is linked to the production Vercel and
+Supabase projects:
+
+1. Pull production environment variables into the ignored, mode-600
+   `.env.production.local` file.
+2. Keep the authenticated browser journey in one persistent browser/shell
+   session.
+3. Run `node scripts/qa-session.mjs create`. The script obtains the service-role
+   credential from the authenticated Supabase CLI without printing it, creates
+   a random temporary user and workspace, creates a one-time hashed magic-link
+   verifier, stores cleanup identifiers in ignored `.qa/session.json`, and
+   opens the verifier through `/auth/confirm`. That server route exchanges it
+   for an HttpOnly Supabase session and immediately redirects to a clean URL.
+   The script clears the tab and fails if a verifier or token fragment remains
+   visible after the exchange.
+4. Never print, copy, inspect, screenshot, or persist the magic link, cookies,
+   tokens, or sensitive DOM values. Redact sensitive values before broad DOM
+   inspection. Use stable semantic or DOM selectors after navigation.
+5. Complete the authenticated QA journey.
+6. Run `node scripts/qa-session.mjs cleanup` even when QA fails. This deletes
+   the temporary workspace, membership, settings, user, sessions, and local
+   state. Verify `.qa/session.json` is gone and production synthetic counts are
+   restored.
+
+The script refuses to create a second temporary session while cleanup state
+exists. A QA session is never a permanent account and must not be invited or
+used as a real email recipient.
+
 ## Question Policy
 
 Ask only when the answer materially changes one of these:
