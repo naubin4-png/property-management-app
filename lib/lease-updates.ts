@@ -9,12 +9,14 @@ const transactionOptions = {
 } as const;
 
 export async function updateLeaseRecord({
+  workspaceId,
   propertyId,
   leaseId,
   lastPeriodMonth,
   rentCents,
   notes,
 }: {
+  workspaceId: string;
   propertyId: string;
   leaseId: string;
   lastPeriodMonth: Date | null;
@@ -22,6 +24,7 @@ export async function updateLeaseRecord({
   notes: string;
 }) {
   await updatePropertyLeaseDetails({
+    workspaceId,
     propertyId,
     leaseId,
     lastPeriodMonth,
@@ -31,6 +34,7 @@ export async function updateLeaseRecord({
 }
 
 export async function updatePropertyLeaseDetails({
+  workspaceId,
   propertyId,
   leaseId,
   lastPeriodMonth,
@@ -40,6 +44,7 @@ export async function updatePropertyLeaseDetails({
   tenantEmail,
   tenantName,
 }: {
+  workspaceId: string;
   propertyId: string;
   leaseId: string;
   lastPeriodMonth: Date | null;
@@ -51,7 +56,7 @@ export async function updatePropertyLeaseDetails({
 }) {
   await prisma.$transaction(async (tx) => {
     const lease = await tx.lease.findFirst({
-      where: { id: leaseId, propertyId },
+      where: { id: leaseId, propertyId, workspaceId },
     });
 
     if (!lease) {
@@ -101,20 +106,20 @@ export async function updatePropertyLeaseDetails({
 
     if (propertyName !== undefined) {
       await tx.property.update({
-        where: { id: propertyId },
+        where: { id: propertyId, workspaceId },
         data: { name: propertyName },
       });
     }
 
     if (tenantName !== undefined) {
       await tx.tenant.update({
-        where: { id: lease.tenantId },
+        where: { id: lease.tenantId, workspaceId },
         data: { name: tenantName, email: tenantEmail ?? null },
       });
     }
 
-    await tx.lease.update({
-      where: { id: lease.id },
+      await tx.lease.update({
+      where: { id: lease.id, workspaceId },
       data: {
         lastPeriodMonth,
         rentCents,
@@ -131,6 +136,7 @@ export async function updatePropertyLeaseDetails({
       await tx.paymentPeriod.createMany({
         data: enumerateMonths(extensionStart, lastPeriodMonth).map(
           (periodMonth) => ({
+            workspaceId,
             leaseId: lease.id,
             periodMonth,
             amountDueCents: rentCents,
@@ -143,6 +149,7 @@ export async function updatePropertyLeaseDetails({
       await tx.paymentPeriod.createMany({
         data: enumerateMonths(lease.firstPeriodMonth, lastPeriodMonth).map(
           (periodMonth) => ({
+            workspaceId,
             leaseId: lease.id,
             periodMonth,
             amountDueCents: rentCents,

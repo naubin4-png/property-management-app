@@ -9,6 +9,7 @@ import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { getPropertyDetails } from "@/lib/property-details";
+import { getWorkspaceContext } from "@/lib/workspace-context";
 
 import { logPayment } from "../../payments/actions";
 
@@ -28,7 +29,8 @@ export default async function PropertyDetailPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const detail = await getPropertyDetails(id);
+  const { workspaceId } = await getWorkspaceContext();
+  const detail = await getPropertyDetails(id, workspaceId);
 
   if (!detail) {
     notFound();

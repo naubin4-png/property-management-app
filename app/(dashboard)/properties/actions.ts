@@ -10,6 +10,7 @@ import {
 } from "@/lib/lease-periods";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceContext } from "@/lib/workspace-context";
 
 export type AddPropertyActionState = {
   error: string | null;
@@ -22,6 +23,7 @@ export async function createPropertyWithLease(
   let redirectHref = "/";
 
   try {
+    const { workspaceId } = await getWorkspaceContext();
     const propertyName = String(formData.get("propertyName") ?? "").trim();
     const tenantName = String(formData.get("tenantName") ?? "").trim();
     const tenantEmail =
@@ -62,17 +64,20 @@ export async function createPropertyWithLease(
     const created = await prisma.$transaction(async (tx) => {
       const property = await tx.property.create({
         data: {
+          workspaceId,
           name: propertyName,
         },
       });
       const tenant = await tx.tenant.create({
         data: {
+          workspaceId,
           name: tenantName,
           email: tenantEmail,
         },
       });
       const lease = await tx.lease.create({
         data: {
+          workspaceId,
           propertyId: property.id,
           tenantId: tenant.id,
           firstPeriodMonth,
@@ -88,6 +93,7 @@ export async function createPropertyWithLease(
           lastPeriodMonth,
           minimumThrough: currentMonth,
         }).map((periodMonth) => ({
+          workspaceId,
           leaseId: lease.id,
           periodMonth,
           amountDueCents: rentCents,

@@ -75,6 +75,7 @@ type ExistingEmailLog = {
 
 type ReminderProcessingDeps = {
   createProcessingLog: (input: {
+    workspaceId: string;
     leaseId: string;
     periodMonth: Date;
     subject: string;
@@ -83,6 +84,7 @@ type ReminderProcessingDeps = {
     triggerType: TriggerType;
   }) => Promise<ExistingEmailLog>;
   findExistingLog: (input: {
+    workspaceId: string;
     periodMonth: Date;
     tenantId: string;
     triggerType: TriggerType;
@@ -101,6 +103,7 @@ const defaultReminderProcessingDeps: ReminderProcessingDeps = {
   async createProcessingLog(input) {
     return prisma.emailLog.create({
       data: {
+        workspaceId: input.workspaceId,
         tenantId: input.tenantId,
         leaseId: input.leaseId,
         periodMonth: input.periodMonth,
@@ -115,7 +118,8 @@ const defaultReminderProcessingDeps: ReminderProcessingDeps = {
   async findExistingLog(input) {
     return prisma.emailLog.findUnique({
       where: {
-        tenantId_triggerType_periodMonth: {
+        workspaceId_tenantId_triggerType_periodMonth: {
+          workspaceId: input.workspaceId,
           tenantId: input.tenantId,
           triggerType: input.triggerType,
           periodMonth: input.periodMonth,
@@ -172,6 +176,7 @@ export async function processReminderPeriods(
   triggerType: TriggerType,
   template: EmailTemplate,
   deps = defaultReminderProcessingDeps,
+  workspaceId = "test-workspace",
 ) {
   let sent = 0;
   let failed = 0;
@@ -190,6 +195,7 @@ export async function processReminderPeriods(
     let log: ExistingEmailLog;
     try {
       const existingLog = await deps.findExistingLog({
+        workspaceId,
         tenantId: tenant.id,
         triggerType,
         periodMonth: period.periodMonth,
@@ -209,6 +215,7 @@ export async function processReminderPeriods(
         log = existingLog;
       } else {
         log = await deps.createProcessingLog({
+          workspaceId,
           tenantId: tenant.id,
           leaseId: period.lease.id,
           periodMonth: period.periodMonth,
@@ -251,6 +258,7 @@ export async function processReminderPeriods(
 export async function findReminderPeriods(
   periodMonth: Date,
   statuses: PeriodStatus[],
+  workspaceId: string,
 ) {
   const currentMonth = new Date(
     Date.UTC(periodMonth.getUTCFullYear(), periodMonth.getUTCMonth(), 1),
@@ -258,6 +266,7 @@ export async function findReminderPeriods(
 
   return prisma.paymentPeriod.findMany({
     where: {
+      workspaceId,
       periodMonth,
       status: { in: statuses },
       lease: {

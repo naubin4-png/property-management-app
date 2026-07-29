@@ -11,6 +11,7 @@ import {
   isRetryableTransactionError,
 } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceContext } from "@/lib/workspace-context";
 
 export type PaymentActionState = {
   error: string | null;
@@ -60,12 +61,13 @@ function parsePaymentInput(formData: FormData) {
   };
 }
 
-async function findActiveLease(propertyId: string) {
+async function findActiveLease(propertyId: string, workspaceId: string) {
   const currentMonth = firstDayOfCurrentMonth();
 
   return prisma.lease.findFirst({
     where: {
       propertyId,
+      workspaceId,
       firstPeriodMonth: { lte: currentMonth },
       OR: [
         { lastPeriodMonth: null },
@@ -82,13 +84,19 @@ export async function logPayment(
   formData: FormData,
 ): Promise<PaymentActionState> {
   try {
+    const { workspaceId } = await getWorkspaceContext();
     const input = parsePaymentInput(formData);
     const existing = await prisma.payment.findUnique({
-      where: { clientRequestId: input.clientRequestId },
+      where: {
+        workspaceId_clientRequestId: {
+          workspaceId,
+          clientRequestId: input.clientRequestId,
+        },
+      },
     });
 
     if (!existing) {
-      const lease = await findActiveLease(input.propertyId);
+      const lease = await findActiveLease(input.propertyId, workspaceId);
       if (!lease) {
         throw new Error("The selected property does not have an active lease.");
       }
@@ -97,6 +105,7 @@ export async function logPayment(
         await prisma.$transaction(
           (tx) =>
             allocatePayment(tx, {
+              workspaceId,
               leaseId: lease.id,
               amountCents: input.amountCents,
               receivedAt: input.receivedAt,
@@ -113,7 +122,12 @@ export async function logPayment(
         }
 
         const duplicate = await prisma.payment.findUnique({
-          where: { clientRequestId: input.clientRequestId },
+          where: {
+            workspaceId_clientRequestId: {
+              workspaceId,
+              clientRequestId: input.clientRequestId,
+            },
+          },
         });
         if (!duplicate) {
           throw error;
@@ -138,13 +152,17 @@ export async function editPayment(
   formData: FormData,
 ): Promise<PaymentActionState> {
   try {
+    const { workspaceId } = await getWorkspaceContext();
     const input = parsePaymentInput(formData);
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
-      select: { leaseId: true },
+    const payment = await prisma.payment.findFirst({
+      where: { id: paymentId, workspaceId },
+      select: { leaseId: true, lease: { select: { propertyId: true } } },
     });
 
     if (!payment) {
+      throw new Error("Payment not found.");
+    }
+    if (payment.lease.propertyId !== input.propertyId) {
       throw new Error("Payment not found.");
     }
 
@@ -153,6 +171,7 @@ export async function editPayment(
         allocatePayment(
           tx,
           {
+            workspaceId,
             leaseId: payment.leaseId,
             amountCents: input.amountCents,
             receivedAt: input.receivedAt,
@@ -187,12 +206,20 @@ export async function deletePayment(
   propertyId: string,
   returnHref: string,
 ) {
+  const { workspaceId } = await getWorkspaceContext();
   await prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.findFirst({
+      where: { id: paymentId, workspaceId, lease: { propertyId } },
+      select: { id: true },
+    });
+    if (!payment) {
+      throw new Error("Payment not found.");
+    }
     await tx.paymentPeriod.updateMany({
-      where: { paymentId },
+      where: { paymentId, workspaceId },
       data: { status: "PENDING", paymentId: null },
     });
-    await tx.payment.delete({ where: { id: paymentId } });
+    await tx.payment.delete({ where: { id: paymentId, workspaceId } });
   }, transactionOptions);
 
   revalidatePath("/");

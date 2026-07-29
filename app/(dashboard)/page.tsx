@@ -11,6 +11,7 @@ import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
 import { getDashboardData } from "@/lib/dashboard";
 import { getPropertyDetails } from "@/lib/property-details";
+import { getWorkspaceContext } from "@/lib/workspace-context";
 
 import { logPayment } from "./payments/actions";
 import { createPropertyWithLease } from "./properties/actions";
@@ -32,9 +33,11 @@ export default async function DashboardPage({
   }>;
 }) {
   const query = await searchParams;
-  const { properties, needsAttention, allGood, summary } = await getDashboardData();
+  const { workspaceId } = await getWorkspaceContext();
+  const { properties, needsAttention, allGood, summary } =
+    await getDashboardData(workspaceId);
   const selectedProperty = query.property
-    ? await getPropertyDetails(query.property)
+    ? await getPropertyDetails(query.property, workspaceId)
     : null;
   const selectedLeaseCoversBillingMonth =
     selectedProperty?.activeLease &&

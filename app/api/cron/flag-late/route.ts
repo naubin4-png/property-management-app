@@ -15,20 +15,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const settings = await getSettings();
-  const cutoff = utcToday();
-  cutoff.setUTCDate(cutoff.getUTCDate() - settings.gracePeriodDays);
-
-  const result = await prisma.paymentPeriod.updateMany({
-    where: {
-      status: PeriodStatus.PENDING,
-      periodMonth: { lte: cutoff },
-    },
-    data: { status: PeriodStatus.LATE },
+  const workspaces = await prisma.workspace.findMany({
+    select: { id: true },
   });
+  let flagged = 0;
+  const cutoffs: Record<string, string> = {};
+  for (const workspace of workspaces) {
+    const settings = await getSettings(workspace.id);
+    const cutoff = utcToday();
+    cutoff.setUTCDate(cutoff.getUTCDate() - settings.gracePeriodDays);
+    const result = await prisma.paymentPeriod.updateMany({
+      where: {
+        workspaceId: workspace.id,
+        status: PeriodStatus.PENDING,
+        periodMonth: { lte: cutoff },
+      },
+      data: { status: PeriodStatus.LATE },
+    });
+    flagged += result.count;
+    cutoffs[workspace.id] = cutoff.toISOString().slice(0, 10);
+  }
 
   return NextResponse.json({
-    cutoff: cutoff.toISOString().slice(0, 10),
-    flagged: result.count,
+    workspaces: workspaces.length,
+    cutoffs,
+    flagged,
   });
 }

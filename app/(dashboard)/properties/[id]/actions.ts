@@ -10,6 +10,7 @@ import {
   updatePropertyLeaseDetails,
 } from "@/lib/lease-updates";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceContext } from "@/lib/workspace-context";
 
 export type InlineEditState = {
   askCurrentMonthPayment?: boolean;
@@ -19,6 +20,7 @@ export type InlineEditState = {
 };
 
 export async function findTenantByEmail(email: string) {
+  const { workspaceId } = await getWorkspaceContext();
   const normalizedEmail = email.trim().toLowerCase();
 
   if (!normalizedEmail) {
@@ -26,7 +28,10 @@ export async function findTenantByEmail(email: string) {
   }
 
   return prisma.tenant.findFirst({
-    where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+    where: {
+      workspaceId,
+      email: { equals: normalizedEmail, mode: "insensitive" },
+    },
     select: { id: true, name: true, email: true },
   });
 }
@@ -70,7 +75,9 @@ export async function createLeaseInline(
     };
   }
   try {
+    const { workspaceId } = await getWorkspaceContext();
     await createLeaseRecord({
+      workspaceId,
       propertyId,
       tenantName,
       tenantEmail,
@@ -116,8 +123,20 @@ export async function updateTenant(
   }
 
   try {
+    const { workspaceId } = await getWorkspaceContext();
+    const property = await prisma.property.findFirst({
+      where: {
+        id: propertyId,
+        workspaceId,
+        leases: { some: { tenantId } },
+      },
+      select: { id: true },
+    });
+    if (!property) {
+      throw new Error("Property not found.");
+    }
     await prisma.tenant.update({
-      where: { id: tenantId },
+      where: { id: tenantId, workspaceId },
       data: { name, email },
     });
     revalidatePath(`/properties/${propertyId}`);
@@ -152,7 +171,9 @@ export async function updateLeaseInline(
   }
 
   try {
+    const { workspaceId } = await getWorkspaceContext();
     await updateLeaseRecord({
+      workspaceId,
       propertyId,
       leaseId,
       lastPeriodMonth,
@@ -207,7 +228,9 @@ export async function updatePropertyDetails(
   }
 
   try {
+    const { workspaceId } = await getWorkspaceContext();
     await updatePropertyLeaseDetails({
+      workspaceId,
       propertyId,
       leaseId,
       lastPeriodMonth,

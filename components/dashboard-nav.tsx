@@ -1,9 +1,11 @@
 "use client";
 
-import { CircleDollarSign, Home, Mail, Plus } from "lucide-react";
+import { CircleDollarSign, Home, LogOut, Mail, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
+
+import { signOut } from "@/app/logout/actions";
 
 type NavigationItem = {
   href: string;
@@ -20,6 +22,9 @@ export function TopBar({
   dashboardHref = "/",
   emailHref = "/email",
   ownerSignInHref,
+  showLogout = false,
+  isPlatformAdmin = false,
+  workspaceName,
   activeHref,
   onAddProperty,
   onAddCheck,
@@ -29,6 +34,9 @@ export function TopBar({
   dashboardHref?: string;
   emailHref?: string;
   ownerSignInHref?: string;
+  showLogout?: boolean;
+  isPlatformAdmin?: boolean;
+  workspaceName?: string;
   activeHref?: string;
   onAddProperty?: () => void;
   onAddCheck?: () => void;
@@ -52,7 +60,14 @@ export function TopBar({
             className="inline-flex min-h-11 items-center font-semibold tracking-tight text-zinc-950"
             href={dashboardHref}
           >
-            Property Manager
+            <span>
+              Property Manager
+              {workspaceName ? (
+                <span className="ml-2 hidden text-xs font-normal text-zinc-500 sm:inline">
+                  {workspaceName}
+                </span>
+              ) : null}
+            </span>
           </Link>
 
           {ownerSignInHref ? (
@@ -122,13 +137,33 @@ export function TopBar({
                 Owner sign in
               </Link>
             ) : null}
+            {isPlatformAdmin ? (
+              <Link
+                className={`${actionClass} ml-1 text-blue-700 hover:bg-blue-50`}
+                href="/admin"
+              >
+                Admin
+              </Link>
+            ) : null}
+            {showLogout ? (
+              <form action={signOut}>
+                <button
+                  className={`${actionClass} ml-1 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950`}
+                  type="submit"
+                >
+                  Log out
+                </button>
+              </form>
+            ) : null}
           </nav>
         </div>
       </header>
 
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-zinc-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className={`fixed inset-x-0 bottom-0 z-40 grid ${
+          showLogout ? "grid-cols-5" : "grid-cols-4"
+        } border-t border-zinc-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden`}
       >
         {items.map((item) => {
           const Icon = item.icon;
@@ -183,11 +218,34 @@ export function TopBar({
             Payment
           </Link>
         )}
+        {showLogout ? (
+          <form action={signOut}>
+            <button
+              className="flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-zinc-500"
+              type="submit"
+            >
+              <LogOut aria-hidden size={20} />
+              Log out
+            </button>
+          </form>
+        ) : null}
       </nav>
     </>
   );
 }
 
-export function DashboardNav() {
-  return <TopBar />;
+export function DashboardNav({
+  isPlatformAdmin,
+  workspaceName,
+}: {
+  isPlatformAdmin: boolean;
+  workspaceName: string;
+}) {
+  return (
+    <TopBar
+      isPlatformAdmin={isPlatformAdmin}
+      showLogout
+      workspaceName={workspaceName}
+    />
+  );
 }

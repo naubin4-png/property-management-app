@@ -3,6 +3,7 @@ import { enumerateLeaseMonths } from "@/lib/lease-periods";
 import { prisma } from "@/lib/prisma";
 
 export async function createLeaseRecord({
+  workspaceId,
   propertyId,
   tenantName,
   tenantEmail,
@@ -12,6 +13,7 @@ export async function createLeaseRecord({
   notes,
   reuseTenantId,
 }: {
+  workspaceId: string;
   propertyId: string;
   tenantName: string;
   tenantEmail: string | null;
@@ -23,8 +25,17 @@ export async function createLeaseRecord({
 }) {
   const currentMonth = firstDayOfCurrentMonth();
   await prisma.$transaction(async (tx) => {
+    const property = await tx.property.findFirst({
+      where: { id: propertyId, workspaceId },
+      select: { id: true },
+    });
+    if (!property) {
+      throw new Error("Property not found.");
+    }
+
     const activeLease = await tx.lease.findFirst({
       where: {
+        workspaceId,
         propertyId,
         OR: [
           { lastPeriodMonth: null },
@@ -39,9 +50,11 @@ export async function createLeaseRecord({
     }
 
     const tenant = reuseTenantId
-      ? await tx.tenant.findUnique({ where: { id: reuseTenantId } })
+      ? await tx.tenant.findFirst({
+          where: { id: reuseTenantId, workspaceId },
+        })
       : await tx.tenant.create({
-          data: { name: tenantName, email: tenantEmail },
+          data: { workspaceId, name: tenantName, email: tenantEmail },
         });
 
     if (!tenant) {
@@ -50,6 +63,7 @@ export async function createLeaseRecord({
 
     const lease = await tx.lease.create({
       data: {
+        workspaceId,
         propertyId,
         tenantId: tenant.id,
         firstPeriodMonth,
@@ -65,6 +79,7 @@ export async function createLeaseRecord({
         lastPeriodMonth,
         minimumThrough: currentMonth,
       }).map((periodMonth) => ({
+        workspaceId,
         leaseId: lease.id,
         periodMonth,
         amountDueCents: rentCents,

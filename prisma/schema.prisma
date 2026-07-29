@@ -19,32 +19,104 @@ enum TriggerType {
   LATE_NOTICE
 }
 
-model Property {
+enum MembershipRole {
+  OWNER
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  REDEEMED
+  REVOKED
+  EXPIRED
+}
+
+model Workspace {
   id        String   @id @default(uuid())
   name      String
+  timezone  String   @default("America/New_York")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  memberships WorkspaceMembership[]
+  invitations WorkspaceInvitation[]
+  properties  Property[]
+  tenants     Tenant[]
+  leases      Lease[]
+  periods     PaymentPeriod[]
+  payments    Payment[]
+  emailLogs   EmailLog[]
+  settings    AppSettings?
+}
+
+model WorkspaceMembership {
+  id          String         @id @default(uuid())
+  workspaceId String
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String         @db.Uuid
+  role        MembershipRole @default(MEMBER)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model WorkspaceInvitation {
+  id             String           @id @default(uuid())
+  workspaceId    String
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email          String
+  role           MembershipRole   @default(OWNER)
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  redeemedAt     DateTime?
+  revokedAt      DateTime?
+  redeemedUserId String?          @db.Uuid
+  createdBy      String           @db.Uuid
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([email, status])
+  @@index([workspaceId])
+}
+
+model Property {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   leases Lease[]
+
+  @@index([workspaceId])
 }
 
 model Tenant {
-  id        String   @id @default(uuid())
-  name      String
-  email     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  email       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   leases    Lease[]
   emailLogs EmailLog[]
+
+  @@index([workspaceId])
 }
 
 model Lease {
-  id         String   @id @default(uuid())
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   propertyId String
-  property   Property @relation(fields: [propertyId], references: [id])
+  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   firstPeriodMonth DateTime @db.Date
   lastPeriodMonth  DateTime? @db.Date
@@ -56,12 +128,16 @@ model Lease {
 
   paymentPeriods PaymentPeriod[]
   payments       Payment[]
+
+  @@index([workspaceId])
 }
 
 model PaymentPeriod {
-  id      String @id @default(uuid())
-  leaseId String
-  lease   Lease  @relation(fields: [leaseId], references: [id])
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leaseId     String
+  lease       Lease     @relation(fields: [leaseId], references: [id], onDelete: Cascade)
 
   periodMonth    DateTime     @db.Date
   amountDueCents Int
@@ -74,30 +150,38 @@ model PaymentPeriod {
   updatedAt DateTime @updatedAt
 
   @@unique([leaseId, periodMonth])
+  @@index([workspaceId])
 }
 
 model Payment {
-  id      String @id @default(uuid())
-  leaseId String
-  lease   Lease  @relation(fields: [leaseId], references: [id])
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leaseId     String
+  lease       Lease     @relation(fields: [leaseId], references: [id], onDelete: Cascade)
 
   receivedAt       DateTime @db.Date
   amountCents      Int
   paymentMethod    String?
   paymentReference String?
   notes            String?
-  clientRequestId  String   @unique
+  clientRequestId  String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   coveredPeriods PaymentPeriod[]
+
+  @@unique([workspaceId, clientRequestId])
+  @@index([workspaceId])
 }
 
 model EmailLog {
   id              String      @id @default(uuid())
+  workspaceId     String
+  workspace       Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tenantId        String?
-  tenant          Tenant?     @relation(fields: [tenantId], references: [id])
+  tenant          Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   leaseId         String?
   periodMonth     DateTime?   @db.Date
   toAddress       String
@@ -107,11 +191,14 @@ model EmailLog {
   sentAt          DateTime    @default(now())
   error           String?
 
-  @@unique([tenantId, triggerType, periodMonth])
+  @@unique([workspaceId, tenantId, triggerType, periodMonth])
+  @@index([workspaceId])
 }
 
 model AppSettings {
-  id String @id @default("singleton")
+  id          String    @id @default(uuid())
+  workspaceId String    @unique
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   sendBeforeDue       Boolean @default(true)
   sendAfterDue        Boolean @default(true)
@@ -123,6 +210,8 @@ model AppSettings {
   reminderEmailBody    String @default("Hi {tenant_name},\n\nThis is a friendly reminder that rent of {amount_due} for {property_name} is due on {due_date}.\n\nThanks!")
   lateNoticeSubject    String @default("Rent past due for {property_name}")
   lateNoticeBody       String @default("Hi {tenant_name},\n\nOur records show that rent of {amount_due} for {property_name} was due on {due_date} and has not yet been received. Please let me know the status.\n\nThanks!")
+  replyToEmail         String
+  emailEnabled         Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

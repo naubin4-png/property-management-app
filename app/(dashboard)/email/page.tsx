@@ -2,6 +2,7 @@ import { EmailSettingsView } from "@/components/email-settings-view";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
+import { getWorkspaceContext } from "@/lib/workspace-context";
 
 import { retryEmailDelivery, saveEmailSettings } from "./actions";
 
@@ -13,12 +14,14 @@ export default async function EmailSettingsPage({
   searchParams: Promise<{ property?: string; saved?: string }>;
 }) {
   const { property, saved } = await searchParams;
+  const { workspaceId, email } = await getWorkspaceContext();
   const currentMonth = firstDayOfCurrentMonth();
   const [settings, activeLeases, filteredProperty, propertyLeaseIds] =
     await Promise.all([
-      getSettings(),
+      getSettings(workspaceId, email ?? undefined),
       prisma.lease.findMany({
         where: {
+          workspaceId,
           firstPeriodMonth: { lte: currentMonth },
           OR: [
             { lastPeriodMonth: null },
@@ -32,14 +35,14 @@ export default async function EmailSettingsPage({
         },
       }),
       property
-        ? prisma.property.findUnique({
-            where: { id: property },
+        ? prisma.property.findFirst({
+            where: { id: property, workspaceId },
             select: { name: true },
           })
         : Promise.resolve(null),
       property
         ? prisma.lease.findMany({
-            where: { propertyId: property },
+            where: { propertyId: property, workspaceId },
             select: { id: true },
           })
         : Promise.resolve([]),
@@ -47,9 +50,10 @@ export default async function EmailSettingsPage({
   const emailLogs = await prisma.emailLog.findMany({
     where: property
       ? {
+          workspaceId,
           leaseId: { in: propertyLeaseIds.map((lease) => lease.id) },
         }
-      : undefined,
+      : { workspaceId },
     orderBy: { sentAt: "desc" },
     take: 20,
     include: {
@@ -60,7 +64,7 @@ export default async function EmailSettingsPage({
     ...new Set(emailLogs.map((log) => log.leaseId).filter(Boolean)),
   ] as string[];
   const logLeases = await prisma.lease.findMany({
-    where: { id: { in: logLeaseIds } },
+    where: { workspaceId, id: { in: logLeaseIds } },
     include: {
       property: true,
     },

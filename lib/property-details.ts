@@ -52,11 +52,12 @@ export type PropertyDetailData = {
 
 export async function getPropertyDetails(
   propertyId: string,
+  workspaceId: string,
 ): Promise<PropertyDetailData | null> {
   const currentMonth = firstDayOfCurrentMonth();
   const nextMonth = firstDayOfNextMonth();
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
+  const property = await prisma.property.findFirst({
+    where: { id: propertyId, workspaceId },
     include: {
       leases: {
         orderBy: { firstPeriodMonth: "desc" },
@@ -103,6 +104,7 @@ export async function getPropertyDetails(
   const emailLogs = activeLease
     ? await prisma.emailLog.findMany({
         where: {
+          workspaceId,
           leaseId: activeLease.id,
           periodMonth: currentMonth,
         },

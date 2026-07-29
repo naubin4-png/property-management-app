@@ -9,28 +9,24 @@ function loginError(message: string): never {
   redirect(`/login?error=${encodeURIComponent(message)}`);
 }
 
-export async function signInWithEmail(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-
-  if (!email || !password) {
-    loginError("Email and password are required.");
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    loginError(error.message);
-  }
-
-  redirect("/");
+function approvedOrigin(candidate: string | null) {
+  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  const fallback = "http://localhost:3000";
+  const deployment = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : null;
+  const allowed = new Set(
+    [configured, deployment, fallback].filter(
+      (value): value is string => Boolean(value),
+    ),
+  );
+  return candidate && allowed.has(candidate) ? candidate : configured ?? fallback;
 }
 
 export async function signInWithGoogle() {
   const supabase = await createSupabaseServerClient();
   const headerStore = await headers();
-  const origin = headerStore.get("origin") ?? "http://localhost:3000";
+  const origin = approvedOrigin(headerStore.get("origin"));
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
