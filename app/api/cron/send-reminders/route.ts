@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import {
+  canSendWorkspaceEmail,
   findReminderPeriods,
   processReminderPeriods,
 } from "@/lib/email-reminders";
@@ -22,6 +23,9 @@ export async function GET(request: NextRequest) {
 
   for (const workspace of workspaces) {
     const settings = await getSettings(workspace.id);
+    if (!canSendWorkspaceEmail(settings.emailEnabled)) {
+      continue;
+    }
     const today = workspaceCalendarDate(new Date(), workspace.timezone);
     if (settings.sendBeforeDue) {
       const target = shiftCalendarDate(today, settings.daysBeforeReminder);
@@ -40,6 +44,7 @@ export async function GET(request: NextRequest) {
           },
           undefined,
           workspace.id,
+          settings.replyToEmail,
         );
         totals.sent += result.sent;
         totals.failed += result.failed;
@@ -64,6 +69,7 @@ export async function GET(request: NextRequest) {
           },
           undefined,
           workspace.id,
+          settings.replyToEmail,
         );
         totals.sent += result.sent;
         totals.failed += result.failed;

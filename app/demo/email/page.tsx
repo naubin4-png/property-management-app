@@ -90,6 +90,7 @@ export default async function DemoEmailSettingsPage({
       emailLogs={filteredLogs}
       filteredPropertyId={property}
       filteredPropertyName={filteredPropertyName}
+      providerReadiness={{ configured: true, missing: [] }}
       retryAction={retryDemoEmailDelivery}
       saved={saved === "1"}
       settings={settings}

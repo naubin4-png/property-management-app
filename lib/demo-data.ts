@@ -1013,6 +1013,7 @@ export function getDemoEmailData(
         toAddress: "maya@example.com",
         sentAt: new Date("2026-06-05T00:00:00.000Z"),
         triggerType: "LATE_NOTICE" as const,
+        status: "DELIVERED" as const,
         error: null,
       },
       {
@@ -1024,6 +1025,7 @@ export function getDemoEmailData(
         toAddress: "noah@example.com",
         sentAt: new Date("2026-06-03T00:00:00.000Z"),
         triggerType: "RENT_REMINDER" as const,
+        status: "ACCEPTED" as const,
         error: null,
       },
       {
@@ -1035,6 +1037,9 @@ export function getDemoEmailData(
         toAddress: "samira@example.com",
         sentAt: new Date("2026-06-08T00:00:00.000Z"),
         triggerType: "LATE_NOTICE" as const,
+        status: retriedLogs.has("demo-email-lakeview-failed")
+          ? ("ACCEPTED" as const)
+          : ("FAILED" as const),
         error: retriedLogs.has("demo-email-lakeview-failed")
           ? null
           : "Mailbox unavailable",

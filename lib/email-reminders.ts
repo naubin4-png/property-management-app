@@ -1,8 +1,17 @@
-import { PeriodStatus, Prisma, TriggerType } from "@prisma/client";
+import {
+  EmailDeliveryStatus,
+  PeriodStatus,
+  Prisma,
+  TriggerType,
+} from "@prisma/client";
 
 import { formatMoney, formatMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
-import { getEmailFromAddress, getResendClient } from "@/lib/resend";
+import {
+  emailProviderReadiness,
+  getEmailFromAddress,
+  getResendClient,
+} from "@/lib/resend";
 
 export type ReminderPeriod = {
   periodMonth: Date;
@@ -70,7 +79,7 @@ export function lateNoticePeriodForToday(today: Date, gracePeriodDays: number) {
 
 type ExistingEmailLog = {
   id: string;
-  error: string | null;
+  status: EmailDeliveryStatus;
 };
 
 type ReminderProcessingDeps = {
@@ -90,10 +99,12 @@ type ReminderProcessingDeps = {
     triggerType: TriggerType;
   }) => Promise<ExistingEmailLog | null>;
   markFailed: (id: string, error: string) => Promise<void>;
-  markSent: (id: string, resendMessageId?: string) => Promise<void>;
+  markAccepted: (id: string, resendMessageId?: string) => Promise<void>;
   claimFailedLog: (id: string) => Promise<boolean>;
   sendEmail: (input: {
     body: string;
+    idempotencyKey: string;
+    replyToEmail: string;
     subject: string;
     toAddress: string;
   }) => Promise<{ id?: string }>;
@@ -110,9 +121,9 @@ const defaultReminderProcessingDeps: ReminderProcessingDeps = {
         toAddress: input.toAddress,
         subject: input.subject,
         triggerType: input.triggerType,
-        error: "Processing",
+        status: EmailDeliveryStatus.PROCESSING,
       },
-      select: { id: true, error: true },
+      select: { id: true, status: true },
     });
   },
   async findExistingLog(input) {
@@ -125,21 +136,22 @@ const defaultReminderProcessingDeps: ReminderProcessingDeps = {
           periodMonth: input.periodMonth,
         },
       },
-      select: { id: true, error: true },
+      select: { id: true, status: true },
     });
   },
   async markFailed(id, error) {
     await prisma.emailLog.update({
       where: { id },
-      data: { error },
+      data: { error, status: EmailDeliveryStatus.FAILED },
     });
   },
-  async markSent(id, resendMessageId) {
+  async markAccepted(id, resendMessageId) {
     await prisma.emailLog.update({
       where: { id },
       data: {
         resendMessageId,
         error: null,
+        status: EmailDeliveryStatus.ACCEPTED,
       },
     });
   },
@@ -147,10 +159,9 @@ const defaultReminderProcessingDeps: ReminderProcessingDeps = {
     const result = await prisma.emailLog.updateMany({
       where: {
         id,
-        error: { not: null },
-        NOT: { error: "Processing" },
+        status: EmailDeliveryStatus.FAILED,
       },
-      data: { error: "Processing" },
+      data: { error: null, status: EmailDeliveryStatus.PROCESSING },
     });
 
     return result.count === 1;
@@ -161,6 +172,9 @@ const defaultReminderProcessingDeps: ReminderProcessingDeps = {
       to: input.toAddress,
       subject: input.subject,
       text: input.body,
+      replyTo: input.replyToEmail,
+    }, {
+      idempotencyKey: input.idempotencyKey,
     });
 
     if (result.error) {
@@ -177,6 +191,7 @@ export async function processReminderPeriods(
   template: EmailTemplate,
   deps = defaultReminderProcessingDeps,
   workspaceId = "test-workspace",
+  replyToEmail = "owner@example.com",
 ) {
   let sent = 0;
   let failed = 0;
@@ -202,7 +217,7 @@ export async function processReminderPeriods(
       });
 
       if (existingLog) {
-        if (existingLog.error === null) {
+        if (existingLog.status !== EmailDeliveryStatus.FAILED) {
           skipped += 1;
           continue;
         }
@@ -230,8 +245,10 @@ export async function processReminderPeriods(
           toAddress: tenant.email,
           subject,
           body,
+          idempotencyKey: log.id,
+          replyToEmail,
         });
-        await deps.markSent(log.id, result.id);
+        await deps.markAccepted(log.id, result.id);
         sent += 1;
       } catch (error) {
         await deps.markFailed(
@@ -253,6 +270,10 @@ export async function processReminderPeriods(
   }
 
   return { sent, failed, skipped };
+}
+
+export function canSendWorkspaceEmail(emailEnabled: boolean) {
+  return emailEnabled && emailProviderReadiness().configured;
 }
 
 export async function findReminderPeriods(

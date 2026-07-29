@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  canSendWorkspaceEmail,
   processReminderPeriods,
   unknownEmailPlaceholders,
 } from "@/lib/email-reminders";
@@ -80,6 +81,9 @@ export async function saveEmailSettings(formData: FormData) {
       reminderEmailBody,
       lateNoticeSubject,
       lateNoticeBody,
+      emailEnabled:
+        checked(formData, "emailEnabled") &&
+        canSendWorkspaceEmail(true),
     },
     update: {
       replyToEmail,
@@ -92,6 +96,9 @@ export async function saveEmailSettings(formData: FormData) {
       reminderEmailBody,
       lateNoticeSubject,
       lateNoticeBody,
+      emailEnabled:
+        checked(formData, "emailEnabled") &&
+        canSendWorkspaceEmail(true),
     },
   });
   await prisma.workspace.update({
@@ -142,6 +149,11 @@ export async function retryEmailDelivery(formData: FormData) {
   if (!lease) {
     throw new Error("Lease for this delivery no longer exists.");
   }
+  if (!canSendWorkspaceEmail(settings.emailEnabled)) {
+    throw new Error(
+      "Email delivery is disabled until the provider configuration is complete.",
+    );
+  }
 
   const template =
     log.triggerType === "RENT_REMINDER"
@@ -170,6 +182,7 @@ export async function retryEmailDelivery(formData: FormData) {
     template,
     undefined,
     workspaceId,
+    settings.replyToEmail,
   );
 
   revalidatePath("/");

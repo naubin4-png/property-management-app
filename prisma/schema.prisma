@@ -31,6 +31,15 @@ enum InvitationStatus {
   EXPIRED
 }
 
+enum EmailDeliveryStatus {
+  PROCESSING
+  ACCEPTED
+  DELIVERED
+  FAILED
+  BOUNCED
+  COMPLAINED
+}
+
 model Workspace {
   id        String   @id @default(uuid())
   name      String
@@ -38,15 +47,16 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships WorkspaceMembership[]
-  invitations WorkspaceInvitation[]
-  properties  Property[]
-  tenants     Tenant[]
-  leases      Lease[]
-  periods     PaymentPeriod[]
-  payments    Payment[]
-  emailLogs   EmailLog[]
-  settings    AppSettings?
+  memberships        WorkspaceMembership[]
+  invitations        WorkspaceInvitation[]
+  properties         Property[]
+  tenants            Tenant[]
+  leases             Lease[]
+  periods            PaymentPeriod[]
+  payments           Payment[]
+  emailLogs          EmailLog[]
+  emailWebhookEvents EmailWebhookEvent[]
+  settings           AppSettings?
 }
 
 model WorkspaceMembership {
@@ -115,12 +125,12 @@ model Lease {
   id          String    @id @default(uuid())
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  propertyId String
-  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  tenantId   String
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  propertyId  String
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
-  firstPeriodMonth DateTime @db.Date
+  firstPeriodMonth DateTime  @db.Date
   lastPeriodMonth  DateTime? @db.Date
   rentCents        Int
   notes            String?
@@ -182,22 +192,42 @@ model Payment {
 }
 
 model EmailLog {
-  id              String      @id @default(uuid())
+  id              String              @id @default(uuid())
   workspaceId     String
-  workspace       Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tenantId        String?
-  tenant          Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant          Tenant?             @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   leaseId         String?
-  periodMonth     DateTime?   @db.Date
+  periodMonth     DateTime?           @db.Date
   toAddress       String
   subject         String
   triggerType     TriggerType
   resendMessageId String?
-  sentAt          DateTime    @default(now())
+  status          EmailDeliveryStatus @default(PROCESSING)
+  lastEventAt     DateTime?
+  sentAt          DateTime            @default(now())
   error           String?
+  webhookEvents   EmailWebhookEvent[]
 
   @@unique([workspaceId, tenantId, triggerType, periodMonth])
+  @@unique([id, workspaceId])
   @@index([workspaceId])
+  @@index([resendMessageId])
+}
+
+model EmailWebhookEvent {
+  id              String    @id @default(uuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  emailLogId      String
+  emailLog        EmailLog  @relation(fields: [emailLogId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  providerEventId String    @unique
+  eventType       String
+  occurredAt      DateTime
+  createdAt       DateTime  @default(now())
+
+  @@index([workspaceId])
+  @@index([emailLogId])
 }
 
 model AppSettings {
@@ -211,10 +241,10 @@ model AppSettings {
   daysAfterLateNotice Int     @default(5)
   gracePeriodDays     Int     @default(5)
 
-  reminderEmailSubject String @default("Rent reminder for {property_name}")
-  reminderEmailBody    String @default("Hi {tenant_name},\n\nThis is a friendly reminder that rent of {amount_due} for {property_name} is due on {due_date}.\n\nThanks!")
-  lateNoticeSubject    String @default("Rent past due for {property_name}")
-  lateNoticeBody       String @default("Hi {tenant_name},\n\nOur records show that rent of {amount_due} for {property_name} was due on {due_date} and has not yet been received. Please let me know the status.\n\nThanks!")
+  reminderEmailSubject String  @default("Rent reminder for {property_name}")
+  reminderEmailBody    String  @default("Hi {tenant_name},\n\nThis is a friendly reminder that rent of {amount_due} for {property_name} is due on {due_date}.\n\nThanks!")
+  lateNoticeSubject    String  @default("Rent past due for {property_name}")
+  lateNoticeBody       String  @default("Hi {tenant_name},\n\nOur records show that rent of {amount_due} for {property_name} was due on {due_date} and has not yet been received. Please let me know the status.\n\nThanks!")
   replyToEmail         String
   emailEnabled         Boolean @default(false)
 
