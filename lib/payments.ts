@@ -207,7 +207,18 @@ export async function allocatePayment(
           notes: input.notes,
         },
       })
-    : await tx.payment.create({ data: input });
+    : await tx.payment.create({
+        data: {
+          workspaceId: input.workspaceId,
+          leaseId: input.leaseId,
+          amountCents: input.amountCents,
+          receivedAt: input.receivedAt,
+          paymentMethod: input.paymentMethod,
+          paymentReference: input.paymentReference,
+          notes: input.notes,
+          clientRequestId: input.clientRequestId,
+        },
+      });
 
   const coveredPeriodIds = unpaidPeriods
     .slice(0, monthsToCover)
