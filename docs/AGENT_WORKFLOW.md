@@ -167,6 +167,13 @@ The script refuses to create a second temporary session while cleanup state
 exists. A QA session is never a permanent account and must not be invited or
 used as a real email recipient.
 
+## Production Operations
+
+Use `docs/operations.md` for deployment, migration, backup/restore, cron
+diagnosis, OAuth, and emergency procedures. Treat missing retained backups or a
+Supabase plan that can pause for inactivity as a client-launch risk. Never add
+production database credentials to Preview deployments for QA.
+
 ## Question Policy
 
 Ask only when the answer materially changes one of these:
