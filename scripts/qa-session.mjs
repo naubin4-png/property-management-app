@@ -201,7 +201,7 @@ async function createSession(slot) {
       if (workspaceId) {
         await prisma.workspace.deleteMany({ where: { id: workspaceId } });
       }
-      await supabase.auth.admin.deleteUser(created.user.id);
+      await supabase.auth.admin.deleteUser(created.user.id, false);
     }
     throw error;
   }
@@ -233,7 +233,7 @@ async function cleanupSession(slot) {
   await prisma.workspace.deleteMany({ where: { id: state.workspaceId } });
   const { error } = await supabase.auth.admin.deleteUser(
     state.userId,
-    true,
+    false,
   );
   if (error && !error.message.toLowerCase().includes("not found")) {
     throw new Error(error.message);
