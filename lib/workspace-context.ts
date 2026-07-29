@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { activeMembershipWhere } from "@/lib/membership-access";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase";
 
@@ -36,7 +37,7 @@ export const getAuthenticatedUser = cache(async () => {
 export const getWorkspaceContext = cache(async () => {
   const user = await getAuthenticatedUser();
   const memberships = await prisma.workspaceMembership.findMany({
-    where: { userId: user.id },
+    where: activeMembershipWhere(user.id),
     orderBy: { createdAt: "asc" },
     select: {
       role: true,

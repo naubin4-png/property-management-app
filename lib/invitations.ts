@@ -30,9 +30,16 @@ export async function redeemWorkspaceInvitation(user: {
       async (tx) => {
         const existingMembership = await tx.workspaceMembership.findFirst({
           where: { userId: user.id },
-          select: { workspaceId: true },
+          select: { revokedAt: true, workspaceId: true },
         });
         if (existingMembership) {
+          if (existingMembership.revokedAt) {
+            return {
+              redeemed: false,
+              reason: "access_revoked",
+              workspaceId: existingMembership.workspaceId,
+            } as const;
+          }
           return {
             redeemed: false,
             reason: "already_member",
@@ -108,9 +115,16 @@ export async function redeemWorkspaceInvitation(user: {
     ) {
       const membership = await prisma.workspaceMembership.findFirst({
         where: { userId: user.id },
-        select: { workspaceId: true },
+        select: { revokedAt: true, workspaceId: true },
       });
       if (membership) {
+        if (membership.revokedAt) {
+          return {
+            redeemed: false,
+            reason: "access_revoked",
+            workspaceId: membership.workspaceId,
+          } as const;
+        }
         return {
           redeemed: false,
           reason: "already_member",

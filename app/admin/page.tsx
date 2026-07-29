@@ -3,9 +3,12 @@ import Link from "next/link";
 import {
   createWorkspaceInvitation,
   regenerateWorkspaceInvitation,
+  restoreWorkspaceMembership,
   revokeWorkspaceInvitation,
+  revokeWorkspaceMembership,
 } from "@/app/admin/actions";
 import { signOut } from "@/app/logout/actions";
+import { membershipAccessLabel } from "@/lib/membership-access";
 import { requirePlatformAdministrator } from "@/lib/platform-admin";
 import { prisma } from "@/lib/prisma";
 
@@ -17,6 +20,27 @@ export default async function AdminPage() {
     orderBy: { createdAt: "desc" },
     include: { workspace: { select: { name: true } } },
   });
+  const redeemedMemberships = await prisma.workspaceMembership.findMany({
+    where: {
+      OR: invitations.flatMap((invitation) =>
+        invitation.redeemedUserId
+          ? [
+              {
+                userId: invitation.redeemedUserId,
+                workspaceId: invitation.workspaceId,
+              },
+            ]
+          : [],
+      ),
+    },
+    select: { revokedAt: true, userId: true, workspaceId: true },
+  });
+  const membershipByInvitation = new Map(
+    redeemedMemberships.map((membership) => [
+      `${membership.workspaceId}:${membership.userId}`,
+      membership,
+    ]),
+  );
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
     "https://property-management-app-virid.vercel.app";
@@ -97,8 +121,14 @@ export default async function AdminPage() {
             No client invitations yet.
           </p>
         ) : (
-          invitations.map((invitation) => (
-            <article
+          invitations.map((invitation) => {
+            const membership = invitation.redeemedUserId
+              ? membershipByInvitation.get(
+                  `${invitation.workspaceId}:${invitation.redeemedUserId}`,
+                )
+              : undefined;
+            return (
+              <article
               className="rounded-2xl border border-zinc-200 bg-white p-5"
               key={invitation.id}
             >
@@ -110,8 +140,43 @@ export default async function AdminPage() {
                     {invitation.status} · expires{" "}
                     {invitation.expiresAt.toLocaleDateString("en-US")}
                   </p>
+                  {membership ? (
+                    <p className="mt-1 text-xs font-medium text-zinc-600">
+                      {membershipAccessLabel(membership.revokedAt)}
+                    </p>
+                  ) : null}
                 </div>
-                {invitation.status !== "REDEEMED" ? (
+                {invitation.status === "REDEEMED" && membership ? (
+                  membership.revokedAt ? (
+                    <form action={restoreWorkspaceMembership}>
+                      <input
+                        name="invitationId"
+                        type="hidden"
+                        value={invitation.id}
+                      />
+                      <button
+                        className="h-11 rounded-lg border border-zinc-300 px-4 text-sm font-medium"
+                        type="submit"
+                      >
+                        Restore access
+                      </button>
+                    </form>
+                  ) : (
+                    <form action={revokeWorkspaceMembership}>
+                      <input
+                        name="invitationId"
+                        type="hidden"
+                        value={invitation.id}
+                      />
+                      <button
+                        className="h-11 rounded-lg border border-red-200 px-4 text-sm font-medium text-red-700"
+                        type="submit"
+                      >
+                        Revoke access
+                      </button>
+                    </form>
+                  )
+                ) : invitation.status !== "REDEEMED" ? (
                   <div className="flex gap-2">
                     {invitation.status === "PENDING" ? (
                       <form action={revokeWorkspaceInvitation}>
@@ -145,7 +210,8 @@ export default async function AdminPage() {
                 ) : null}
               </div>
             </article>
-          ))
+            );
+          })
         )}
       </section>
     </main>

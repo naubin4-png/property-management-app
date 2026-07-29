@@ -98,3 +98,59 @@ export async function regenerateWorkspaceInvitation(formData: FormData) {
   });
   revalidatePath("/admin");
 }
+
+export async function revokeWorkspaceMembership(formData: FormData) {
+  await requirePlatformAdministrator();
+  const invitationId = String(formData.get("invitationId") ?? "");
+
+  const invitation = await prisma.workspaceInvitation.findFirst({
+    where: {
+      id: invitationId,
+      status: InvitationStatus.REDEEMED,
+      redeemedUserId: { not: null },
+    },
+    select: { redeemedUserId: true, workspaceId: true },
+  });
+  if (!invitation?.redeemedUserId) {
+    throw new Error("An accepted client invitation is required.");
+  }
+
+  await prisma.workspaceMembership.updateMany({
+    where: {
+      workspaceId: invitation.workspaceId,
+      userId: invitation.redeemedUserId,
+      revokedAt: null,
+    },
+    data: { revokedAt: new Date() },
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function restoreWorkspaceMembership(formData: FormData) {
+  await requirePlatformAdministrator();
+  const invitationId = String(formData.get("invitationId") ?? "");
+
+  const invitation = await prisma.workspaceInvitation.findFirst({
+    where: {
+      id: invitationId,
+      status: InvitationStatus.REDEEMED,
+      redeemedUserId: { not: null },
+    },
+    select: { redeemedUserId: true, workspaceId: true },
+  });
+  if (!invitation?.redeemedUserId) {
+    throw new Error("An accepted client invitation is required.");
+  }
+
+  await prisma.workspaceMembership.updateMany({
+    where: {
+      workspaceId: invitation.workspaceId,
+      userId: invitation.redeemedUserId,
+      revokedAt: { not: null },
+    },
+    data: { revokedAt: null },
+  });
+
+  revalidatePath("/admin");
+}
