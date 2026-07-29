@@ -1,7 +1,7 @@
 import { EmailSettingsView } from "@/components/email-settings-view";
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
+import { firstDayOfWorkspaceMonth } from "@/lib/workspace-time";
 import { getWorkspaceContext } from "@/lib/workspace-context";
 
 import { retryEmailDelivery, saveEmailSettings } from "./actions";
@@ -14,8 +14,8 @@ export default async function EmailSettingsPage({
   searchParams: Promise<{ property?: string; saved?: string }>;
 }) {
   const { property, saved } = await searchParams;
-  const { workspaceId, email } = await getWorkspaceContext();
-  const currentMonth = firstDayOfCurrentMonth();
+  const { workspaceId, email, timezone } = await getWorkspaceContext();
+  const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
   const [settings, activeLeases, filteredProperty, propertyLeaseIds] =
     await Promise.all([
       getSettings(workspaceId, email ?? undefined),
@@ -104,7 +104,7 @@ export default async function EmailSettingsPage({
       filteredPropertyName={filteredProperty?.name}
       retryAction={retryEmailDelivery}
       saved={saved === "1"}
-      settings={settings}
+      settings={{ ...settings, timezone }}
     />
   );
 }

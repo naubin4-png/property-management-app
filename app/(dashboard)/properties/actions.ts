@@ -8,9 +8,9 @@ import {
   parseDollarAmount,
   parseMonth,
 } from "@/lib/lease-periods";
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace-context";
+import { firstDayOfWorkspaceMonth } from "@/lib/workspace-time";
 
 export type AddPropertyActionState = {
   error: string | null;
@@ -23,7 +23,7 @@ export async function createPropertyWithLease(
   let redirectHref = "/";
 
   try {
-    const { workspaceId } = await getWorkspaceContext();
+    const { workspaceId, timezone } = await getWorkspaceContext();
     const propertyName = String(formData.get("propertyName") ?? "").trim();
     const tenantName = String(formData.get("tenantName") ?? "").trim();
     const tenantEmail =
@@ -36,7 +36,7 @@ export async function createPropertyWithLease(
       ? parseMonth(rawLastPeriodMonth)
       : null;
     const rentCents = parseDollarAmount(String(formData.get("rent") ?? ""));
-    const currentMonth = firstDayOfCurrentMonth();
+    const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
 
     if (
       !propertyName ||

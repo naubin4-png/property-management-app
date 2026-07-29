@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 
 import { createLeaseRecord } from "@/lib/lease-creation";
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
 import {
   updateLeaseRecord,
@@ -11,6 +10,7 @@ import {
 } from "@/lib/lease-updates";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace-context";
+import { firstDayOfWorkspaceMonth } from "@/lib/workspace-time";
 
 export type InlineEditState = {
   askCurrentMonthPayment?: boolean;
@@ -75,7 +75,7 @@ export async function createLeaseInline(
     };
   }
   try {
-    const { workspaceId } = await getWorkspaceContext();
+    const { workspaceId, timezone } = await getWorkspaceContext();
     await createLeaseRecord({
       workspaceId,
       propertyId,
@@ -86,10 +86,11 @@ export async function createLeaseInline(
       rentCents,
       notes: null,
       reuseTenantId,
+      timezone,
     });
     revalidatePath("/");
     revalidatePath(`/properties/${propertyId}`);
-    const currentMonth = firstDayOfCurrentMonth();
+    const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
     return {
       askCurrentMonthPayment:
         firstPeriodMonth.getTime() === currentMonth.getTime(),
@@ -171,7 +172,7 @@ export async function updateLeaseInline(
   }
 
   try {
-    const { workspaceId } = await getWorkspaceContext();
+    const { workspaceId, timezone } = await getWorkspaceContext();
     await updateLeaseRecord({
       workspaceId,
       propertyId,
@@ -179,6 +180,7 @@ export async function updateLeaseInline(
       lastPeriodMonth,
       rentCents,
       notes,
+      timezone,
     });
     revalidatePath(`/properties/${propertyId}`);
     revalidatePath("/");
@@ -228,7 +230,7 @@ export async function updatePropertyDetails(
   }
 
   try {
-    const { workspaceId } = await getWorkspaceContext();
+    const { workspaceId, timezone } = await getWorkspaceContext();
     await updatePropertyLeaseDetails({
       workspaceId,
       propertyId,
@@ -239,6 +241,7 @@ export async function updatePropertyDetails(
       tenantEmail,
       tenantName,
       notes,
+      timezone,
     });
     revalidatePath(`/properties/${propertyId}`);
     revalidatePath("/");

@@ -4,7 +4,6 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount } from "@/lib/lease-periods";
 import {
   allocatePayment,
@@ -12,6 +11,7 @@ import {
 } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace-context";
+import { firstDayOfWorkspaceMonth } from "@/lib/workspace-time";
 
 export type PaymentActionState = {
   error: string | null;
@@ -61,9 +61,11 @@ function parsePaymentInput(formData: FormData) {
   };
 }
 
-async function findActiveLease(propertyId: string, workspaceId: string) {
-  const currentMonth = firstDayOfCurrentMonth();
-
+async function findActiveLease(
+  propertyId: string,
+  workspaceId: string,
+  currentMonth: Date,
+) {
   return prisma.lease.findFirst({
     where: {
       propertyId,
@@ -84,7 +86,8 @@ export async function logPayment(
   formData: FormData,
 ): Promise<PaymentActionState> {
   try {
-    const { workspaceId } = await getWorkspaceContext();
+    const { workspaceId, timezone } = await getWorkspaceContext();
+    const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
     const input = parsePaymentInput(formData);
     const existing = await prisma.payment.findUnique({
       where: {
@@ -96,7 +99,11 @@ export async function logPayment(
     });
 
     if (!existing) {
-      const lease = await findActiveLease(input.propertyId, workspaceId);
+      const lease = await findActiveLease(
+        input.propertyId,
+        workspaceId,
+        currentMonth,
+      );
       if (!lease) {
         throw new Error("The selected property does not have an active lease.");
       }
@@ -106,6 +113,7 @@ export async function logPayment(
           (tx) =>
             allocatePayment(tx, {
               workspaceId,
+              currentMonth,
               leaseId: lease.id,
               amountCents: input.amountCents,
               receivedAt: input.receivedAt,
@@ -152,7 +160,8 @@ export async function editPayment(
   formData: FormData,
 ): Promise<PaymentActionState> {
   try {
-    const { workspaceId } = await getWorkspaceContext();
+    const { workspaceId, timezone } = await getWorkspaceContext();
+    const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
     const input = parsePaymentInput(formData);
     const payment = await prisma.payment.findFirst({
       where: { id: paymentId, workspaceId },
@@ -172,6 +181,7 @@ export async function editPayment(
           tx,
           {
             workspaceId,
+            currentMonth,
             leaseId: payment.leaseId,
             amountCents: input.amountCents,
             receivedAt: input.receivedAt,

@@ -4,11 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
-
-function utcToday() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
+import { shiftCalendarDate, workspaceCalendarDate } from "@/lib/workspace-time";
 
 export async function GET(request: NextRequest) {
   if (!isAuthorizedCronRequest(request)) {
@@ -16,14 +12,16 @@ export async function GET(request: NextRequest) {
   }
 
   const workspaces = await prisma.workspace.findMany({
-    select: { id: true },
+    select: { id: true, timezone: true },
   });
   let flagged = 0;
   const cutoffs: Record<string, string> = {};
   for (const workspace of workspaces) {
     const settings = await getSettings(workspace.id);
-    const cutoff = utcToday();
-    cutoff.setUTCDate(cutoff.getUTCDate() - settings.gracePeriodDays);
+    const cutoff = shiftCalendarDate(
+      workspaceCalendarDate(new Date(), workspace.timezone),
+      -settings.gracePeriodDays,
+    );
     const result = await prisma.paymentPeriod.updateMany({
       where: {
         workspaceId: workspace.id,

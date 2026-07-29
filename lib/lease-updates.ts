@@ -1,8 +1,8 @@
 import { PeriodStatus, Prisma } from "@prisma/client";
 
 import { enumerateMonths, addMonths } from "@/lib/lease-periods";
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
+import { firstDayOfWorkspaceMonth } from "@/lib/workspace-time";
 
 const transactionOptions = {
   isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -15,6 +15,7 @@ export async function updateLeaseRecord({
   lastPeriodMonth,
   rentCents,
   notes,
+  timezone = "UTC",
 }: {
   workspaceId: string;
   propertyId: string;
@@ -22,6 +23,7 @@ export async function updateLeaseRecord({
   lastPeriodMonth: Date | null;
   rentCents: number;
   notes: string;
+  timezone?: string;
 }) {
   await updatePropertyLeaseDetails({
     workspaceId,
@@ -30,6 +32,7 @@ export async function updateLeaseRecord({
     lastPeriodMonth,
     rentCents,
     notes,
+    timezone,
   });
 }
 
@@ -43,6 +46,7 @@ export async function updatePropertyLeaseDetails({
   rentCents,
   tenantEmail,
   tenantName,
+  timezone = "UTC",
 }: {
   workspaceId: string;
   propertyId: string;
@@ -53,6 +57,7 @@ export async function updatePropertyLeaseDetails({
   rentCents: number;
   tenantEmail?: string | null;
   tenantName?: string;
+  timezone?: string;
 }) {
   await prisma.$transaction(async (tx) => {
     const lease = await tx.lease.findFirst({
@@ -161,7 +166,9 @@ export async function updatePropertyLeaseDetails({
     await tx.paymentPeriod.updateMany({
       where: {
         leaseId: lease.id,
-        periodMonth: { gt: firstDayOfCurrentMonth() },
+        periodMonth: {
+          gt: firstDayOfWorkspaceMonth(new Date(), timezone),
+        },
         paymentId: null,
         status: { in: [PeriodStatus.PENDING, PeriodStatus.LATE] },
       },

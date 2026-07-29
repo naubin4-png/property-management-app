@@ -1,12 +1,13 @@
 import { PeriodStatus, TriggerType } from "@prisma/client";
 
-import {
-  firstDayOfCurrentMonth,
-  firstDayOfNextMonth,
-} from "@/lib/lease-math";
 import { leaseCoversMonth } from "@/lib/lease-periods";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
+import {
+  firstDayOfNextWorkspaceMonth,
+  firstDayOfWorkspaceMonth,
+  workspaceCalendarDate,
+} from "@/lib/workspace-time";
 
 export type DashboardStatus = "PAID" | "DUE" | "LATE" | "NO_LEASE";
 
@@ -51,9 +52,9 @@ export function dashboardEmailActivityFromLog(
   };
 }
 
-async function ensureDashboardPeriods(workspaceId: string) {
-  const currentMonth = firstDayOfCurrentMonth();
-  const nextMonth = firstDayOfNextMonth();
+async function ensureDashboardPeriods(workspaceId: string, timeZone: string) {
+  const currentMonth = firstDayOfWorkspaceMonth(new Date(), timeZone);
+  const nextMonth = firstDayOfNextWorkspaceMonth(new Date(), timeZone);
   const activeLeases = await prisma.lease.findMany({
     where: {
       workspaceId,
@@ -97,13 +98,12 @@ async function ensureDashboardPeriods(workspaceId: string) {
   }
 }
 
-export async function getDashboardData(workspaceId: string) {
-  await ensureDashboardPeriods(workspaceId);
+export async function getDashboardData(workspaceId: string, timeZone = "UTC") {
+  await ensureDashboardPeriods(workspaceId, timeZone);
 
-  const currentMonth = firstDayOfCurrentMonth();
-  const nextMonth = firstDayOfNextMonth();
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const currentMonth = firstDayOfWorkspaceMonth(new Date(), timeZone);
+  const nextMonth = firstDayOfNextWorkspaceMonth(new Date(), timeZone);
+  const today = workspaceCalendarDate(new Date(), timeZone);
   const [properties, settings] =
     await Promise.all([
       prisma.property.findMany({
