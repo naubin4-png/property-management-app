@@ -29,8 +29,8 @@ export default async function PropertyDetailPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const { workspaceId } = await getWorkspaceContext();
-  const detail = await getPropertyDetails(id, workspaceId);
+  const { workspaceId, timezone } = await getWorkspaceContext();
+  const detail = await getPropertyDetails(id, workspaceId, timezone);
 
   if (!detail) {
     notFound();

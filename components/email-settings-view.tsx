@@ -13,6 +13,8 @@ export type EmailSettingsViewData = {
   reminderEmailBody: string;
   lateNoticeSubject: string;
   lateNoticeBody: string;
+  replyToEmail?: string;
+  timezone?: string;
 };
 
 export type EmailCoverageViewData = {
@@ -185,6 +187,39 @@ export function EmailSettingsView({
       </section>
 
       <form action={action} className="mt-5 space-y-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+          <h2 className="text-lg font-semibold text-zinc-950">
+            Workspace delivery
+          </h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium text-zinc-800">
+              Reply-to email
+              <input
+                autoComplete="email"
+                className={`${fieldClass} h-11`}
+                defaultValue={settings.replyToEmail ?? "owner@example.com"}
+                name="replyToEmail"
+                required
+                type="email"
+              />
+            </label>
+            <label className="text-sm font-medium text-zinc-800">
+              Workspace timezone
+              <input
+                className={`${fieldClass} h-11`}
+                defaultValue={settings.timezone ?? "America/New_York"}
+                name="timezone"
+                placeholder="America/New_York"
+                required
+              />
+            </label>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-zinc-500">
+            Billing months, grace periods, and reminder timing use this
+            timezone.
+          </p>
+        </section>
+
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
           <h2 className="text-lg font-semibold text-zinc-950">Rent reminder</h2>
           <div className="mt-4 grid gap-3">

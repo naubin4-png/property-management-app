@@ -13,6 +13,7 @@ type TransactionClient = Omit<
 
 type PaymentInput = {
   workspaceId: string;
+  currentMonth?: Date;
   leaseId: string;
   amountCents: number;
   receivedAt: Date;
@@ -184,7 +185,11 @@ export async function allocatePayment(
   const effectiveAmount = creditBalance + input.amountCents;
   const monthsToCover = Math.floor(effectiveAmount / lease.rentCents);
 
-  await ensurePaymentPeriodsThrough(tx, lease, firstDayOfCurrentMonth());
+  await ensurePaymentPeriodsThrough(
+    tx,
+    lease,
+    input.currentMonth ?? firstDayOfCurrentMonth(),
+  );
   const unpaidPeriods = await ensureEnoughOpenEndedPeriods(
     tx,
     lease,

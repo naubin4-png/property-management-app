@@ -1,6 +1,6 @@
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { enumerateLeaseMonths } from "@/lib/lease-periods";
 import { prisma } from "@/lib/prisma";
+import { firstDayOfWorkspaceMonth } from "@/lib/workspace-time";
 
 export async function createLeaseRecord({
   workspaceId,
@@ -12,6 +12,7 @@ export async function createLeaseRecord({
   rentCents,
   notes,
   reuseTenantId,
+  timezone = "UTC",
 }: {
   workspaceId: string;
   propertyId: string;
@@ -22,8 +23,9 @@ export async function createLeaseRecord({
   rentCents: number;
   notes: string | null;
   reuseTenantId?: string;
+  timezone?: string;
 }) {
-  const currentMonth = firstDayOfCurrentMonth();
+  const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
   await prisma.$transaction(async (tx) => {
     const property = await tx.property.findFirst({
       where: { id: propertyId, workspaceId },

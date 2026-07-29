@@ -8,33 +8,23 @@ import {
 } from "@/lib/email-reminders";
 import { getSettings } from "@/lib/settings";
 import { prisma } from "@/lib/prisma";
-
-function utcToday() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
-
-function shiftedDate(date: Date, days: number) {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + days);
-  return result;
-}
+import { shiftCalendarDate, workspaceCalendarDate } from "@/lib/workspace-time";
 
 export async function GET(request: NextRequest) {
   if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = utcToday();
   const totals = { sent: 0, failed: 0, skipped: 0 };
   const workspaces = await prisma.workspace.findMany({
-    select: { id: true },
+    select: { id: true, timezone: true },
   });
 
   for (const workspace of workspaces) {
     const settings = await getSettings(workspace.id);
+    const today = workspaceCalendarDate(new Date(), workspace.timezone);
     if (settings.sendBeforeDue) {
-      const target = shiftedDate(today, settings.daysBeforeReminder);
+      const target = shiftCalendarDate(today, settings.daysBeforeReminder);
       if (target.getUTCDate() === 1) {
         const periods = await findReminderPeriods(
           target,
@@ -58,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (settings.sendAfterDue) {
-      const target = shiftedDate(today, -settings.gracePeriodDays);
+      const target = shiftCalendarDate(today, -settings.gracePeriodDays);
       if (target.getUTCDate() === 1) {
         const periods = await findReminderPeriods(
           target,

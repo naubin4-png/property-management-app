@@ -33,11 +33,11 @@ export default async function DashboardPage({
   }>;
 }) {
   const query = await searchParams;
-  const { workspaceId } = await getWorkspaceContext();
+  const { workspaceId, timezone } = await getWorkspaceContext();
   const { properties, needsAttention, allGood, summary } =
-    await getDashboardData(workspaceId);
+    await getDashboardData(workspaceId, timezone);
   const selectedProperty = query.property
-    ? await getPropertyDetails(query.property, workspaceId)
+    ? await getPropertyDetails(query.property, workspaceId, timezone)
     : null;
   const selectedLeaseCoversBillingMonth =
     selectedProperty?.activeLease &&

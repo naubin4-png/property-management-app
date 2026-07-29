@@ -10,6 +10,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 import { getWorkspaceContext } from "@/lib/workspace-context";
+import { isValidTimeZone } from "@/lib/workspace-time";
 
 function checked(formData: FormData, name: string) {
   return formData.get(name) === "on";
@@ -32,12 +33,26 @@ function requiredText(formData: FormData, name: string) {
 }
 
 export async function saveEmailSettings(formData: FormData) {
-  const { workspaceId, email } = await getWorkspaceContext();
+  const { workspaceId } = await getWorkspaceContext();
   const gracePeriodDays = nonNegativeInteger(formData, "gracePeriodDays");
   const reminderEmailSubject = requiredText(formData, "reminderEmailSubject");
   const reminderEmailBody = requiredText(formData, "reminderEmailBody");
   const lateNoticeSubject = requiredText(formData, "lateNoticeSubject");
   const lateNoticeBody = requiredText(formData, "lateNoticeBody");
+  const replyToEmail = requiredText(formData, "replyToEmail").toLowerCase();
+  const timezone = requiredText(formData, "timezone");
+  if (
+    /[\r\n]/.test(replyToEmail) ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyToEmail)
+  ) {
+    throw new Error("Enter a valid Reply-to email address.");
+  }
+  if (/[\r\n]/.test(reminderEmailSubject + lateNoticeSubject)) {
+    throw new Error("Email subjects cannot contain line breaks.");
+  }
+  if (!isValidTimeZone(timezone)) {
+    throw new Error("Choose a valid IANA timezone.");
+  }
   const unknownPlaceholders = unknownEmailPlaceholders(
     reminderEmailSubject,
     reminderEmailBody,
@@ -55,7 +70,7 @@ export async function saveEmailSettings(formData: FormData) {
     where: { workspaceId },
     create: {
       workspaceId,
-      replyToEmail: email ?? "unconfigured@example.invalid",
+      replyToEmail,
       sendBeforeDue: checked(formData, "sendBeforeDue"),
       sendAfterDue: checked(formData, "sendAfterDue"),
       daysBeforeReminder: nonNegativeInteger(formData, "daysBeforeReminder"),
@@ -67,6 +82,7 @@ export async function saveEmailSettings(formData: FormData) {
       lateNoticeBody,
     },
     update: {
+      replyToEmail,
       sendBeforeDue: checked(formData, "sendBeforeDue"),
       sendAfterDue: checked(formData, "sendAfterDue"),
       daysBeforeReminder: nonNegativeInteger(formData, "daysBeforeReminder"),
@@ -77,6 +93,10 @@ export async function saveEmailSettings(formData: FormData) {
       lateNoticeSubject,
       lateNoticeBody,
     },
+  });
+  await prisma.workspace.update({
+    where: { id: workspaceId },
+    data: { timezone },
   });
 
   revalidatePath("/");
