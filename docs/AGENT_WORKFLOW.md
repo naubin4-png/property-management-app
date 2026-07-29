@@ -163,9 +163,12 @@ Supabase projects:
    state. Verify `.qa/session.json` is gone and production synthetic counts are
    restored.
 
-The script refuses to create a second temporary session while cleanup state
-exists. A QA session is never a permanent account and must not be invited or
-used as a real email recipient.
+For an isolation test that genuinely requires concurrent users, use named slots:
+`create workspace-a`, `create workspace-b`, and `open workspace-a` or
+`open workspace-b` to switch the persistent browser between them without
+exposing a link. Finish with `cleanup all`. A slot refuses replacement until it
+is cleaned. A QA session is never a permanent account and must not be invited
+or used as a real email recipient.
 
 ## Production Operations
 
