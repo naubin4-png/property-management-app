@@ -65,9 +65,6 @@ function derivePaymentApplications({
     string,
     { appliedCents: number; payment: LedgerPayment }[]
   >();
-  const remainingByPeriod = new Map(
-    periods.map((period) => [period.id, period.amountDueCents]),
-  );
   const sortedPeriods = [...periods].sort(
     (a, b) => a.periodMonth.getTime() - b.periodMonth.getTime(),
   );
@@ -77,9 +74,37 @@ function derivePaymentApplications({
       (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0) ||
       a.id.localeCompare(b.id),
   );
+  const paymentById = new Map(
+    sortedPayments.map((payment) => [payment.id, payment]),
+  );
+  const remainingByPeriod = new Map(
+    sortedPeriods.map((period) => [period.id, period.amountDueCents]),
+  );
+  const residualByPayment = new Map(
+    sortedPayments.map((payment) => [payment.id, payment.amountCents]),
+  );
+
+  // Preserve the full-month allocations recorded by the payment transaction.
+  // Editing one payment intentionally leaves other payments' allocations in place.
+  for (const period of sortedPeriods) {
+    if (period.status !== PeriodStatus.RECEIVED || !period.paymentId) {
+      continue;
+    }
+
+    const payment = paymentById.get(period.paymentId);
+    const availableCents = residualByPayment.get(period.paymentId) ?? 0;
+    if (!payment || availableCents <= 0) {
+      continue;
+    }
+
+    const appliedCents = Math.min(period.amountDueCents, availableCents);
+    remainingByPeriod.set(period.id, period.amountDueCents - appliedCents);
+    residualByPayment.set(period.paymentId, availableCents - appliedCents);
+    applications.set(period.id, [{ appliedCents, payment }]);
+  }
 
   for (const payment of sortedPayments) {
-    let unappliedCents = payment.amountCents;
+    let unappliedCents = residualByPayment.get(payment.id) ?? 0;
 
     for (const period of sortedPeriods) {
       const remainingCents = remainingByPeriod.get(period.id) ?? 0;

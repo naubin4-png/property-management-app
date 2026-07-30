@@ -274,6 +274,65 @@ describe("monthly rent history derivation", () => {
     assert.deepEqual(july?.payments, []);
   });
 
+  it("preserves another payment's recorded month after an earlier payment is edited", () => {
+    const ledger = deriveRentLedger({
+      creditBalanceCents: 50000,
+      today: date("2026-08-30"),
+      periods: [
+        {
+          id: "jul",
+          periodMonth: month("2026-07"),
+          amountDueCents: 100000,
+          status: PeriodStatus.PENDING,
+          paymentId: null,
+        },
+        {
+          id: "aug",
+          periodMonth: month("2026-08"),
+          amountDueCents: 100000,
+          status: PeriodStatus.RECEIVED,
+          paymentId: "aug-payment",
+        },
+      ],
+      payments: [
+        {
+          id: "edited-jul-payment",
+          createdAt: date("2026-07-01"),
+          receivedAt: date("2026-07-01"),
+          amountCents: 50000,
+          paymentMethod: "ACH",
+          notes: null,
+        },
+        {
+          id: "aug-payment",
+          createdAt: date("2026-08-01"),
+          receivedAt: date("2026-08-01"),
+          amountCents: 100000,
+          paymentMethod: "WIRE",
+          notes: null,
+        },
+      ],
+    });
+
+    const july = ledger.find((row) => row.id === "month:jul");
+    const august = ledger.find((row) => row.id === "month:aug");
+
+    assert.deepEqual(
+      july?.payments.map((payment) => ({
+        appliedCents: payment.appliedCents,
+        id: payment.id,
+      })),
+      [{ appliedCents: 50000, id: "edited-jul-payment" }],
+    );
+    assert.deepEqual(
+      august?.payments.map((payment) => ({
+        appliedCents: payment.appliedCents,
+        id: payment.id,
+      })),
+      [{ appliedCents: 100000, id: "aug-payment" }],
+    );
+  });
+
   it("shows only successful reminder or late-notice activity in current rent", () => {
     const current = deriveCurrentRentSummary({
       creditBalanceCents: 0,
