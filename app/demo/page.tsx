@@ -233,6 +233,23 @@ export default async function DemoPage({
                 selectedProperty.activeLease?.periods.find(
                   (period) => period.status !== "RECEIVED",
                 )?.periodMonth ?? null,
+              forecast: selectedProperty.activeLease
+                ? {
+                    currentMonth: summary.billingPeriodMonth,
+                    editedPaymentId: editingPayment.id,
+                    ensurePeriodsThroughCurrent: false,
+                    firstPeriodMonth:
+                      selectedProperty.activeLease.firstPeriodMonth,
+                    lastPeriodMonth:
+                      selectedProperty.activeLease.lastPeriodMonth,
+                    payments: selectedProperty.payments.map((payment) => ({
+                      id: payment.id,
+                      amountCents: payment.amountCents,
+                    })),
+                    periods: selectedProperty.activeLease.periods,
+                    rentCents: selectedProperty.activeLease.rentCents,
+                  }
+                : undefined,
             },
           ]}
           returnHref={selectedPropertyHref}

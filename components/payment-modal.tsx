@@ -10,6 +10,11 @@ import {
   type FocusEvent,
 } from "react";
 
+import {
+  forecastPaymentAllocation,
+  type PaymentForecastInput,
+} from "@/lib/payment-forecast";
+
 export type PaymentPropertyOption = {
   id: string;
   name: string;
@@ -17,6 +22,7 @@ export type PaymentPropertyOption = {
   creditBalanceCents?: number;
   expectedPaymentCents?: number | null;
   nextDueDate?: Date | string | null;
+  forecast?: Omit<PaymentForecastInput, "amountCents">;
 };
 
 export type EditablePayment = {
@@ -93,8 +99,25 @@ export function PaymentModal({
     setAmount(expectedCents > 0 ? (expectedCents / 100).toFixed(2) : "");
   }
   const paymentSummary = useMemo(() => {
-    const rentCents = selectedProperty?.rentCents ?? 0;
     const amountCents = Math.round(Number(amount) * 100);
+    if (
+      selectedProperty?.forecast &&
+      Number.isFinite(amountCents) &&
+      amountCents > 0
+    ) {
+      const forecast = forecastPaymentAllocation({
+        ...selectedProperty.forecast,
+        amountCents,
+      });
+      return {
+        applications: forecast.applications,
+        creditCents: forecast.creditCents,
+        exact: true as const,
+        nextDueDate: forecast.nextDueDate,
+      };
+    }
+
+    const rentCents = selectedProperty?.rentCents ?? 0;
     const existingCredit = selectedProperty?.creditBalanceCents ?? 0;
 
     if (!rentCents || !Number.isFinite(amountCents) || amountCents <= 0) {
@@ -117,8 +140,6 @@ export function PaymentModal({
     }
 
     return {
-      monthsCovered,
-      nextDue,
       credit:
         creditCents > 0
           ? new Intl.NumberFormat("en-US", {
@@ -127,6 +148,9 @@ export function PaymentModal({
               maximumFractionDigits: 2,
             }).format(creditCents / 100)
           : null,
+      exact: false as const,
+      monthsCovered,
+      nextDue,
     };
   }, [amount, selectedProperty]);
 
@@ -269,12 +293,51 @@ export function PaymentModal({
 
           {paymentSummary ? (
             <p className="rounded-md bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-              Covers {paymentSummary.monthsCovered}{" "}
-              {paymentSummary.monthsCovered === 1 ? "month" : "months"}. Next
-              due: {paymentSummary.nextDue}.
-              {paymentSummary.credit
-                ? ` Credit: ${paymentSummary.credit}.`
-                : null}
+              {paymentSummary.exact ? (
+                <>
+                  {paymentSummary.applications.length > 0
+                    ? `Applies to ${paymentSummary.applications
+                        .map((application) =>
+                          new Date(
+                            application.periodMonth,
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            year: "numeric",
+                            timeZone: "UTC",
+                          }),
+                        )
+                        .join(", ")}.`
+                    : "Does not fully pay a rent month."}{" "}
+                  Next due:{" "}
+                  {paymentSummary.nextDueDate
+                    ? new Date(paymentSummary.nextDueDate).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "short",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        },
+                      )
+                    : "Not available"}
+                  .
+                  {paymentSummary.creditCents > 0
+                    ? ` Credit: ${new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                        maximumFractionDigits: 2,
+                      }).format(paymentSummary.creditCents / 100)}.`
+                    : null}
+                </>
+              ) : (
+                <>
+                  Covers {paymentSummary.monthsCovered}{" "}
+                  {paymentSummary.monthsCovered === 1 ? "month" : "months"}.
+                  Next due: {paymentSummary.nextDue}.
+                  {paymentSummary.credit
+                    ? ` Credit: ${paymentSummary.credit}.`
+                    : null}
+                </>
+              )}
             </p>
           ) : null}
 

@@ -353,4 +353,50 @@ describe("demo dashboard state", () => {
       "Updated demo note",
     );
   });
+
+  it("makes the saved demo edit match its reversed-payment forecast", () => {
+    const session: DemoSessionState = {
+      createdLease: null,
+      deletedPaymentIds: [],
+      detailEdits: {},
+      payments: [
+        {
+          amountCents: 325000,
+          id: "market-street-payment",
+          notes: "Edited to one month",
+          paymentMethod: "ACH",
+          propertyId: "market-street",
+          receivedAt: "2026-07-04",
+        },
+      ],
+    };
+    const dashboard = getDemoDashboardData(null, null, null, session);
+    const detail = getDemoPropertyDetails(
+      "market-street",
+      null,
+      null,
+      null,
+      session,
+    );
+
+    assert.equal(
+      detail?.activeLease?.periods.find(
+        (period) => period.periodMonth.toISOString().slice(0, 7) === "2026-07",
+      )?.status,
+      "RECEIVED",
+    );
+    assert.equal(
+      detail?.activeLease?.periods.find(
+        (period) => period.periodMonth.toISOString().slice(0, 7) === "2026-08",
+      )?.status,
+      "UPCOMING",
+    );
+    assert.equal(
+      dashboard.properties
+        .find((property) => property.id === "market-street")
+        ?.nextDueDate?.toISOString()
+        .slice(0, 7),
+      "2026-08",
+    );
+  });
 });

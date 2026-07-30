@@ -11,6 +11,7 @@ import {
   deriveRentLedger,
   expectedPaymentAmount,
 } from "@/lib/rent-ledger";
+import { forecastPaymentAllocation } from "@/lib/payment-forecast";
 
 type DemoPeriodStatus = "PENDING" | "RECEIVED" | "LATE";
 
@@ -656,19 +657,31 @@ function applyDemoPayment(
     receivedAt: Date;
   },
 ) {
-  resetPayment(record, payment.id);
-  let remainingCents = payment.amountCents + record.creditBalanceCents;
+  const forecast = forecastPaymentAllocation({
+    amountCents: payment.amountCents,
+    currentMonth: demoBillingPeriod,
+    editedPaymentId: payment.id,
+    ensurePeriodsThroughCurrent: false,
+    firstPeriodMonth:
+      record.firstPeriodMonth ?? record.periods[0]?.periodMonth ?? demoBillingPeriod,
+    lastPeriodMonth: record.lastPeriodMonth ?? null,
+    payments: record.payments,
+    periods: record.periods.map((period) => ({
+      ...period,
+      paymentId: period.paymentId ?? null,
+    })),
+    rentCents: record.rentCents,
+  });
 
-  for (const period of unpaidPeriods(record)) {
-    if (remainingCents < period.amountDueCents) {
-      break;
-    }
-    period.status = "RECEIVED";
-    period.paymentId = payment.id;
-    remainingCents -= period.amountDueCents;
-  }
-
-  record.creditBalanceCents = remainingCents;
+  record.periods = forecast.periods.map((period) => ({
+    ...period,
+    status: period.status as DemoPeriodStatus,
+    paymentId: period.paymentId ?? undefined,
+  }));
+  record.creditBalanceCents = forecast.creditCents;
+  record.payments = record.payments.filter(
+    (existingPayment) => existingPayment.id !== payment.id,
+  );
   record.payments.unshift({
     id: payment.id,
     receivedAt: payment.receivedAt,
