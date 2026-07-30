@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { PeriodStatus } from "@prisma/client";
 
+import { forecastPaymentAllocation } from "../lib/payment-forecast";
 import { allocatePayment } from "../lib/payments";
 
 function month(value: string) {
@@ -246,6 +247,17 @@ describe("payment allocation", () => {
       return { id: where.id, amountCents: data.amountCents };
     };
 
+    const preview = forecastPaymentAllocation({
+      amountCents: 100000,
+      currentMonth: month("2026-07"),
+      editedPaymentId: "payment-1",
+      firstPeriodMonth: month("2026-07"),
+      lastPeriodMonth: null,
+      payments: [{ id: "payment-1", amountCents: 200000 }],
+      periods: paymentPeriods,
+      rentCents: 100000,
+    });
+
     await allocatePayment(
       tx as never,
       {
@@ -279,6 +291,21 @@ describe("payment allocation", () => {
           status: PeriodStatus.PENDING,
         },
       ],
+    );
+    assert.deepEqual(
+      preview.applications.map((application) =>
+        application.periodMonth.toISOString().slice(0, 7),
+      ),
+      paymentPeriods
+        .filter((period) => period.paymentId === "payment-1")
+        .map((period) => period.periodMonth.toISOString().slice(0, 7)),
+    );
+    assert.equal(
+      preview.nextDueDate?.toISOString().slice(0, 7),
+      paymentPeriods
+        .find((period) => period.status !== PeriodStatus.RECEIVED)
+        ?.periodMonth.toISOString()
+        .slice(0, 7),
     );
   });
 
