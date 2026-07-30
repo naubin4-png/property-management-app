@@ -25,6 +25,41 @@ export type PaymentForecastInput = {
   rentCents: number;
 };
 
+export function formatPaymentForecastRemainder({
+  creditCents,
+  nextDueDate,
+  nextDueRemainingCents,
+}: {
+  creditCents: number;
+  nextDueDate: Date | null;
+  nextDueRemainingCents: number | null;
+}) {
+  if (creditCents <= 0) {
+    return "";
+  }
+
+  const currency = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+
+  if (
+    nextDueDate &&
+    nextDueRemainingCents !== null &&
+    nextDueRemainingCents > 0
+  ) {
+    const month = nextDueDate.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+    return ` ${currency.format(nextDueRemainingCents / 100)} still due for ${month}.`;
+  }
+
+  return ` Credit: ${currency.format(creditCents / 100)}.`;
+}
+
 function asDate(value: Date | string) {
   return new Date(value);
 }
@@ -147,6 +182,9 @@ export function forecastPaymentAllocation(
   }
 
   const nextDuePeriod = periods.find((period) => period.status !== "RECEIVED");
+  const nextDueRemainingCents = nextDuePeriod
+    ? Math.max(nextDuePeriod.amountDueCents - remainingCents, 0)
+    : null;
 
   return {
     applications,
@@ -154,6 +192,7 @@ export function forecastPaymentAllocation(
     creditCents: remainingCents,
     nextDueAmountCents: nextDuePeriod?.amountDueCents ?? null,
     nextDueDate: nextDuePeriod?.periodMonth ?? null,
+    nextDueRemainingCents,
     periods,
   };
 }
