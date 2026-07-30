@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -125,7 +127,9 @@ export async function createDemoPropertyWithLease(
     };
   }
 
+  const propertyId = `demo-created-${randomUUID()}`;
   const demoLease = encodeDemoCreatedLease({
+    id: propertyId,
     propertyName,
     tenantName,
     tenantEmail,
@@ -133,14 +137,11 @@ export async function createDemoPropertyWithLease(
     lastPeriodMonth,
     rentCents,
   });
-  const propertyId = `demo-created-${propertyName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 40) || "lease"}`;
+  const { cookieStore, session } = await readDemoSession();
+  session.createdLease = demoLease;
+  writeDemoSession(cookieStore, session);
   const currentMonth = firstDayOfCurrentMonth();
   const params = buildDemoCreatedLeaseRedirectParams({
-    demoLease,
     currentMonth,
     firstPeriodMonth,
     propertyId,

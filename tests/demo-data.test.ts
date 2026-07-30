@@ -10,6 +10,7 @@ import {
   getDemoEmailData,
   getDemoNoteSimulation,
   getDemoPropertyDetails,
+  parseDemoSessionState,
   type DemoSessionState,
   type DemoPaymentSimulation,
 } from "../lib/demo-data";
@@ -148,7 +149,6 @@ describe("demo dashboard state", () => {
   it("keeps the current-month demo payment prompt unobscured after lease creation", () => {
     const params = buildDemoCreatedLeaseRedirectParams({
       currentMonth: new Date("2026-07-01T00:00:00.000Z"),
-      demoLease: "encoded-lease",
       firstPeriodMonth: new Date("2026-07-01T00:00:00.000Z"),
       propertyId: "demo-created-unit",
     });
@@ -156,12 +156,33 @@ describe("demo dashboard state", () => {
     assert.equal(params.get("leaseAdded"), "1");
     assert.equal(params.get("propertyId"), "demo-created-unit");
     assert.equal(params.get("property"), null);
+    assert.equal(params.get("demoLease"), null);
+  });
+
+  it("keeps a created lease in browser session state instead of the URL", () => {
+    const encoded = encodeDemoCreatedLease({
+      id: "demo-created-safe-id",
+      propertyName: "Private Unit Name",
+      tenantName: "Private Tenant Name",
+      tenantEmail: "private@example.com",
+      firstPeriodMonth: new Date("2026-07-01T00:00:00.000Z"),
+      lastPeriodMonth: null,
+      rentCents: 120000,
+    });
+
+    const session = parseDemoSessionState(
+      JSON.stringify({ createdLease: encoded }),
+    );
+    const lease = getDemoCreatedLease({ demoLease: session.createdLease ?? "" });
+
+    assert.equal(lease?.id, "demo-created-safe-id");
+    assert.equal(lease?.name, "Private Unit Name");
+    assert.equal(lease?.tenantEmail, "private@example.com");
   });
 
   it("opens future-start demo leases because they do not need a current-month payment prompt", () => {
     const params = buildDemoCreatedLeaseRedirectParams({
       currentMonth: new Date("2026-07-01T00:00:00.000Z"),
-      demoLease: "encoded-lease",
       firstPeriodMonth: new Date("2026-09-01T00:00:00.000Z"),
       propertyId: "demo-created-unit",
     });
@@ -292,6 +313,7 @@ describe("demo dashboard state", () => {
 
   it("applies session-scoped demo detail edits and payment deletion to the shared detail model", () => {
     const session: DemoSessionState = {
+      createdLease: null,
       deletedPaymentIds: ["lakeview-retail-july-partial"],
       payments: [],
       detailEdits: {
