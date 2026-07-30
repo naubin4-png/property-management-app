@@ -64,12 +64,34 @@ export function replaceableStatusesFor(
         EmailDeliveryStatus.DELIVERED,
       ];
     case EmailDeliveryStatus.FAILED:
+      return [
+        EmailDeliveryStatus.PROCESSING,
+        EmailDeliveryStatus.ACCEPTED,
+        EmailDeliveryStatus.DELIVERED,
+        EmailDeliveryStatus.FAILED,
+      ];
     case EmailDeliveryStatus.BOUNCED:
+      return [
+        EmailDeliveryStatus.PROCESSING,
+        EmailDeliveryStatus.ACCEPTED,
+        EmailDeliveryStatus.DELIVERED,
+        EmailDeliveryStatus.FAILED,
+        EmailDeliveryStatus.BOUNCED,
+      ];
     case EmailDeliveryStatus.COMPLAINED:
       return Object.values(EmailDeliveryStatus);
     default:
       throw new Error(`Unsupported email delivery status: ${nextStatus}`);
   }
+}
+
+export function requiresChronologicalOrdering(status: EmailDeliveryStatus) {
+  const orderedStatuses: EmailDeliveryStatus[] = [
+    EmailDeliveryStatus.PROCESSING,
+    EmailDeliveryStatus.ACCEPTED,
+    EmailDeliveryStatus.DELIVERED,
+  ];
+  return orderedStatuses.includes(status);
 }
 
 export function isTrackedEmailEvent(
@@ -116,7 +138,14 @@ export async function recordEmailWebhookEvent(
         where: {
           id: emailLog.id,
           status: { in: replaceableStatusesFor(update.status) },
-          OR: [{ lastEventAt: null }, { lastEventAt: { lte: occurredAt } }],
+          ...(requiresChronologicalOrdering(update.status)
+            ? {
+                OR: [
+                  { lastEventAt: null },
+                  { lastEventAt: { lte: occurredAt } },
+                ],
+              }
+            : {}),
         },
         data: {
           ...update,

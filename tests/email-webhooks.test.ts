@@ -12,6 +12,7 @@ import type {
 import {
   deliveryUpdateForEvent,
   replaceableStatusesFor,
+  requiresChronologicalOrdering,
 } from "../lib/email-webhooks";
 
 const baseData = {
@@ -94,6 +95,37 @@ describe("Resend delivery lifecycle", () => {
       replaceableStatusesFor(EmailDeliveryStatus.ACCEPTED).includes(
         EmailDeliveryStatus.FAILED,
       ),
+      false,
+    );
+    assert.equal(
+      replaceableStatusesFor(EmailDeliveryStatus.FAILED).includes(
+        EmailDeliveryStatus.COMPLAINED,
+      ),
+      false,
+    );
+    assert.equal(
+      replaceableStatusesFor(EmailDeliveryStatus.COMPLAINED).includes(
+        EmailDeliveryStatus.DELIVERED,
+      ),
+      true,
+    );
+  });
+
+  it("orders success events by time but lets terminal events win races", () => {
+    assert.equal(
+      requiresChronologicalOrdering(EmailDeliveryStatus.DELIVERED),
+      true,
+    );
+    assert.equal(
+      requiresChronologicalOrdering(EmailDeliveryStatus.COMPLAINED),
+      false,
+    );
+    assert.equal(
+      requiresChronologicalOrdering(EmailDeliveryStatus.BOUNCED),
+      false,
+    );
+    assert.equal(
+      requiresChronologicalOrdering(EmailDeliveryStatus.FAILED),
       false,
     );
   });
