@@ -31,6 +31,7 @@ export type DashboardProperty = {
     paidThrough: Date;
   } | null;
   billingPeriodMonth: Date | null;
+  billingPeriodAmountDueCents: number;
   billingPeriodPaidAt: Date | null;
   billingPeriodRemainingCents: number;
   amountOwedCents: number;
@@ -52,6 +53,24 @@ export function dashboardEmailActivityFromLog(
         : "Late notice sent",
     sentAt: log.sentAt,
   };
+}
+
+export function collectedForBillingPeriod(
+  properties: {
+    billingPeriodAmountDueCents: number;
+    billingPeriodRemainingCents: number;
+  }[],
+) {
+  return properties.reduce(
+    (total, property) =>
+      total +
+      Math.max(
+        property.billingPeriodAmountDueCents -
+          property.billingPeriodRemainingCents,
+        0,
+      ),
+    0,
+  );
 }
 
 async function ensureDashboardPeriods(workspaceId: string, timeZone: string) {
@@ -156,6 +175,7 @@ export async function getDashboardData(workspaceId: string, timeZone = "UTC") {
         latestEmail: null,
         advancePayment: null,
         billingPeriodMonth: null,
+        billingPeriodAmountDueCents: 0,
         billingPeriodPaidAt: null,
         billingPeriodRemainingCents: 0,
         amountOwedCents: 0,
@@ -273,6 +293,7 @@ export async function getDashboardData(workspaceId: string, timeZone = "UTC") {
           }
         : null,
       billingPeriodMonth: billingPeriod?.periodMonth ?? currentMonth,
+      billingPeriodAmountDueCents: billingPeriod?.amountDueCents ?? 0,
       billingPeriodPaidAt,
       billingPeriodRemainingCents,
       amountOwedCents: billingPeriodRemainingCents,
@@ -331,12 +352,8 @@ export async function getDashboardData(workspaceId: string, timeZone = "UTC") {
     (property) =>
       !property.hasActiveLease || property.billingPeriodRemainingCents === 0,
   );
-  const collectedForBillingPeriodCents = rowsWithEmail.reduce(
-    (total, property) =>
-      total +
-      Math.max((property.rentCents ?? 0) - property.billingPeriodRemainingCents, 0),
-    0,
-  );
+  const collectedForBillingPeriodCents =
+    collectedForBillingPeriod(rowsWithEmail);
   const stillDueCents = rowsWithEmail.reduce(
     (total, property) => total + property.billingPeriodRemainingCents,
     0,
