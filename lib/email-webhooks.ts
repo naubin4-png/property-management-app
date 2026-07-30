@@ -48,6 +48,30 @@ export function deliveryUpdateForEvent(event: TrackedEmailEvent) {
   }
 }
 
+export function replaceableStatusesFor(
+  nextStatus: EmailDeliveryStatus,
+): EmailDeliveryStatus[] {
+  switch (nextStatus) {
+    case EmailDeliveryStatus.ACCEPTED:
+      return [
+        EmailDeliveryStatus.PROCESSING,
+        EmailDeliveryStatus.ACCEPTED,
+      ];
+    case EmailDeliveryStatus.DELIVERED:
+      return [
+        EmailDeliveryStatus.PROCESSING,
+        EmailDeliveryStatus.ACCEPTED,
+        EmailDeliveryStatus.DELIVERED,
+      ];
+    case EmailDeliveryStatus.FAILED:
+    case EmailDeliveryStatus.BOUNCED:
+    case EmailDeliveryStatus.COMPLAINED:
+      return Object.values(EmailDeliveryStatus);
+    default:
+      throw new Error(`Unsupported email delivery status: ${nextStatus}`);
+  }
+}
+
 export function isTrackedEmailEvent(
   event: WebhookEventPayload,
 ): event is TrackedEmailEvent {
@@ -91,6 +115,7 @@ export async function recordEmailWebhookEvent(
       await tx.emailLog.updateMany({
         where: {
           id: emailLog.id,
+          status: { in: replaceableStatusesFor(update.status) },
           OR: [{ lastEventAt: null }, { lastEventAt: { lte: occurredAt } }],
         },
         data: {

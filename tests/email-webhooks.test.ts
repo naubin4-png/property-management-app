@@ -9,7 +9,10 @@ import type {
   EmailFailedEvent,
 } from "resend";
 
-import { deliveryUpdateForEvent } from "../lib/email-webhooks";
+import {
+  deliveryUpdateForEvent,
+  replaceableStatusesFor,
+} from "../lib/email-webhooks";
 
 const baseData = {
   created_at: "2026-07-29T00:00:00.000Z",
@@ -65,6 +68,33 @@ describe("Resend delivery lifecycle", () => {
     assert.equal(
       deliveryUpdateForEvent(complained).status,
       EmailDeliveryStatus.COMPLAINED,
+    );
+  });
+
+  it("does not let accepted or delivered events overwrite terminal failures", () => {
+    assert.deepEqual(
+      replaceableStatusesFor(EmailDeliveryStatus.ACCEPTED),
+      [EmailDeliveryStatus.PROCESSING, EmailDeliveryStatus.ACCEPTED],
+    );
+    assert.deepEqual(
+      replaceableStatusesFor(EmailDeliveryStatus.DELIVERED),
+      [
+        EmailDeliveryStatus.PROCESSING,
+        EmailDeliveryStatus.ACCEPTED,
+        EmailDeliveryStatus.DELIVERED,
+      ],
+    );
+    assert.equal(
+      replaceableStatusesFor(EmailDeliveryStatus.DELIVERED).includes(
+        EmailDeliveryStatus.COMPLAINED,
+      ),
+      false,
+    );
+    assert.equal(
+      replaceableStatusesFor(EmailDeliveryStatus.ACCEPTED).includes(
+        EmailDeliveryStatus.FAILED,
+      ),
+      false,
     );
   });
 });
