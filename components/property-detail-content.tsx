@@ -210,7 +210,10 @@ function LedgerRow({
                 key={payment.id}
               >
                 <p className="text-zinc-600">
-                  {currency(payment.amountCents)} received{" "}
+                  {currency(payment.appliedCents)} applied from{" "}
+                  {payment.appliedCents === payment.transactionAmountCents
+                    ? "the payment received "
+                    : `${currency(payment.transactionAmountCents)} received `}
                   {formatShortDate(payment.receivedAt)}
                   {payment.paymentMethod
                     ? ` · ${methodLabel(payment.paymentMethod)}`
