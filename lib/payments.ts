@@ -183,18 +183,32 @@ export async function allocatePayment(
     existingPaymentId,
   );
   const effectiveAmount = creditBalance + input.amountCents;
-  const monthsToCover = Math.floor(effectiveAmount / lease.rentCents);
 
   await ensurePaymentPeriodsThrough(
     tx,
     lease,
     input.currentMonth ?? firstDayOfCurrentMonth(),
   );
-  const unpaidPeriods = await ensureEnoughOpenEndedPeriods(
+  let unpaidPeriods = await getUnpaidPeriods(
     tx,
-    lease,
-    monthsToCover,
+    lease.id,
+    lease.workspaceId,
   );
+  const existingUnpaidCents = unpaidPeriods.reduce(
+    (total, period) => total + period.amountDueCents,
+    0,
+  );
+  const additionalMonths = Math.floor(
+    Math.max(effectiveAmount - existingUnpaidCents, 0) / lease.rentCents,
+  );
+
+  if (additionalMonths > 0) {
+    unpaidPeriods = await ensureEnoughOpenEndedPeriods(
+      tx,
+      lease,
+      unpaidPeriods.length + additionalMonths,
+    );
+  }
 
   const payment = existingPaymentId
     ? await tx.payment.update({
@@ -220,9 +234,15 @@ export async function allocatePayment(
         },
       });
 
-  const coveredPeriodIds = unpaidPeriods
-    .slice(0, monthsToCover)
-    .map((period) => period.id);
+  let remainingCents = effectiveAmount;
+  const coveredPeriodIds: string[] = [];
+  for (const period of unpaidPeriods) {
+    if (remainingCents < period.amountDueCents) {
+      break;
+    }
+    coveredPeriodIds.push(period.id);
+    remainingCents -= period.amountDueCents;
+  }
 
   if (coveredPeriodIds.length > 0) {
     await tx.paymentPeriod.updateMany({
