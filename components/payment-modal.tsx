@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import {
+  formatPaymentForecastRemainder,
   forecastPaymentAllocation,
   type PaymentForecastInput,
 } from "@/lib/payment-forecast";
@@ -114,6 +115,7 @@ export function PaymentModal({
         creditCents: forecast.creditCents,
         exact: true as const,
         nextDueDate: forecast.nextDueDate,
+        nextDueRemainingCents: forecast.nextDueRemainingCents,
       };
     }
 
@@ -320,13 +322,14 @@ export function PaymentModal({
                       )
                     : "Not available"}
                   .
-                  {paymentSummary.creditCents > 0
-                    ? ` Credit: ${new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: "USD",
-                        maximumFractionDigits: 2,
-                      }).format(paymentSummary.creditCents / 100)}.`
-                    : null}
+                  {formatPaymentForecastRemainder({
+                    creditCents: paymentSummary.creditCents,
+                    nextDueDate: paymentSummary.nextDueDate
+                      ? new Date(paymentSummary.nextDueDate)
+                      : null,
+                    nextDueRemainingCents:
+                      paymentSummary.nextDueRemainingCents,
+                  })}
                 </>
               ) : (
                 <>

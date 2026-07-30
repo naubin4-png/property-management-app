@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { forecastPaymentAllocation } from "../lib/payment-forecast";
+import {
+  forecastPaymentAllocation,
+  formatPaymentForecastRemainder,
+} from "../lib/payment-forecast";
 
 function month(value: string) {
   return new Date(`${value}-01T00:00:00.000Z`);
@@ -84,6 +87,51 @@ describe("payment edit forecast", () => {
     assert.equal(result.creditCents, 50000);
     assert.equal(result.nextDueDate?.toISOString().slice(0, 7), "2026-08");
     assert.equal(result.nextDueAmountCents, 400000);
+    assert.equal(result.nextDueRemainingCents, 350000);
+  });
+
+  it("reports the rent still due when an edited payment remains partial", () => {
+    const result = forecastPaymentAllocation({
+      amountCents: 100000,
+      currentMonth: month("2026-07"),
+      editedPaymentId: "edited",
+      firstPeriodMonth: month("2026-07"),
+      lastPeriodMonth: null,
+      rentCents: 185000,
+      payments: [{ id: "edited", amountCents: 100000 }],
+      periods: [
+        {
+          id: "jul",
+          periodMonth: month("2026-07"),
+          amountDueCents: 185000,
+          status: "PENDING",
+          paymentId: null,
+        },
+      ],
+    });
+
+    assert.equal(result.creditCents, 100000);
+    assert.equal(result.nextDueDate?.toISOString().slice(0, 7), "2026-07");
+    assert.equal(result.nextDueRemainingCents, 85000);
+    assert.equal(
+      formatPaymentForecastRemainder({
+        creditCents: result.creditCents,
+        nextDueDate: result.nextDueDate,
+        nextDueRemainingCents: result.nextDueRemainingCents,
+      }),
+      " $850.00 still due for Jul 2026.",
+    );
+  });
+
+  it("preserves the credit label for a true surplus", () => {
+    assert.equal(
+      formatPaymentForecastRemainder({
+        creditCents: 50000,
+        nextDueDate: null,
+        nextDueRemainingCents: null,
+      }),
+      " Credit: $500.00.",
+    );
   });
 
   it("combines shared credit and an edited payment without double-counting either", () => {
