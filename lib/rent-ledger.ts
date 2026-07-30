@@ -12,6 +12,7 @@ type LedgerPeriod = {
 
 type LedgerPayment = {
   id: string;
+  createdAt?: Date;
   receivedAt: Date;
   amountCents: number;
   paymentMethod: string | null;
@@ -46,11 +47,58 @@ export type RentLedgerRow = {
   status: "Paid" | "Partially paid" | "Unpaid";
   payments: {
     id: string;
-    amountCents: number;
+    appliedCents: number;
+    transactionAmountCents: number;
     paymentMethod: string | null;
     receivedAt: Date;
   }[];
 };
+
+function derivePaymentApplications({
+  payments,
+  periods,
+}: {
+  payments: LedgerPayment[];
+  periods: LedgerPeriod[];
+}) {
+  const applications = new Map<
+    string,
+    { appliedCents: number; payment: LedgerPayment }[]
+  >();
+  const remainingByPeriod = new Map(
+    periods.map((period) => [period.id, period.amountDueCents]),
+  );
+  const sortedPeriods = [...periods].sort(
+    (a, b) => a.periodMonth.getTime() - b.periodMonth.getTime(),
+  );
+  const sortedPayments = [...payments].sort(
+    (a, b) =>
+      a.receivedAt.getTime() - b.receivedAt.getTime() ||
+      (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0) ||
+      a.id.localeCompare(b.id),
+  );
+
+  for (const payment of sortedPayments) {
+    let unappliedCents = payment.amountCents;
+
+    for (const period of sortedPeriods) {
+      const remainingCents = remainingByPeriod.get(period.id) ?? 0;
+      if (remainingCents <= 0 || unappliedCents <= 0) {
+        continue;
+      }
+
+      const appliedCents = Math.min(remainingCents, unappliedCents);
+      remainingByPeriod.set(period.id, remainingCents - appliedCents);
+      unappliedCents -= appliedCents;
+      applications.set(period.id, [
+        ...(applications.get(period.id) ?? []),
+        { appliedCents, payment },
+      ]);
+    }
+  }
+
+  return applications;
+}
 
 export function rentBadgeForPeriod(
   period: LedgerPeriod | null,
@@ -238,16 +286,7 @@ export function deriveRentLedger({
 }) {
   const balances = derivePeriodBalances({ creditBalanceCents, periods });
   const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
-  const paymentsWithResidual = payments.filter((payment) => {
-    const coveredCents = periods
-      .filter(
-        (period) =>
-          period.status === PeriodStatus.RECEIVED &&
-          period.paymentId === payment.id,
-      )
-      .reduce((total, period) => total + period.amountDueCents, 0);
-    return payment.amountCents > coveredCents;
-  });
+  const paymentApplications = derivePaymentApplications({ payments, periods });
   const rows: RentLedgerRow[] = periods
     .filter(
       (period) => {
@@ -269,14 +308,10 @@ export function deriveRentLedger({
       const directPayment = period.paymentId
         ? paymentById.get(period.paymentId)
         : null;
-      const relatedPayments = directPayment
-        ? [directPayment]
-        : balance.creditAppliedCents > 0
-          ? paymentsWithResidual
-          : [];
+      const relatedPayments = paymentApplications.get(period.id) ?? [];
       const latestPartialPayment = [...relatedPayments].sort(
-        (a, b) => b.receivedAt.getTime() - a.receivedAt.getTime(),
-      )[0];
+        (a, b) => b.payment.receivedAt.getTime() - a.payment.receivedAt.getTime(),
+      )[0]?.payment;
       const status =
         period.status === PeriodStatus.RECEIVED
           ? "Paid"
@@ -300,9 +335,10 @@ export function deriveRentLedger({
         amountCents: period.amountDueCents,
         context,
         status,
-        payments: relatedPayments.map((payment) => ({
+        payments: relatedPayments.map(({ appliedCents, payment }) => ({
           id: payment.id,
-          amountCents: payment.amountCents,
+          appliedCents,
+          transactionAmountCents: payment.amountCents,
           paymentMethod: payment.paymentMethod,
           receivedAt: payment.receivedAt,
         })),
