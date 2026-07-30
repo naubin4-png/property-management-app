@@ -1,6 +1,6 @@
 import { PeriodStatus, TriggerType } from "@prisma/client";
 
-import { firstDayOfCurrentMonth, firstDayOfNextMonth } from "@/lib/lease-math";
+import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 
 type LedgerPeriod = {
   id: string;
@@ -29,33 +29,28 @@ export type CurrentRentSummary = {
   badge: "PAID" | "UNPAID";
   amountRemainingCents: number;
   supportingText: string;
+  paidAt: Date | null;
   successfulEmailActivity: {
     label: string;
     sentAt: Date;
   } | null;
 };
 
-export type RentLedgerRow =
-  | {
-      id: string;
-      kind: "charge";
-      date: Date;
-      activity: string;
-      amountCents: number;
-      context: string;
-      status: "Paid" | "Unpaid" | "Late" | "Upcoming";
-    }
-  | {
-      id: string;
-      kind: "payment";
-      date: Date;
-      activity: string;
-      amountCents: number;
-      context: string;
-      paymentMethod: string | null;
-      paymentMemo: string | null;
-      paymentId: string;
-    };
+export type RentLedgerRow = {
+  id: string;
+  kind: "month";
+  date: Date;
+  activity: string;
+  amountCents: number;
+  context: string;
+  status: "Paid" | "Partially paid" | "Unpaid";
+  payments: {
+    id: string;
+    amountCents: number;
+    paymentMethod: string | null;
+    receivedAt: Date;
+  }[];
+};
 
 export function rentBadgeForPeriod(
   period: LedgerPeriod | null,
@@ -72,10 +67,10 @@ export function rentBadgeForPeriod(
 }
 
 export function deriveCreditBalance({
-  payments,
+  payments = [],
   periods,
 }: {
-  payments: LedgerPayment[];
+  payments?: LedgerPayment[];
   periods: LedgerPeriod[];
 }) {
   const paidCents = payments.reduce(
@@ -87,6 +82,27 @@ export function deriveCreditBalance({
     .reduce((total, period) => total + period.amountDueCents, 0);
 
   return paidCents - allocatedCents;
+}
+
+export function expectedPaymentAmount({
+  creditBalanceCents,
+  nextDueAmountCents,
+  rentCents,
+}: {
+  creditBalanceCents: number;
+  nextDueAmountCents: number | null;
+  rentCents: number;
+}) {
+  if (nextDueAmountCents === null) {
+    return rentCents;
+  }
+
+  const remainingCents = Math.max(
+    nextDueAmountCents -
+      Math.min(Math.max(creditBalanceCents, 0), nextDueAmountCents),
+    0,
+  );
+  return remainingCents || rentCents;
 }
 
 export function derivePeriodBalances({
@@ -143,46 +159,15 @@ export function formatShortDate(date: Date) {
   });
 }
 
-function chargeStatus(period: LedgerPeriod, today: Date) {
-  if (period.status === PeriodStatus.RECEIVED) {
-    return "Paid" as const;
-  }
-  if (period.status === PeriodStatus.LATE) {
-    return "Late" as const;
-  }
-  if (period.periodMonth > today) {
-    return "Upcoming" as const;
-  }
-  return "Unpaid" as const;
-}
-
-function coveredPeriodContext(payment: LedgerPayment, periods: LedgerPeriod[]) {
-  const coveredPeriods = periods
-    .filter(
-      (period) =>
-        period.status === PeriodStatus.RECEIVED &&
-        period.paymentId === payment.id,
-    )
-    .sort((a, b) => a.periodMonth.getTime() - b.periodMonth.getTime());
-
-  if (coveredPeriods.length === 0) {
-    return "Unallocated credit";
-  }
-
-  if (coveredPeriods.length === 1) {
-    return `Covers ${formatShortMonth(coveredPeriods[0].periodMonth)} rent`;
-  }
-
-  return `Covers ${formatShortMonth(coveredPeriods[0].periodMonth)} through ${formatShortMonth(coveredPeriods.at(-1)!.periodMonth)}`;
-}
-
 export function deriveCurrentRentSummary({
   creditBalanceCents,
   emailLogs,
+  payments = [],
   periods,
 }: {
   creditBalanceCents: number;
   emailLogs: LedgerEmailLog[];
+  payments?: LedgerPayment[];
   periods: LedgerPeriod[];
 }): CurrentRentSummary | null {
   const billingMonth = firstDayOfCurrentMonth();
@@ -211,11 +196,17 @@ export function deriveCurrentRentSummary({
     emailLogs
       .filter((log) => !log.error)
       .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime())[0] ?? null;
+  const paidAt =
+    billingPeriod.paymentId && billingPeriod.status === PeriodStatus.RECEIVED
+      ? (payments.find((payment) => payment.id === billingPeriod.paymentId)
+          ?.receivedAt ?? null)
+      : null;
 
   return {
     billingMonth,
     badge,
     amountRemainingCents: balance.remainingCents,
+    paidAt,
     supportingText:
       badge === "PAID"
         ? "This month is paid."
@@ -236,24 +227,38 @@ export function deriveCurrentRentSummary({
 
 export function deriveRentLedger({
   creditBalanceCents,
-  includeFutureThrough = firstDayOfNextMonth(),
   payments,
   periods,
   today = new Date(),
 }: {
   creditBalanceCents: number;
-  includeFutureThrough?: Date;
   payments: LedgerPayment[];
   periods: LedgerPeriod[];
   today?: Date;
 }) {
   const balances = derivePeriodBalances({ creditBalanceCents, periods });
-  const chargeRows: RentLedgerRow[] = periods
+  const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
+  const paymentsWithResidual = payments.filter((payment) => {
+    const coveredCents = periods
+      .filter(
+        (period) =>
+          period.status === PeriodStatus.RECEIVED &&
+          period.paymentId === payment.id,
+      )
+      .reduce((total, period) => total + period.amountDueCents, 0);
+    return payment.amountCents > coveredCents;
+  });
+  const rows: RentLedgerRow[] = periods
     .filter(
-      (period) =>
-        period.periodMonth <= includeFutureThrough ||
-        period.status === PeriodStatus.RECEIVED ||
-        Boolean(period.paymentId),
+      (period) => {
+        const balance = balances.get(period.id);
+        return (
+          period.periodMonth <= today ||
+          period.status === PeriodStatus.RECEIVED ||
+          Boolean(period.paymentId) ||
+          (balance?.creditAppliedCents ?? 0) > 0
+        );
+      },
     )
     .map((period) => {
       const balance = balances.get(period.id) ?? {
@@ -261,46 +266,48 @@ export function deriveRentLedger({
         remainingCents:
           period.status === PeriodStatus.RECEIVED ? 0 : period.amountDueCents,
       };
-      const status = chargeStatus(period, today);
+      const directPayment = period.paymentId
+        ? paymentById.get(period.paymentId)
+        : null;
+      const relatedPayments = directPayment
+        ? [directPayment]
+        : balance.creditAppliedCents > 0
+          ? paymentsWithResidual
+          : [];
+      const latestPartialPayment = [...relatedPayments].sort(
+        (a, b) => b.receivedAt.getTime() - a.receivedAt.getTime(),
+      )[0];
+      const status =
+        period.status === PeriodStatus.RECEIVED
+          ? "Paid"
+          : balance.creditAppliedCents > 0
+            ? "Partially paid"
+            : "Unpaid";
       const context =
         status === "Paid"
-          ? "Satisfied"
-          : balance.creditAppliedCents > 0
-            ? `$${(balance.remainingCents / 100).toFixed(2)} remaining after credit`
-            : status === "Upcoming"
-              ? "Upcoming rent period"
-              : `$${(balance.remainingCents / 100).toFixed(2)} remaining`;
+          ? directPayment
+            ? `Paid ${formatShortDate(directPayment.receivedAt)} · $${(period.amountDueCents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+            : `Paid · $${(period.amountDueCents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+          : status === "Partially paid"
+            ? `${latestPartialPayment ? `Partially paid ${formatShortDate(latestPartialPayment.receivedAt)} · ` : "Partially paid · "}$${(balance.remainingCents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} remaining`
+            : `Unpaid · $${(balance.remainingCents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} remaining`;
 
       return {
-        id: `charge:${period.id}`,
-        kind: "charge",
+        id: `month:${period.id}`,
+        kind: "month",
         date: period.periodMonth,
-        activity: `${formatShortMonth(period.periodMonth)} rent`,
+        activity: formatShortMonth(period.periodMonth),
         amountCents: period.amountDueCents,
         context,
         status,
+        payments: relatedPayments.map((payment) => ({
+          id: payment.id,
+          amountCents: payment.amountCents,
+          paymentMethod: payment.paymentMethod,
+          receivedAt: payment.receivedAt,
+        })),
       };
     });
-  const paymentRows: RentLedgerRow[] = payments.map((payment) => ({
-    id: `payment:${payment.id}`,
-    kind: "payment",
-    date: payment.receivedAt,
-    activity: "Payment received",
-    amountCents: payment.amountCents,
-    context: coveredPeriodContext(payment, periods),
-    paymentMethod: payment.paymentMethod,
-    paymentMemo: payment.notes,
-    paymentId: payment.id,
-  }));
 
-  return [...chargeRows, ...paymentRows].sort((a, b) => {
-    const dateSort = b.date.getTime() - a.date.getTime();
-    if (dateSort !== 0) {
-      return dateSort;
-    }
-    if (a.kind === b.kind) {
-      return a.id.localeCompare(b.id);
-    }
-    return a.kind === "payment" ? -1 : 1;
-  });
+  return rows.sort((a, b) => b.date.getTime() - a.date.getTime());
 }

@@ -13,7 +13,7 @@ export default async function LoginPage({
       <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight">Property Manager</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          Sign in to manage rent tracking and reminders.
+          Sign in to manage rent tracking and tenant emails.
         </p>
 
         {error ? (

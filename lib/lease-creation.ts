@@ -48,7 +48,7 @@ export async function createLeaseRecord({
     });
 
     if (activeLease) {
-      throw new Error("This space already has an active lease.");
+      throw new Error("This property already has an active lease.");
     }
 
     const tenant = reuseTenantId

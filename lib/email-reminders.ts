@@ -276,6 +276,16 @@ export function canSendWorkspaceEmail(emailEnabled: boolean) {
   return emailEnabled && emailProviderReadiness().configured;
 }
 
+export function tenantEmailAutomationEnabled({
+  sendAfterDue,
+  sendBeforeDue,
+}: {
+  sendAfterDue: boolean;
+  sendBeforeDue: boolean;
+}) {
+  return sendBeforeDue || sendAfterDue;
+}
+
 export async function findReminderPeriods(
   periodMonth: Date,
   statuses: PeriodStatus[],

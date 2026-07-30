@@ -241,7 +241,7 @@ describe("demo dashboard state", () => {
     ]);
   });
 
-  it("uses session-scoped demo reminder settings with realistic delivery statuses", () => {
+  it("uses session-scoped demo tenant email settings with realistic delivery statuses", () => {
     const data = getDemoEmailData({
       sendBeforeDue: false,
       sendAfterDue: true,

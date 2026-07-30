@@ -92,8 +92,7 @@ export function PropertyDetailsEditor({
       <div>
         <h2 className="text-base font-semibold text-zinc-950">Edit details</h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Update the space, tenant, lease terms, and operational note in one
-          place.
+          Update the property, tenant, lease terms, and note in one place.
         </p>
         {lease.tenant.leaseUseCount > 1 ? (
           <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -180,7 +179,7 @@ export function PropertyDetailsEditor({
       </p>
 
       <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-        Operational note
+        Note
         <textarea
           className="min-h-24 rounded-md border border-zinc-300 px-3 py-2 font-normal"
           defaultValue={lease.notes ?? ""}

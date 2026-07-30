@@ -331,7 +331,7 @@ export function DashboardView({
             Add your first lease
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-600">
-            Add a space, tenant, and lease to start tracking rent.
+            Add a property, tenant, and lease to start tracking rent.
           </p>
           {onAddProperty ? (
             <button

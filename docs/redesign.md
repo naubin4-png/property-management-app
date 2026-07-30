@@ -24,14 +24,14 @@ behavior.
 ### Desktop
 
 - Keep a compact top app bar with the Property Manager brand.
-- Dashboard and Email are persistent destinations.
+- Dashboard and Tenant emails are persistent destinations.
 - Add and Log Payment remain primary actions.
 - Avoid oversized page titles when the active destination is already clear.
 
 ### Mobile
 
 - No hamburger menu anywhere.
-- Use an always-visible bottom navigation/action bar with Dashboard, Email, Add,
+- Use an always-visible bottom navigation/action bar with Dashboard, Tenant emails, Add,
   and Payment destinations/actions.
 - The Property Manager brand remains in a compact top bar.
 - Respect `env(safe-area-inset-bottom)` and `env(safe-area-inset-top)`.
@@ -100,7 +100,7 @@ behavior.
   - tenant name and email
   - monthly rent, lease start, lease end
   - credit balance
-  - currently due periods and upcoming periods
+  - monthly rent history without future unpaid filler
   - Log Payment
   - payment history with edit/delete controls
 - Content should be compact. Payment history should begin above the fold where
@@ -133,11 +133,13 @@ behavior.
 - Rent changes preserve the backend rule for updating eligible future periods.
 - Failed edits leave all related records unchanged and display a useful error.
 
-## Email
+## Tenant Emails
 
-- Email settings use stacked, mobile-first cards rather than an admin table.
-- Preserve existing timing toggles, numeric settings, subject/body copy, recent
-  logs, Server Actions, and cron behavior.
+- Tenant email settings use stacked, mobile-first cards rather than an admin
+  table. Rent reminder and Late notice controls determine whether tenant email
+  automation is enabled; there is no separate master checkbox.
+- Preserve existing timing controls, subject/body copy, recent logs, Server
+  Actions, and delivery behavior.
 - Recent email entries should be readable as compact activity cards on mobile.
 
 ## Demo
@@ -158,7 +160,7 @@ behavior.
 
 - `/` - authenticated dashboard and card overview
 - `/demo` - public demo using the shared app experience
-- `/email` - email settings
+- `/email` - Tenant emails settings
 - `/properties/[id]` - canonical asset detail route, presented with the shared
   detail panel/sheet treatment
 - `/?addProperty=1` - Add flow

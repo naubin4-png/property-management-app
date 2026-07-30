@@ -193,6 +193,37 @@ export async function updateLeaseInline(
   }
 }
 
+export async function updateLeaseNote(
+  propertyId: string,
+  leaseId: string,
+  _state: InlineEditState,
+  formData: FormData,
+): Promise<InlineEditState> {
+  const notes = String(formData.get("notes") ?? "").trim();
+  if (notes.length > 1000) {
+    return { error: "Use 1,000 characters or fewer for notes.", saved: false };
+  }
+
+  try {
+    const { workspaceId } = await getWorkspaceContext();
+    const result = await prisma.lease.updateMany({
+      where: { id: leaseId, propertyId, workspaceId },
+      data: { notes },
+    });
+    if (result.count !== 1) {
+      throw new Error("Lease not found.");
+    }
+    revalidatePath(`/properties/${propertyId}`);
+    revalidatePath("/");
+    return { error: null, saved: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to update note.",
+      saved: false,
+    };
+  }
+}
+
 export async function updatePropertyDetails(
   propertyId: string,
   leaseId: string,

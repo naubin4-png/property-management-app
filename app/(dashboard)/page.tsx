@@ -51,6 +51,7 @@ export default async function DashboardPage({
       name: property.name,
       rentCents: property.rentCents,
       creditBalanceCents: property.creditBalanceCents,
+      expectedPaymentCents: property.expectedPaymentCents,
       nextDueDate: property.nextDueDate,
     }));
 

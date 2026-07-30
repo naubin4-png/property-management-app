@@ -16,6 +16,7 @@ import {
   getDemoPropertyDetails,
   parseDemoSessionState,
 } from "@/lib/demo-data";
+import { expectedPaymentAmount } from "@/lib/rent-ledger";
 
 import {
   createDemoPropertyWithLease,
@@ -23,6 +24,7 @@ import {
   editDemoPayment,
   logDemoPayment,
   updateDemoPropertyDetails,
+  updateDemoLeaseNote,
 } from "./actions";
 
 export const metadata = {
@@ -38,7 +40,7 @@ function DemoSuccessBanner({ value }: { value?: string }) {
     check: "Demo payment saved. Sample data resets on reload.",
     "deleted-payment": "Demo payment deleted. Sample data resets on reload.",
     "deleted-check": "Demo payment deleted. Sample data resets on reload.",
-    property: "Demo space created. Sample data resets on reload.",
+    property: "Demo lease created. Sample data resets on reload.",
   };
   const message = value ? messages[value] : null;
 
@@ -125,6 +127,7 @@ export default async function DemoPage({
       name: property.name,
       rentCents: property.rentCents,
       creditBalanceCents: property.creditBalanceCents,
+      expectedPaymentCents: property.expectedPaymentCents,
       nextDueDate: property.nextDueDate,
     }));
   const editingPayment =
@@ -174,6 +177,7 @@ export default async function DemoPage({
         <PropertyPanel closeHref={demoBase} title={selectedProperty.name}>
           <PropertyDetailContent
             detailsAction={updateDemoPropertyDetails}
+            noteAction={updateDemoLeaseNote}
             detail={selectedProperty}
             logPaymentHref={
               selectedLeaseCoversBillingMonth
@@ -213,6 +217,17 @@ export default async function DemoPage({
               rentCents: selectedProperty.activeLease?.rentCents,
               creditBalanceCents:
                 selectedProperty.activeLease?.creditBalanceCents,
+              expectedPaymentCents: selectedProperty.activeLease
+                ? expectedPaymentAmount({
+                    creditBalanceCents:
+                      selectedProperty.activeLease.creditBalanceCents,
+                    nextDueAmountCents:
+                      selectedProperty.activeLease.periods.find(
+                        (period) => period.status !== "RECEIVED",
+                      )?.amountDueCents ?? null,
+                    rentCents: selectedProperty.activeLease.rentCents,
+                  })
+                : null,
               nextDueDate:
                 selectedProperty.activeLease?.periods.find(
                   (period) => period.status !== "RECEIVED",

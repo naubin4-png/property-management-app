@@ -9,9 +9,36 @@ import {
   processReminderPeriods,
   reminderPeriodForToday,
   renderTemplate,
+  tenantEmailAutomationEnabled,
   unknownEmailPlaceholders,
   type ReminderPeriod,
 } from "../lib/email-reminders";
+
+describe("tenant email settings", () => {
+  it("uses the two message controls as the automation switch", () => {
+    assert.equal(
+      tenantEmailAutomationEnabled({
+        sendBeforeDue: false,
+        sendAfterDue: false,
+      }),
+      false,
+    );
+    assert.equal(
+      tenantEmailAutomationEnabled({
+        sendBeforeDue: true,
+        sendAfterDue: false,
+      }),
+      true,
+    );
+    assert.equal(
+      tenantEmailAutomationEnabled({
+        sendBeforeDue: false,
+        sendAfterDue: true,
+      }),
+      true,
+    );
+  });
+});
 
 function date(value: string) {
   return new Date(`${value}T00:00:00.000Z`);

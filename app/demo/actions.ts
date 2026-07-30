@@ -164,7 +164,7 @@ export async function logDemoPayment(
     `demo-payment-${Date.now()}`;
 
   if (!propertyId || !receivedAtValue) {
-    return { error: "Property, amount, and date received are required." };
+    return { error: "Lease, amount, and date received are required." };
   }
 
   if (amountCents === null) {
@@ -276,6 +276,27 @@ export async function updateDemoLeaseInline(
   returnUrl.searchParams.set("note", notes);
 
   redirect(`${returnUrl.pathname}?${returnUrl.searchParams.toString()}`);
+}
+
+export async function updateDemoLeaseNote(
+  propertyId: string,
+  _leaseId: string,
+  _state: InlineEditState,
+  formData: FormData,
+): Promise<InlineEditState> {
+  const notes = String(formData.get("notes") ?? "").trim();
+  if (notes.length > 1000) {
+    return { error: "Use 1,000 characters or fewer for notes.", saved: false };
+  }
+
+  const { cookieStore, session } = await readDemoSession();
+  const existing = session.detailEdits[propertyId];
+  session.detailEdits[propertyId] = {
+    ...existing,
+    note: notes,
+  };
+  writeDemoSession(cookieStore, session);
+  return { error: null, saved: true };
 }
 
 export async function updateDemoPropertyDetails(

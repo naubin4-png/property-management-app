@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   canSendWorkspaceEmail,
   processReminderPeriods,
+  tenantEmailAutomationEnabled,
   unknownEmailPlaceholders,
 } from "@/lib/email-reminders";
 import { prisma } from "@/lib/prisma";
@@ -36,6 +37,12 @@ function requiredText(formData: FormData, name: string) {
 export async function saveEmailSettings(formData: FormData) {
   const { workspaceId } = await getWorkspaceContext();
   const gracePeriodDays = nonNegativeInteger(formData, "gracePeriodDays");
+  const sendBeforeDue = checked(formData, "sendBeforeDue");
+  const sendAfterDue = checked(formData, "sendAfterDue");
+  const emailEnabled = tenantEmailAutomationEnabled({
+    sendAfterDue,
+    sendBeforeDue,
+  });
   const reminderEmailSubject = requiredText(formData, "reminderEmailSubject");
   const reminderEmailBody = requiredText(formData, "reminderEmailBody");
   const lateNoticeSubject = requiredText(formData, "lateNoticeSubject");
@@ -72,8 +79,8 @@ export async function saveEmailSettings(formData: FormData) {
     create: {
       workspaceId,
       replyToEmail,
-      sendBeforeDue: checked(formData, "sendBeforeDue"),
-      sendAfterDue: checked(formData, "sendAfterDue"),
+      sendBeforeDue,
+      sendAfterDue,
       daysBeforeReminder: nonNegativeInteger(formData, "daysBeforeReminder"),
       daysAfterLateNotice: gracePeriodDays,
       gracePeriodDays,
@@ -81,14 +88,12 @@ export async function saveEmailSettings(formData: FormData) {
       reminderEmailBody,
       lateNoticeSubject,
       lateNoticeBody,
-      emailEnabled:
-        checked(formData, "emailEnabled") &&
-        canSendWorkspaceEmail(true),
+      emailEnabled,
     },
     update: {
       replyToEmail,
-      sendBeforeDue: checked(formData, "sendBeforeDue"),
-      sendAfterDue: checked(formData, "sendAfterDue"),
+      sendBeforeDue,
+      sendAfterDue,
       daysBeforeReminder: nonNegativeInteger(formData, "daysBeforeReminder"),
       daysAfterLateNotice: gracePeriodDays,
       gracePeriodDays,
@@ -96,9 +101,7 @@ export async function saveEmailSettings(formData: FormData) {
       reminderEmailBody,
       lateNoticeSubject,
       lateNoticeBody,
-      emailEnabled:
-        checked(formData, "emailEnabled") &&
-        canSendWorkspaceEmail(true),
+      emailEnabled,
     },
   });
   await prisma.workspace.update({

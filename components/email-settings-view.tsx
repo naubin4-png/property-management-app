@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, ChevronDown, MailWarning } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { formatMonth } from "@/lib/lease-math";
@@ -137,6 +138,7 @@ export function EmailSettingsView({
   retryAction,
   saved,
   settings,
+  propertyHrefPrefix = "/?property=",
 }: {
   action: (formData: FormData) => Promise<void>;
   coverage: EmailCoverageViewData;
@@ -147,21 +149,22 @@ export function EmailSettingsView({
   retryAction?: (formData: FormData) => Promise<void>;
   saved?: boolean;
   settings: EmailSettingsViewData;
+  propertyHrefPrefix?: string;
 }) {
   return (
     <main className="mx-auto max-w-4xl px-4 py-5 sm:px-6 sm:py-7">
       <header className="mb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
-          Reminders
+          Tenant emails
         </h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Control rent reminders, late notices, and tenant email coverage.
+          Choose when tenants receive rent reminders and late notices.
         </p>
       </header>
 
       {saved ? (
         <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Reminder settings saved.
+          Tenant email settings saved.
         </p>
       ) : null}
 
@@ -169,65 +172,58 @@ export function EmailSettingsView({
         <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <MailWarning aria-hidden className="mt-0.5 size-5 shrink-0" />
           <div>
-            <p className="font-semibold">Tenant email delivery is not configured</p>
+            <p className="font-semibold">Tenant emails are not sending yet</p>
             <p className="mt-1 text-amber-900">
-              Reminder schedules can be prepared, but no tenant email will be
-              sent until the sending domain, provider, and delivery webhook are
-              activated.
+              Your settings are saved. Email will begin after delivery is
+              connected.
             </p>
           </div>
         </div>
       ) : null}
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-950">
-              Email coverage
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              {coverage.canReceiveCount} of {coverage.activeCount} active tenants
-              can receive reminders.
-            </p>
-          </div>
-          {coverage.missingEmail.length > 0 ? (
-            <div className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              <span className="font-semibold">
-                {coverage.missingEmail.length} missing email
-              </span>
+      <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm shadow-sm">
+        {coverage.missingEmail.length === 0 ? (
+          <p className="font-medium text-emerald-800">
+            Every active lease has a tenant email.
+          </p>
+        ) : coverage.missingEmail.length === 1 ? (
+          <p className="text-zinc-700">
+            {coverage.missingEmail.length} lease is missing a tenant email ·{" "}
+            <Link
+              className="font-semibold text-zinc-950 underline underline-offset-4"
+              href={`${propertyHrefPrefix}${coverage.missingEmail[0].propertyId}`}
+            >
+              Add email
+            </Link>
+          </p>
+        ) : (
+          <details>
+            <summary className="min-h-11 cursor-pointer py-2 font-medium text-zinc-800">
+              {coverage.missingEmail.length} leases are missing tenant emails ·
+              View leases
+            </summary>
+            <div className="grid gap-1 border-t border-zinc-100 pt-2">
+              {coverage.missingEmail.map((item) => (
+                <Link
+                  className="inline-flex min-h-11 items-center font-medium text-zinc-800"
+                  href={`${propertyHrefPrefix}${item.propertyId}`}
+                  key={item.propertyId}
+                >
+                  {item.propertyName} · Add email
+                </Link>
+              ))}
             </div>
-          ) : (
-            <div className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
-              All active tenants covered
-            </div>
-          )}
-        </div>
-        {coverage.missingEmail.length > 0 ? (
-          <div className="mt-4 grid gap-2">
-            {coverage.missingEmail.map((item) => (
-              <div
-                className="flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-sm"
-                key={`${item.propertyId}:${item.tenantName}`}
-              >
-                <MailWarning aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-700" />
-                <p>
-                  <span className="font-medium text-zinc-950">
-                    {item.propertyName}
-                  </span>
-                  <span className="text-zinc-600">, {item.tenantName}</span>
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </section>
+          </details>
+        )}
+      </div>
 
       <form action={action} className="mt-5 space-y-5">
-        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="text-lg font-semibold text-zinc-950">
-            Workspace delivery
-          </h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <details className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 py-3 font-semibold text-zinc-900 sm:px-5">
+            Advanced settings
+            <ChevronDown aria-hidden className="size-4 text-zinc-500" />
+          </summary>
+          <div className="grid gap-4 border-t border-zinc-100 p-4 sm:grid-cols-2 sm:p-5">
             <label className="text-sm font-medium text-zinc-800">
               Reply-to email
               <input
@@ -240,42 +236,35 @@ export function EmailSettingsView({
               />
             </label>
             <label className="text-sm font-medium text-zinc-800">
-              Workspace timezone
-              <input
+              Billing timezone
+              <select
                 className={`${fieldClass} h-11`}
                 defaultValue={settings.timezone ?? "America/New_York"}
                 name="timezone"
-                placeholder="America/New_York"
                 required
-              />
+              >
+                <option value="America/New_York">Eastern time</option>
+                <option value="America/Chicago">Central time</option>
+                <option value="America/Denver">Mountain time</option>
+                <option value="America/Los_Angeles">Pacific time</option>
+                <option value="America/Phoenix">Arizona time</option>
+                <option value="America/Anchorage">Alaska time</option>
+                <option value="Pacific/Honolulu">Hawaii time</option>
+                {![
+                  "America/New_York",
+                  "America/Chicago",
+                  "America/Denver",
+                  "America/Los_Angeles",
+                  "America/Phoenix",
+                  "America/Anchorage",
+                  "Pacific/Honolulu",
+                ].includes(settings.timezone ?? "America/New_York") ? (
+                  <option value={settings.timezone}>{settings.timezone}</option>
+                ) : null}
+              </select>
             </label>
           </div>
-          <p className="mt-3 text-xs leading-5 text-zinc-500">
-            Billing months, grace periods, and reminder timing use this
-            timezone.
-          </p>
-          <label className="mt-4 flex min-h-11 items-center gap-3 rounded-xl bg-zinc-50 p-4">
-            <input
-              className="size-5 shrink-0"
-              defaultChecked={
-                providerReadiness?.configured && settings.emailEnabled
-              }
-              disabled={!providerReadiness?.configured}
-              name="emailEnabled"
-              type="checkbox"
-            />
-            <span>
-              <span className="block text-sm font-medium text-zinc-900">
-                Enable automatic tenant email
-              </span>
-              <span className="block text-sm text-zinc-500">
-                {!providerReadiness?.configured
-                  ? "Available after provider activation."
-                  : "Cron jobs may send configured reminders and late notices."}
-              </span>
-            </span>
-          </label>
-        </section>
+        </details>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
           <h2 className="text-lg font-semibold text-zinc-950">Rent reminder</h2>
@@ -325,7 +314,7 @@ export function EmailSettingsView({
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="text-lg font-semibold text-zinc-950">Late rent</h2>
+          <h2 className="text-lg font-semibold text-zinc-950">Late notice</h2>
           <div className="mt-4 grid gap-3">
             <label className="block rounded-xl bg-zinc-50 p-4 text-sm font-medium text-zinc-800 sm:max-w-sm">
               Grace period (days)
@@ -379,7 +368,7 @@ export function EmailSettingsView({
           className="h-11 rounded-md bg-zinc-900 px-5 text-sm font-medium text-white"
           type="submit"
         >
-          Save reminder settings
+          Save tenant email settings
         </button>
       </form>
 
@@ -392,13 +381,13 @@ export function EmailSettingsView({
             <p className="text-sm text-zinc-600">
               {filteredPropertyName
                 ? `Showing recent deliveries for ${filteredPropertyName}.`
-                : "Recent reminder and late-notice deliveries."}
+                : "Recent tenant email deliveries."}
             </p>
           </div>
         </div>
         {emailLogs.length === 0 ? (
           <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-5 py-8 text-center text-sm text-zinc-500">
-            No reminder deliveries yet.
+            No tenant emails have been sent yet.
           </div>
         ) : (
           <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 bg-white">

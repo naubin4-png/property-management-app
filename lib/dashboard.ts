@@ -3,6 +3,7 @@ import { PeriodStatus, TriggerType } from "@prisma/client";
 import { leaseCoversMonth } from "@/lib/lease-periods";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
+import { expectedPaymentAmount } from "@/lib/rent-ledger";
 import {
   firstDayOfNextWorkspaceMonth,
   firstDayOfWorkspaceMonth,
@@ -34,6 +35,7 @@ export type DashboardProperty = {
   billingPeriodRemainingCents: number;
   amountOwedCents: number;
   creditBalanceCents: number;
+  expectedPaymentCents: number;
 };
 
 export function dashboardEmailActivityFromLog(
@@ -158,6 +160,7 @@ export async function getDashboardData(workspaceId: string, timeZone = "UTC") {
         billingPeriodRemainingCents: 0,
         amountOwedCents: 0,
         creditBalanceCents: 0,
+        expectedPaymentCents: 0,
       };
     }
 
@@ -193,6 +196,12 @@ export async function getDashboardData(workspaceId: string, timeZone = "UTC") {
       (total, payment) => total + payment.amountCents,
       0,
     );
+    const creditBalanceCents = Math.max(paidCents - allocatedCents, 0);
+    const expectedPaymentCents = expectedPaymentAmount({
+      creditBalanceCents,
+      nextDueAmountCents: nextDue?.amountDueCents ?? null,
+      rentCents: lease.rentCents,
+    });
     const hasEarlierUnpaid = unpaidPeriods.some(
       (period) => period.periodMonth < currentMonth,
     );
@@ -267,7 +276,8 @@ export async function getDashboardData(workspaceId: string, timeZone = "UTC") {
       billingPeriodPaidAt,
       billingPeriodRemainingCents,
       amountOwedCents: billingPeriodRemainingCents,
-      creditBalanceCents: paidCents - allocatedCents,
+      creditBalanceCents,
+      expectedPaymentCents,
     };
   });
 

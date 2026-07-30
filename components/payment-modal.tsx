@@ -15,6 +15,7 @@ export type PaymentPropertyOption = {
   name: string;
   rentCents?: number | null;
   creditBalanceCents?: number;
+  expectedPaymentCents?: number | null;
   nextDueDate?: Date | string | null;
 };
 
@@ -63,13 +64,34 @@ export function PaymentModal({
   );
   const [propertyId, setPropertyId] = useState(selectedPropertyId ?? "");
   const [amount, setAmount] = useState(
-    payment ? (payment.amountCents / 100).toFixed(2) : "",
+    payment
+      ? (payment.amountCents / 100).toFixed(2)
+      : (() => {
+          const selected = properties.find(
+            (property) => property.id === selectedPropertyId,
+          );
+          const expectedCents =
+            selected?.expectedPaymentCents ?? selected?.rentCents ?? 0;
+          return expectedCents > 0 ? (expectedCents / 100).toFixed(2) : "";
+        })(),
   );
   const propertyRef = useRef<HTMLSelectElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const selectedProperty = properties.find(
     (property) => property.id === propertyId,
   );
+  function selectProperty(nextPropertyId: string) {
+    setPropertyId(nextPropertyId);
+    if (payment) {
+      return;
+    }
+    const nextProperty = properties.find(
+      (property) => property.id === nextPropertyId,
+    );
+    const expectedCents =
+      nextProperty?.expectedPaymentCents ?? nextProperty?.rentCents ?? 0;
+    setAmount(expectedCents > 0 ? (expectedCents / 100).toFixed(2) : "");
+  }
   const paymentSummary = useMemo(() => {
     const rentCents = selectedProperty?.rentCents ?? 0;
     const amountCents = Math.round(Number(amount) * 100);
@@ -185,21 +207,24 @@ export function PaymentModal({
             type="hidden"
             value={payment?.clientRequestId ?? clientRequestId}
           />
+          {payment?.notes ? (
+            <input name="notes" type="hidden" value={payment.notes} />
+          ) : null}
           <input name="returnHref" type="hidden" value={returnHref ?? closeHref} />
 
           <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-            Space
+            Lease
             <select
               className="h-11 rounded-md border border-zinc-300 bg-white px-3 font-normal"
               defaultValue={selectedPropertyId ?? ""}
               disabled={Boolean(payment)}
               name={payment ? undefined : "propertyId"}
-              onChange={(event) => setPropertyId(event.target.value)}
+              onChange={(event) => selectProperty(event.target.value)}
               ref={propertyRef}
               required
             >
               <option disabled value="">
-                Select a property
+                Select a lease
               </option>
               {properties.map((property) => (
                 <option key={property.id} value={property.id}>
@@ -217,9 +242,7 @@ export function PaymentModal({
               Amount
               <input
                 className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
-                defaultValue={
-                  payment ? (payment.amountCents / 100).toFixed(2) : ""
-                }
+                value={amount}
                 enterKeyHint="next"
                 inputMode="decimal"
                 min="0.01"
@@ -268,16 +291,6 @@ export function PaymentModal({
               <option value="ACH">ACH</option>
               <option value="OTHER">Other</option>
             </select>
-          </label>
-
-          <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
-            Payment memo
-            <textarea
-              className="min-h-11 resize-none rounded-md border border-zinc-300 px-3 py-2.5 font-normal transition-[min-height] focus:min-h-24"
-              defaultValue={payment?.notes ?? ""}
-              name="notes"
-              rows={1}
-            />
           </label>
 
           {state.error ? (

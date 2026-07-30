@@ -77,7 +77,7 @@ export function AddPropertyModal({
               Add lease
             </h2>
             <p className="mt-1 text-sm text-zinc-600">
-              Add the space, tenant, and rent terms.
+              Add the property, tenant, and rent terms.
             </p>
           </div>
           <button

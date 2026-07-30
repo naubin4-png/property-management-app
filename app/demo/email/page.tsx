@@ -94,6 +94,7 @@ export default async function DemoEmailSettingsPage({
       retryAction={retryDemoEmailDelivery}
       saved={saved === "1"}
       settings={settings}
+      propertyHrefPrefix="/demo?property="
     />
   );
 }
