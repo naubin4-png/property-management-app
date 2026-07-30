@@ -163,7 +163,7 @@ export function TopBar({
         aria-label="Mobile navigation"
         className={`fixed inset-x-0 bottom-0 z-40 grid ${
           showLogout ? "grid-cols-5" : "grid-cols-4"
-        } border-t border-zinc-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden`}
+        } border-t border-zinc-200 bg-white px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(0,0,0,0.06)] md:hidden`}
       >
         {items.map((item) => {
           const Icon = item.icon;

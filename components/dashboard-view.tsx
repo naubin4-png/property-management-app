@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { DashboardProperty, DashboardStatus } from "@/lib/dashboard";
+import {
+  collectionProgress,
+  type DashboardProperty,
+  type DashboardStatus,
+} from "@/lib/dashboard";
 
 export type DashboardSummary = {
   billingPeriodMonth: Date;
@@ -22,8 +26,15 @@ const statusLabels: Record<DashboardStatus, string> = {
 const statusStyles: Record<DashboardStatus, string> = {
   PAID: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   DUE: "bg-amber-50 text-amber-800 ring-amber-200",
-  LATE: "bg-amber-50 text-amber-800 ring-amber-200",
+  LATE: "bg-red-50 text-red-700 ring-red-200",
   NO_LEASE: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+};
+
+const cardBorderStyles: Record<DashboardStatus, string> = {
+  PAID: "border-zinc-200",
+  DUE: "border-amber-200",
+  LATE: "border-red-200",
+  NO_LEASE: "border-zinc-200",
 };
 
 function formatCurrency(cents: number) {
@@ -135,12 +146,32 @@ function secondaryLines(property: DashboardViewProperty) {
   return [];
 }
 
-export function MoneyBar({ summary }: { summary: DashboardSummary }) {
+export function MoneyBar({
+  activeLeaseCount,
+  summary,
+}: {
+  activeLeaseCount: number;
+  summary: DashboardSummary;
+}) {
+  const { percent: collectedPercent, totalCents: totalRentCents } =
+    collectionProgress({
+      collectedCents: summary.collectedThisMonthCents,
+      outstandingCents: summary.outstandingCents,
+    });
+
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-      <h1 className="text-lg font-semibold tracking-tight text-zinc-950">
-        {formatMonthHeading(summary.billingPeriodMonth)}
-      </h1>
+      <div className="flex items-baseline justify-between gap-4">
+        <h1 className="text-lg font-semibold tracking-tight text-zinc-950">
+          {formatMonthHeading(summary.billingPeriodMonth)}
+        </h1>
+        {activeLeaseCount > 0 ? (
+          <p className="text-xs font-medium text-zinc-500">
+            {activeLeaseCount} active{" "}
+            {activeLeaseCount === 1 ? "lease" : "leases"}
+          </p>
+        ) : null}
+      </div>
       <dl className="mt-3 grid grid-cols-2 gap-3 sm:gap-0">
         <div className="border-r border-zinc-200 pr-3 sm:pr-6">
           <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -159,6 +190,26 @@ export function MoneyBar({ summary }: { summary: DashboardSummary }) {
           </dd>
         </div>
       </dl>
+      {totalRentCents > 0 ? (
+        <div className="mt-3 border-t border-zinc-100 pt-3">
+          <div
+            aria-label={`${collectedPercent}% of ${formatMonthHeading(summary.billingPeriodMonth)} rent collected`}
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={collectedPercent}
+            className="h-1.5 overflow-hidden rounded-full bg-zinc-100"
+            role="progressbar"
+          >
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-[width] motion-reduce:transition-none"
+              style={{ width: `${collectedPercent}%` }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-zinc-500">
+            {collectedPercent}% of {formatCurrency(totalRentCents)} collected
+          </p>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -180,11 +231,7 @@ function PropertyCard({
         onOpen
           ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:ring-offset-2"
           : ""
-      } ${
-        property.billingPeriodRemainingCents > 0
-          ? "border-amber-200"
-          : "border-zinc-200"
-      }`}
+      } ${cardBorderStyles[property.status]}`}
       onClick={onOpen}
       onKeyDown={(event) => {
         if (onOpen && (event.key === "Enter" || event.key === " ")) {
@@ -213,9 +260,12 @@ function PropertyCard({
             </div>
           ) : null}
           {note ? (
-            <p className="mt-3 border-t border-zinc-100 pt-3 text-sm text-zinc-600">
-              {note}
-            </p>
+            <div className="mt-3 border-t border-zinc-100 pt-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                Note
+              </p>
+              <p className="mt-1 text-sm text-zinc-600">{note}</p>
+            </div>
           ) : null}
         </div>
         <StatusBadge status={property.status} />
@@ -323,7 +373,10 @@ export function DashboardView({
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-24 pt-5 sm:px-6 sm:py-7">
-      <MoneyBar summary={summary} />
+      <MoneyBar
+        activeLeaseCount={needsAttention.length + allGood.length}
+        summary={summary}
+      />
 
       {!hasProperties ? (
         <section className="mt-5 rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-14 text-center">
@@ -331,7 +384,8 @@ export function DashboardView({
             Add your first lease
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-600">
-            Add a property, tenant, and lease to start tracking rent.
+            Add a property, tenant, and rent details. This dashboard will show
+            what has been paid and what still needs your attention.
           </p>
           {onAddProperty ? (
             <button
