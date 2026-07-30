@@ -73,6 +73,24 @@ export function collectedForBillingPeriod(
   );
 }
 
+export function collectionProgress({
+  collectedCents,
+  outstandingCents,
+}: {
+  collectedCents: number;
+  outstandingCents: number;
+}) {
+  const totalCents = Math.max(collectedCents, 0) + Math.max(outstandingCents, 0);
+
+  return {
+    totalCents,
+    percent:
+      totalCents > 0
+        ? Math.round((Math.max(collectedCents, 0) / totalCents) * 100)
+        : 0,
+  };
+}
+
 async function ensureDashboardPeriods(workspaceId: string, timeZone: string) {
   const currentMonth = firstDayOfWorkspaceMonth(new Date(), timeZone);
   const nextMonth = firstDayOfNextWorkspaceMonth(new Date(), timeZone);
