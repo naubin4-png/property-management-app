@@ -14,12 +14,14 @@ import {
   parseDemoSessionState,
 } from "@/lib/demo-data";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
+import { expectedPaymentAmount } from "@/lib/rent-ledger";
 
 import {
   deleteDemoPayment,
   editDemoPayment,
   logDemoPayment,
   updateDemoPropertyDetails,
+  updateDemoLeaseNote,
 } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +97,7 @@ export default async function DemoPropertyDetailPage({
       <PropertyPanel closeHref={dashboardHref} title={detail.name}>
         <PropertyDetailContent
           detailsAction={updateDemoPropertyDetails}
+          noteAction={updateDemoLeaseNote}
           detail={detail}
           logPaymentHref={leaseCoversCurrentMonth ? addCheckHref : undefined}
           paymentDeleteAction={deleteDemoPayment}
@@ -115,6 +118,13 @@ export default async function DemoPropertyDetailPage({
               name: detail.name,
               rentCents: lease.rentCents,
               creditBalanceCents: lease.creditBalanceCents,
+              expectedPaymentCents: expectedPaymentAmount({
+                creditBalanceCents: lease.creditBalanceCents,
+                nextDueAmountCents:
+                  lease.periods.find((period) => period.status !== "RECEIVED")
+                    ?.amountDueCents ?? null,
+                rentCents: lease.rentCents,
+              }),
               nextDueDate:
                 lease.periods.find((period) => period.status !== "RECEIVED")
                   ?.periodMonth ?? null,

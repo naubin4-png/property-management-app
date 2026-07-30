@@ -139,6 +139,7 @@ export async function getPropertyDetails(
           currentRent: deriveCurrentRentSummary({
             creditBalanceCents,
             emailLogs,
+            payments: activeLease.payments,
             periods: activeLease.paymentPeriods,
           }),
           ledger: deriveRentLedger({

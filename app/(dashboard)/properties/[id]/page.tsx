@@ -9,6 +9,7 @@ import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { getPropertyDetails } from "@/lib/property-details";
+import { expectedPaymentAmount } from "@/lib/rent-ledger";
 import { getWorkspaceContext } from "@/lib/workspace-context";
 
 import { logPayment } from "../../payments/actions";
@@ -71,6 +72,13 @@ export default async function PropertyDetailPage({
               name: detail.name,
               rentCents: lease.rentCents,
               creditBalanceCents: lease.creditBalanceCents,
+              expectedPaymentCents: expectedPaymentAmount({
+                creditBalanceCents: lease.creditBalanceCents,
+                nextDueAmountCents:
+                  lease.periods.find((period) => period.status !== "RECEIVED")
+                    ?.amountDueCents ?? null,
+                rentCents: lease.rentCents,
+              }),
               nextDueDate:
                 lease.periods.find((period) => period.status !== "RECEIVED")
                   ?.periodMonth ?? null,

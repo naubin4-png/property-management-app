@@ -484,14 +484,15 @@ This is the heart of the app. **The owner never picks months.** He enters one do
 
 ---
 
-### 6. Email Reminders
+### 6. Tenant Emails
 
 Two email triggers: a reminder before rent is due, and a late notice after if unpaid. Both are owner-configurable: timing and copy.
 
 **Email page** (`/email`):
 
 **Email Timing section:**
-- **Reminders Enabled** — master toggle
+- The **Rent reminder** and **Late notice** controls determine whether tenant
+  email automation is enabled. There is no separate product-facing master toggle.
 - **Send reminder before due date** — toggle + "X days before" number input (default: 3)
 - **Send late notice after due date** — toggle + "X days after" number input (default: 5)
 - **Grace period (days)** — number input (default: 5). Used for both:

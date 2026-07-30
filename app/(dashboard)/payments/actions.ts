@@ -39,7 +39,7 @@ function parsePaymentInput(formData: FormData) {
   const clientRequestId = String(formData.get("clientRequestId") ?? "");
 
   if (!propertyId || !receivedAtValue || !clientRequestId) {
-    throw new Error("Property, amount, and date received are required.");
+    throw new Error("Lease, amount, and date received are required.");
   }
 
   if (amountCents === null) {
@@ -105,7 +105,7 @@ export async function logPayment(
         currentMonth,
       );
       if (!lease) {
-        throw new Error("The selected property does not have an active lease.");
+        throw new Error("The selected lease is no longer active.");
       }
 
       try {
@@ -147,7 +147,7 @@ export async function logPayment(
     revalidatePath(`/properties/${input.propertyId}`);
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Unable to add check.",
+      error: error instanceof Error ? error.message : "Unable to record payment.",
     };
   }
 

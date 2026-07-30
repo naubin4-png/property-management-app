@@ -47,7 +47,7 @@ export function TopBar({
   const resolvedAddCheckHref = addCheckHref ?? `${dashboardHref}?addCheck=1`;
   const items: NavigationItem[] = [
     { href: dashboardHref, icon: Home, label: "Dashboard" },
-    { href: emailHref, icon: Mail, label: "Reminders" },
+    { href: emailHref, icon: Mail, label: "Tenant emails" },
   ];
   const isActive = (href: string) =>
     currentHref === href || currentHref.startsWith(`${href}&`);

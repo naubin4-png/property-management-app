@@ -29,7 +29,7 @@ present.
    - `EMAIL_FROM` using the verified domain, for example
      `Property Manager <reminders@client-domain.example>`
    - `RESEND_WEBHOOK_SECRET` using the webhook signing secret
-5. Redeploy production. Confirm the Reminders page reports the provider as
+5. Redeploy production. Confirm the Tenant emails page reports the provider as
    configured, but leave workspace delivery disabled.
 6. Set the workspace Reply-to address to the owner-managed inbox.
 7. Use a temporary lease whose recipient is `naubin4@gmail.com`, enable delivery,

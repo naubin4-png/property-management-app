@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Property Manager",
-  description: "Commercial lease rent tracking and reminders",
+  description: "Commercial lease rent tracking and tenant emails",
 };
 
 export default function RootLayout({

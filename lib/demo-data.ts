@@ -9,6 +9,7 @@ import { defaultEmailSettings } from "@/lib/settings";
 import {
   deriveCurrentRentSummary,
   deriveRentLedger,
+  expectedPaymentAmount,
 } from "@/lib/rent-ledger";
 
 type DemoPeriodStatus = "PENDING" | "RECEIVED" | "LATE";
@@ -67,12 +68,12 @@ export type DemoSessionState = {
   detailEdits: Record<
     string,
     {
-      lastPeriodMonth: string | null;
+      lastPeriodMonth?: string | null;
       note: string;
-      propertyName: string;
-      rentCents: number;
-      tenantEmail: string | null;
-      tenantName: string;
+      propertyName?: string;
+      rentCents?: number;
+      tenantEmail?: string | null;
+      tenantName?: string;
     }
   >;
   payments: {
@@ -673,17 +674,20 @@ function applyDemoSession(
   for (const record of records) {
     const edit = session.detailEdits[record.id];
     if (edit) {
-      record.name = edit.propertyName;
-      record.tenantName = edit.tenantName;
-      record.tenantEmail = edit.tenantEmail;
-      record.rentCents = edit.rentCents;
+      record.name = edit.propertyName ?? record.name;
+      record.tenantName = edit.tenantName ?? record.tenantName;
+      record.tenantEmail =
+        edit.tenantEmail === undefined ? record.tenantEmail : edit.tenantEmail;
+      record.rentCents = edit.rentCents ?? record.rentCents;
       record.note = edit.note;
-      record.lastPeriodMonth = edit.lastPeriodMonth
-        ? new Date(`${edit.lastPeriodMonth}-01T00:00:00.000Z`)
-        : null;
+      if (edit.lastPeriodMonth !== undefined) {
+        record.lastPeriodMonth = edit.lastPeriodMonth
+          ? new Date(`${edit.lastPeriodMonth}-01T00:00:00.000Z`)
+          : null;
+      }
       for (const period of record.periods) {
         if (!period.paymentId && period.status !== "RECEIVED") {
-          period.amountDueCents = edit.rentCents;
+          period.amountDueCents = edit.rentCents ?? record.rentCents;
         }
       }
       if (record.lastPeriodMonth) {
@@ -828,6 +832,11 @@ function dashboardPropertyFromRecord(
     billingPeriodRemainingCents,
     amountOwedCents: billingPeriodRemainingCents,
     creditBalanceCents: record.creditBalanceCents,
+    expectedPaymentCents: expectedPaymentAmount({
+      creditBalanceCents: record.creditBalanceCents,
+      nextDueAmountCents: nextDue?.amountDueCents ?? null,
+      rentCents: record.rentCents,
+    }),
   };
 }
 
@@ -949,6 +958,7 @@ export function getDemoPropertyDetails(
       currentRent: deriveCurrentRentSummary({
         creditBalanceCents: record.creditBalanceCents,
         emailLogs: successfulEmailLogs,
+        payments: ledgerPayments,
         periods: ledgerPeriods,
       }),
       ledger: deriveRentLedger({

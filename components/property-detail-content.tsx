@@ -1,12 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ComponentProps } from "react";
+import { useRouter } from "next/navigation";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 
 import { deletePayment } from "@/app/(dashboard)/payments/actions";
 import { updatePropertyDetails } from "@/app/(dashboard)/properties/[id]/actions";
+import {
+  updateLeaseNote,
+  type InlineEditState,
+} from "@/app/(dashboard)/properties/[id]/actions";
 import { PropertyDetailsEditor } from "@/components/property-inline-editors";
-import { formatMoney } from "@/lib/lease-math";
 import {
   formatShortDate,
   formatShortMonth,
@@ -15,6 +25,7 @@ import {
 import type { PropertyDetailData } from "@/lib/property-details";
 
 type DetailsEditorProps = ComponentProps<typeof PropertyDetailsEditor>;
+type NoteAction = typeof updateLeaseNote;
 
 const badgeClass = {
   PAID: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -22,7 +33,12 @@ const badgeClass = {
 };
 
 function currency(cents: number) {
-  return `$${formatMoney(cents)}`;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
 }
 
 function methodLabel(method: string | null) {
@@ -30,10 +46,6 @@ function methodLabel(method: string | null) {
     return "No method";
   }
   return method.charAt(0) + method.slice(1).toLowerCase();
-}
-
-function rowAmount(row: RentLedgerRow) {
-  return `${row.kind === "payment" ? "+" : ""}${currency(row.amountCents)}`;
 }
 
 function PaymentDeleteForm({
@@ -88,6 +100,87 @@ function PaymentDeleteForm({
   );
 }
 
+function LeaseNote({
+  action,
+  leaseId,
+  note,
+  propertyId,
+}: {
+  action: NoteAction;
+  leaseId: string;
+  note: string | null;
+  propertyId: string;
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [state, formAction, pending] = useActionState(
+    action.bind(null, propertyId, leaseId),
+    { error: null, saved: false } satisfies InlineEditState,
+  );
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+    }
+  }, [editing]);
+
+  useEffect(() => {
+    if (state.saved) {
+      setEditing(false);
+      router.refresh();
+    }
+  }, [router, state.saved]);
+
+  if (!editing) {
+    return (
+      <button
+        className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-700 shadow-sm hover:border-zinc-300 hover:bg-zinc-50"
+        onClick={() => setEditing(true)}
+        type="button"
+      >
+        {note?.trim() || "Add a note"}
+        <span className="ml-2 text-xs font-medium text-zinc-500">Edit</span>
+      </button>
+    );
+  }
+
+  return (
+    <form
+      action={formAction}
+      className="rounded-xl border border-zinc-300 bg-white p-3 shadow-sm"
+    >
+      <textarea
+        className="min-h-24 w-full resize-y rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+        defaultValue={note ?? ""}
+        maxLength={1000}
+        name="notes"
+        placeholder="Add a short note for this lease"
+        ref={inputRef}
+      />
+      {state.error ? (
+        <p className="mt-2 text-sm text-red-700">{state.error}</p>
+      ) : null}
+      <div className="mt-2 flex justify-end gap-2">
+        <button
+          className="min-h-11 rounded-lg border border-zinc-300 px-4 text-sm font-medium"
+          onClick={() => setEditing(false)}
+          type="button"
+        >
+          Cancel
+        </button>
+        <button
+          className="min-h-11 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white"
+          disabled={pending}
+          type="submit"
+        >
+          {pending ? "Saving..." : "Save note"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function LedgerRow({
   deleteAction,
   propertyId,
@@ -101,67 +194,59 @@ function LedgerRow({
   row: RentLedgerRow;
   showActions: boolean;
 }) {
-  const editHref = `${returnHref}${returnHref.includes("?") ? "&" : "?"}editPayment=${
-    row.kind === "payment" ? row.paymentId : ""
-  }`;
-
   return (
-    <div className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[7rem_1fr_7rem_8rem] sm:items-start sm:gap-4">
-      <div className="text-zinc-500">{formatShortDate(row.date)}</div>
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-medium text-zinc-950">{row.activity}</p>
-          {row.kind === "charge" ? (
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
-              {row.status}
-            </span>
-          ) : null}
+    <details className="group px-4 py-3 text-sm">
+      <summary className="grid min-h-11 cursor-pointer list-none gap-1 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-4">
+        <span className="font-medium text-zinc-950">{row.activity}</span>
+        <span className="text-zinc-600">{row.context}</span>
+      </summary>
+      {row.payments.length > 0 ? (
+        <div className="mt-2 grid gap-2 border-t border-zinc-100 pt-3">
+          {row.payments.map((payment) => {
+            const editHref = `${returnHref}${returnHref.includes("?") ? "&" : "?"}editPayment=${payment.id}`;
+            return (
+              <div
+                className="flex flex-col gap-2 rounded-lg bg-zinc-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                key={payment.id}
+              >
+                <p className="text-zinc-600">
+                  {currency(payment.amountCents)} received{" "}
+                  {formatShortDate(payment.receivedAt)}
+                  {payment.paymentMethod
+                    ? ` · ${methodLabel(payment.paymentMethod)}`
+                    : ""}
+                </p>
+                {showActions ? (
+                  <div className="flex items-center gap-3">
+                    <Link
+                      className="inline-flex min-h-11 items-center font-medium text-zinc-700"
+                      href={editHref}
+                    >
+                      Edit payment
+                    </Link>
+                    <PaymentDeleteForm
+                      action={deleteAction}
+                      paymentId={payment.id}
+                      propertyId={propertyId}
+                      returnHref={returnHref}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
-        <p className="mt-0.5 text-zinc-600">{row.context}</p>
-        {row.kind === "payment" ? (
-          <p className="mt-1 text-xs text-zinc-500">
-            {methodLabel(row.paymentMethod)}
-            {row.paymentMemo ? `, Memo: ${row.paymentMemo}` : ", No memo"}
-          </p>
-        ) : null}
-      </div>
-      <div
-        className={`font-semibold ${
-          row.kind === "payment" ? "text-emerald-700" : "text-zinc-950"
-        }`}
-      >
-        {rowAmount(row)}
-      </div>
-      {row.kind === "payment" && showActions ? (
-        <details className="group justify-self-start sm:justify-self-end">
-          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-lg px-1 text-sm font-medium text-zinc-700 hover:text-zinc-950">
-            Actions
-          </summary>
-          <div className="mt-1 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-sm">
-            <Link
-              className="inline-flex min-h-11 items-center text-sm font-medium text-zinc-700 hover:text-zinc-950"
-              href={editHref}
-            >
-              Edit
-            </Link>
-            <PaymentDeleteForm
-              action={deleteAction}
-              paymentId={row.paymentId}
-              propertyId={propertyId}
-              returnHref={returnHref}
-            />
-          </div>
-        </details>
       ) : (
-        <span className="hidden sm:block" />
+        <p className="pb-1 text-zinc-500">No payment recorded for this month.</p>
       )}
-    </div>
+    </details>
   );
 }
 
 export function PropertyDetailContent({
   detail,
   detailsAction,
+  noteAction = updateLeaseNote,
   logPaymentHref,
   newLeaseHref,
   onLogPayment,
@@ -173,6 +258,7 @@ export function PropertyDetailContent({
 }: {
   detail: PropertyDetailData;
   detailsAction?: DetailsEditorProps["action"];
+  noteAction?: NoteAction;
   logPaymentHref?: string;
   newLeaseHref?: string;
   onLogPayment?: () => void;
@@ -264,20 +350,20 @@ export function PropertyDetailContent({
         </div>
       </header>
 
-      <section className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Current rent
-          </p>
-          <p className="mt-2 text-sm font-medium text-zinc-700">
+      <section className="mt-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
+          <div>
+          <p className="text-sm font-medium text-zinc-700">
             {currentRent
               ? formatShortMonth(currentRent.billingMonth)
               : "Not tracked this month"}
           </p>
-          <p className="mt-1 text-3xl font-semibold tracking-tight text-zinc-950">
+          <p className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
             {currentRent?.badge === "UNPAID"
               ? `${currency(currentRent.amountRemainingCents)} remaining`
-              : "Paid"}
+              : currentRent?.paidAt
+                ? `Paid ${formatShortDate(currentRent.paidAt)}`
+                : "Paid"}
           </p>
           {currentRent?.successfulEmailActivity ? (
             <p className="mt-2 text-sm text-zinc-600">
@@ -285,13 +371,9 @@ export function PropertyDetailContent({
               {formatShortDate(currentRent.successfulEmailActivity.sentAt)}
             </p>
           ) : null}
-        </div>
-
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Tenant and lease
-          </p>
-          <p className="mt-2 font-semibold text-zinc-950">
+          </div>
+          <div>
+          <p className="font-semibold text-zinc-950">
             {lease.tenant.name}
           </p>
           <p className="mt-1 text-sm text-zinc-600">
@@ -301,8 +383,10 @@ export function PropertyDetailContent({
             className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-zinc-700 hover:text-zinc-950"
             href={remindersHref ?? `/email?property=${detail.id}`}
           >
-            View reminders for this property
+            Tenant email settings
           </Link>
+          </div>
+        </div>
           <dl className="mt-3 grid grid-cols-2 gap-3 border-t border-zinc-100 pt-3 text-sm">
             <div>
               <dt className="text-zinc-500">Monthly rent</dt>
@@ -319,27 +403,23 @@ export function PropertyDetailContent({
               </dd>
             </div>
           </dl>
-        </div>
       </section>
 
-      {lease.notes ? (
-        <section className="mt-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Operational note
-          </p>
-          <p className="mt-2 text-sm leading-6 text-zinc-700">{lease.notes}</p>
-        </section>
-      ) : null}
+      <div className="mt-4">
+        <LeaseNote
+          action={noteAction}
+          leaseId={lease.id}
+          note={lease.notes}
+          propertyId={detail.id}
+        />
+      </div>
 
       <section className="mt-6">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-950">
-              Rent activity
+              Monthly rent history
             </h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Charges and payment transactions in one account history.
-            </p>
           </div>
           {lease.ledger.length > 8 ? (
             <button

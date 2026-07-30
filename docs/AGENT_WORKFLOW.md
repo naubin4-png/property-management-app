@@ -48,7 +48,7 @@ Examples:
 
 - "The email address does not respond when tapped on mobile."
 - "This button does nothing."
-- "The Add Check modal closes without saving."
+- "The Record payment modal closes without saving."
 
 Route:
 
@@ -84,7 +84,7 @@ Use when the business goal is clear but the product behavior is not.
 
 Examples:
 
-- "Make reminders smarter."
+- "Make tenant emails easier to understand."
 - "Help me see who needs follow-up."
 - "Make this easier for friends to understand."
 
