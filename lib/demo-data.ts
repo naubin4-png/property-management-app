@@ -64,6 +64,7 @@ export type DemoNoteSimulation = {
 };
 
 export type DemoSessionState = {
+  createdLease: string | null;
   deletedPaymentIds: string[];
   detailEdits: Record<
     string,
@@ -87,6 +88,7 @@ export type DemoSessionState = {
 };
 
 export type DemoCreatedLeaseInput = {
+  id?: string;
   propertyName: string;
   tenantName: string;
   tenantEmail: string | null;
@@ -96,6 +98,7 @@ export type DemoCreatedLeaseInput = {
 };
 
 type EncodedDemoLease = {
+  id?: string;
   propertyName: string;
   tenantName: string;
   tenantEmail: string | null;
@@ -145,12 +148,19 @@ export function getDemoNoteSimulation(query: {
 
 export function parseDemoSessionState(value?: string): DemoSessionState {
   if (!value) {
-    return { deletedPaymentIds: [], detailEdits: {}, payments: [] };
+    return {
+      createdLease: null,
+      deletedPaymentIds: [],
+      detailEdits: {},
+      payments: [],
+    };
   }
 
   try {
     const parsed = JSON.parse(value) as Partial<DemoSessionState>;
     return {
+      createdLease:
+        typeof parsed.createdLease === "string" ? parsed.createdLease : null,
       deletedPaymentIds: Array.isArray(parsed.deletedPaymentIds)
         ? parsed.deletedPaymentIds.filter((id): id is string => typeof id === "string")
         : [],
@@ -170,7 +180,12 @@ export function parseDemoSessionState(value?: string): DemoSessionState {
         : [],
     };
   } catch {
-    return { deletedPaymentIds: [], detailEdits: {}, payments: [] };
+    return {
+      createdLease: null,
+      deletedPaymentIds: [],
+      detailEdits: {},
+      payments: [],
+    };
   }
 }
 
@@ -198,6 +213,7 @@ function slugify(value: string) {
 
 export function encodeDemoCreatedLease(input: DemoCreatedLeaseInput) {
   const payload: EncodedDemoLease = {
+    id: input.id,
     propertyName: input.propertyName,
     tenantName: input.tenantName,
     tenantEmail: input.tenantEmail,
@@ -211,18 +227,15 @@ export function encodeDemoCreatedLease(input: DemoCreatedLeaseInput) {
 
 export function buildDemoCreatedLeaseRedirectParams({
   currentMonth,
-  demoLease,
   firstPeriodMonth,
   propertyId,
 }: {
   currentMonth: Date;
-  demoLease: string;
   firstPeriodMonth: Date;
   propertyId: string;
 }) {
   const params = new URLSearchParams({
     demoSaved: "property",
-    demoLease,
   });
 
   if (firstPeriodMonth.getTime() === currentMonth.getTime()) {
@@ -264,7 +277,10 @@ export function getDemoCreatedLease(query: {
       return null;
     }
 
-    const id = `demo-created-${slugify(payload.propertyName) || "lease"}`;
+    const id =
+      payload.id && /^[a-z0-9-]{1,80}$/.test(payload.id)
+        ? payload.id
+        : `demo-created-${slugify(payload.propertyName) || "lease"}`;
     const coversCurrent =
       firstTrackedMonth <= demoBillingPeriod &&
       (!lastTrackedMonth || lastTrackedMonth >= demoBillingPeriod);
@@ -828,6 +844,7 @@ function dashboardPropertyFromRecord(
         }
       : null,
     billingPeriodMonth: billingPeriod?.periodMonth ?? demoBillingPeriod,
+    billingPeriodAmountDueCents: billingPeriod?.amountDueCents ?? 0,
     billingPeriodPaidAt,
     billingPeriodRemainingCents,
     amountOwedCents: billingPeriodRemainingCents,
@@ -878,7 +895,8 @@ export function getDemoDashboardData(
         (total, property) =>
           total +
           Math.max(
-            (property.rentCents ?? 0) - property.billingPeriodRemainingCents,
+            property.billingPeriodAmountDueCents -
+              property.billingPeriodRemainingCents,
             0,
           ),
         0,

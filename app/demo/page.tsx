@@ -36,11 +36,13 @@ export const dynamic = "force-dynamic";
 
 function DemoSuccessBanner({ value }: { value?: string }) {
   const messages: Record<string, string> = {
-    payment: "Demo payment saved. Sample data resets on reload.",
-    check: "Demo payment saved. Sample data resets on reload.",
-    "deleted-payment": "Demo payment deleted. Sample data resets on reload.",
-    "deleted-check": "Demo payment deleted. Sample data resets on reload.",
-    property: "Demo lease created. Sample data resets on reload.",
+    payment: "Demo payment saved temporarily for this browser session.",
+    check: "Demo payment saved temporarily for this browser session.",
+    "deleted-payment":
+      "Demo payment deleted temporarily for this browser session.",
+    "deleted-check":
+      "Demo payment deleted temporarily for this browser session.",
+    property: "Demo lease created temporarily for this browser session.",
   };
   const message = value ? messages[value] : null;
 
@@ -81,7 +83,9 @@ export default async function DemoPage({
   );
   const paymentSimulation = getDemoPaymentSimulation(query);
   const noteSimulation = getDemoNoteSimulation(query);
-  const createdLease = getDemoCreatedLease(query);
+  const createdLease = getDemoCreatedLease({
+    demoLease: demoSession.createdLease ?? query.demoLease,
+  });
   const { properties, needsAttention, allGood, summary } =
     getDemoDashboardData(
       paymentSimulation,
@@ -99,9 +103,6 @@ export default async function DemoPage({
       )
     : null;
   const queryState = new URLSearchParams();
-  if (query.demoLease) {
-    queryState.set("demoLease", query.demoLease);
-  }
   if (query.noteProperty && query.note !== undefined) {
     queryState.set("noteProperty", query.noteProperty);
     queryState.set("note", query.note);

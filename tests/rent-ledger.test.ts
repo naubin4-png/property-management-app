@@ -67,6 +67,13 @@ describe("monthly rent history derivation", () => {
       ],
       payments: [
         {
+          id: "jun-payment",
+          receivedAt: date("2026-06-03"),
+          amountCents: 520000,
+          paymentMethod: "ACH",
+          notes: null,
+        },
+        {
           id: "partial",
           receivedAt: date("2026-07-10"),
           amountCents: 310000,
@@ -82,6 +89,13 @@ describe("monthly rent history derivation", () => {
     assert.equal(july?.status, "Partially paid");
     assert.equal(july?.context, "Partially paid Jul 10 · $2,100 remaining");
     assert.deepEqual(july?.payments.map((payment) => payment.id), ["partial"]);
+    assert.deepEqual(
+      july?.payments.map((payment) => ({
+        appliedCents: payment.appliedCents,
+        transactionAmountCents: payment.transactionAmountCents,
+      })),
+      [{ appliedCents: 310000, transactionAmountCents: 310000 }],
+    );
   });
 
   it("represents one advance payment on every month it covers", () => {
@@ -119,20 +133,36 @@ describe("monthly rent history derivation", () => {
       ledger.map((row) => ({
         activity: row.activity,
         context: row.context,
-        payments: row.payments.map((payment) => payment.id),
+        payments: row.payments.map((payment) => ({
+          appliedCents: payment.appliedCents,
+          id: payment.id,
+          transactionAmountCents: payment.transactionAmountCents,
+        })),
         status: row.status,
       })),
       [
         {
           activity: "August 2026",
           context: "Paid Jul 4 · $3,250",
-          payments: ["bulk"],
+          payments: [
+            {
+              appliedCents: 325000,
+              id: "bulk",
+              transactionAmountCents: 650000,
+            },
+          ],
           status: "Paid",
         },
         {
           activity: "July 2026",
           context: "Paid Jul 4 · $3,250",
-          payments: ["bulk"],
+          payments: [
+            {
+              appliedCents: 325000,
+              id: "bulk",
+              transactionAmountCents: 650000,
+            },
+          ],
           status: "Paid",
         },
       ],
@@ -173,8 +203,133 @@ describe("monthly rent history derivation", () => {
     const august = ledger.find((row) => row.id === "month:aug");
     assert.equal(august?.context, "Partially paid Jul 15 · $2,500 remaining");
     assert.deepEqual(
-      august?.payments.map((payment) => payment.id),
-      ["shared"],
+      august?.payments.map((payment) => ({
+        appliedCents: payment.appliedCents,
+        id: payment.id,
+        transactionAmountCents: payment.transactionAmountCents,
+      })),
+      [
+        {
+          appliedCents: 150000,
+          id: "shared",
+          transactionAmountCents: 550000,
+        },
+      ],
+    );
+  });
+
+  it("shows each partial transaction only where its dollars were applied", () => {
+    const ledger = deriveRentLedger({
+      creditBalanceCents: 90000,
+      today: date("2026-07-30"),
+      periods: [
+        {
+          id: "jun",
+          periodMonth: month("2026-06"),
+          amountDueCents: 100000,
+          status: PeriodStatus.PENDING,
+          paymentId: null,
+        },
+        {
+          id: "jul",
+          periodMonth: month("2026-07"),
+          amountDueCents: 100000,
+          status: PeriodStatus.PENDING,
+          paymentId: null,
+        },
+      ],
+      payments: [
+        {
+          id: "second",
+          createdAt: date("2026-07-30"),
+          receivedAt: date("2026-07-30"),
+          amountCents: 50000,
+          paymentMethod: "WIRE",
+          notes: null,
+        },
+        {
+          id: "first",
+          createdAt: date("2026-07-29"),
+          receivedAt: date("2026-07-30"),
+          amountCents: 40000,
+          paymentMethod: "ACH",
+          notes: null,
+        },
+      ],
+    });
+
+    const june = ledger.find((row) => row.id === "month:jun");
+    const july = ledger.find((row) => row.id === "month:jul");
+
+    assert.deepEqual(
+      june?.payments.map((payment) => ({
+        appliedCents: payment.appliedCents,
+        id: payment.id,
+      })),
+      [
+        { appliedCents: 40000, id: "first" },
+        { appliedCents: 50000, id: "second" },
+      ],
+    );
+    assert.deepEqual(july?.payments, []);
+  });
+
+  it("preserves another payment's recorded month after an earlier payment is edited", () => {
+    const ledger = deriveRentLedger({
+      creditBalanceCents: 50000,
+      today: date("2026-08-30"),
+      periods: [
+        {
+          id: "jul",
+          periodMonth: month("2026-07"),
+          amountDueCents: 100000,
+          status: PeriodStatus.PENDING,
+          paymentId: null,
+        },
+        {
+          id: "aug",
+          periodMonth: month("2026-08"),
+          amountDueCents: 100000,
+          status: PeriodStatus.RECEIVED,
+          paymentId: "aug-payment",
+        },
+      ],
+      payments: [
+        {
+          id: "edited-jul-payment",
+          createdAt: date("2026-07-01"),
+          receivedAt: date("2026-07-01"),
+          amountCents: 50000,
+          paymentMethod: "ACH",
+          notes: null,
+        },
+        {
+          id: "aug-payment",
+          createdAt: date("2026-08-01"),
+          receivedAt: date("2026-08-01"),
+          amountCents: 100000,
+          paymentMethod: "WIRE",
+          notes: null,
+        },
+      ],
+    });
+
+    const july = ledger.find((row) => row.id === "month:jul");
+    const august = ledger.find((row) => row.id === "month:aug");
+
+    assert.deepEqual(
+      july?.payments.map((payment) => ({
+        appliedCents: payment.appliedCents,
+        id: payment.id,
+      })),
+      [{ appliedCents: 50000, id: "edited-jul-payment" }],
+    );
+    assert.deepEqual(
+      august?.payments.map((payment) => ({
+        appliedCents: payment.appliedCents,
+        id: payment.id,
+      })),
+      [{ appliedCents: 100000, id: "aug-payment" }],
     );
   });
 
