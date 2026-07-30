@@ -13,9 +13,11 @@ function createMockTransaction({
   lastPeriodMonth,
   payments: initialPayments = [],
   periods = [],
+  rentCents = 100000,
 }: {
   lastPeriodMonth: Date | null;
   payments?: Array<{ id: string; amountCents: number }>;
+  rentCents?: number;
   periods?: Array<{
     id: string;
     periodMonth: Date;
@@ -28,7 +30,7 @@ function createMockTransaction({
     id: "lease-1",
     firstPeriodMonth: month("2026-07"),
     lastPeriodMonth,
-    rentCents: 100000,
+    rentCents,
   };
   const payments: Array<{ id: string; amountCents: number }> = [
     ...initialPayments,
@@ -275,6 +277,70 @@ describe("payment allocation", () => {
           month: "2026-08",
           paymentId: null,
           status: PeriodStatus.PENDING,
+        },
+      ],
+    );
+  });
+
+  it("reallocates against historical period rent after the lease rent changes", async () => {
+    const { paymentPeriods, tx } = createMockTransaction({
+      lastPeriodMonth: null,
+      rentCents: 120000,
+      payments: [
+        { id: "earlier-payment", amountCents: 50000 },
+        { id: "edited-payment", amountCents: 150000 },
+      ],
+      periods: [
+        {
+          id: "jul",
+          periodMonth: month("2026-07"),
+          amountDueCents: 100000,
+          status: PeriodStatus.RECEIVED,
+          paymentId: "edited-payment",
+        },
+      ],
+    });
+
+    (tx as {
+      payment: {
+        update: (input: {
+          data: { amountCents: number };
+          where: { id: string };
+        }) => Promise<{ id: string; amountCents: number }>;
+      };
+    }).payment.update = async ({ data, where }) => {
+      return { id: where.id, amountCents: data.amountCents };
+    };
+
+    await allocatePayment(
+      tx as never,
+      {
+        workspaceId: "workspace-1",
+        currentMonth: month("2026-07"),
+        leaseId: "lease-1",
+        amountCents: 50000,
+        receivedAt: new Date("2026-07-20T00:00:00.000Z"),
+        paymentMethod: "CHECK",
+        paymentReference: null,
+        notes: null,
+        clientRequestId: "historical-edit",
+      },
+      "edited-payment",
+    );
+
+    assert.deepEqual(
+      paymentPeriods.map((period) => ({
+        amountDueCents: period.amountDueCents,
+        month: period.periodMonth.toISOString().slice(0, 7),
+        paymentId: period.paymentId,
+        status: period.status,
+      })),
+      [
+        {
+          amountDueCents: 100000,
+          month: "2026-07",
+          paymentId: "edited-payment",
+          status: PeriodStatus.RECEIVED,
         },
       ],
     );
