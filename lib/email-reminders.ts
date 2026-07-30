@@ -4,6 +4,7 @@ import {
   Prisma,
   TriggerType,
 } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 
 import { formatMoney, formatMonth } from "@/lib/lease-math";
 import { prisma } from "@/lib/prisma";
@@ -146,8 +147,8 @@ const defaultReminderProcessingDeps: ReminderProcessingDeps = {
     });
   },
   async markAccepted(id, resendMessageId) {
-    await prisma.emailLog.update({
-      where: { id },
+    await prisma.emailLog.updateMany({
+      where: { id, status: EmailDeliveryStatus.PROCESSING },
       data: {
         resendMessageId,
         error: null,
@@ -208,6 +209,7 @@ export async function processReminderPeriods(
     }
 
     let log: ExistingEmailLog;
+    let isRetry = false;
     try {
       const existingLog = await deps.findExistingLog({
         workspaceId,
@@ -228,6 +230,7 @@ export async function processReminderPeriods(
           continue;
         }
         log = existingLog;
+        isRetry = true;
       } else {
         log = await deps.createProcessingLog({
           workspaceId,
@@ -245,7 +248,9 @@ export async function processReminderPeriods(
           toAddress: tenant.email,
           subject,
           body,
-          idempotencyKey: log.id,
+          idempotencyKey: isRetry
+            ? `${log.id}:retry:${randomUUID()}`
+            : log.id,
           replyToEmail,
         });
         await deps.markAccepted(log.id, result.id);

@@ -73,6 +73,7 @@ function deps(options: {
     markAccepted: 0,
     claimFailedLog: 0,
     sendEmail: 0,
+    idempotencyKeys: [] as string[],
   };
 
   return {
@@ -96,8 +97,9 @@ function deps(options: {
         calls.claimFailedLog += 1;
         return options.claimSucceeds ?? true;
       },
-      async sendEmail() {
+      async sendEmail(input: { idempotencyKey: string }) {
         calls.sendEmail += 1;
+        calls.idempotencyKeys.push(input.idempotencyKey);
         if (options.sendFails) {
           throw new Error("Mailbox unavailable");
         }
@@ -177,6 +179,7 @@ describe("email reminder delivery processing", () => {
     assert.equal(setup.calls.sendEmail, 1);
     assert.equal(setup.calls.markAccepted, 1);
     assert.equal(setup.calls.markFailed, 0);
+    assert.deepEqual(setup.calls.idempotencyKeys, ["log-new"]);
   });
 
   it("records failed provider responses without counting them as sent", async () => {
@@ -207,6 +210,11 @@ describe("email reminder delivery processing", () => {
     assert.deepEqual(retryResult, { sent: 1, failed: 0, skipped: 0 });
     assert.equal(retrySetup.calls.claimFailedLog, 1);
     assert.equal(retrySetup.calls.createProcessingLog, 0);
+    assert.equal(retrySetup.calls.idempotencyKeys.length, 1);
+    assert.match(
+      retrySetup.calls.idempotencyKeys[0],
+      /^log-failed:retry:[0-9a-f-]{36}$/,
+    );
 
     const dedupeSetup = deps({
       existing: { id: "log-sent", status: EmailDeliveryStatus.DELIVERED },
