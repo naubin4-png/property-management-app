@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase";
+import { safeAppDestination } from "@/lib/auth-redirect";
 
 function loginError(message: string): never {
   redirect(`/login?error=${encodeURIComponent(message)}`);
@@ -23,15 +24,18 @@ function approvedOrigin(candidate: string | null) {
   return candidate && allowed.has(candidate) ? candidate : configured ?? fallback;
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const headerStore = await headers();
   const origin = approvedOrigin(headerStore.get("origin"));
+  const next = safeAppDestination(formData.get("next")?.toString());
+  const callbackUrl = new URL("/auth/callback", origin);
+  callbackUrl.searchParams.set("next", next);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback?next=/`,
+      redirectTo: callbackUrl.toString(),
     },
   });
 

@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { redeemWorkspaceInvitation } from "@/lib/invitations";
-
-const approvedDestinations = new Set(["/", "/email", "/admin"]);
+import { safeAppDestination } from "@/lib/auth-redirect";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const requestedNext = requestUrl.searchParams.get("next") ?? "/";
-  const next = approvedDestinations.has(requestedNext) ? requestedNext : "/";
+  const next = safeAppDestination(requestUrl.searchParams.get("next"));
 
   if (code) {
     const supabase = await createSupabaseServerClient();

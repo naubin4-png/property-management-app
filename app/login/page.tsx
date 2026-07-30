@@ -1,12 +1,13 @@
 import { signInWithGoogle } from "./actions";
 import Link from "next/link";
+import { safeAppDestination } from "@/lib/auth-redirect";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6">
@@ -23,6 +24,11 @@ export default async function LoginPage({
         ) : null}
 
         <form action={signInWithGoogle} className="mt-6">
+          <input
+            name="next"
+            type="hidden"
+            value={safeAppDestination(next)}
+          />
           <button
             autoFocus
             className="h-11 w-full rounded-md bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
