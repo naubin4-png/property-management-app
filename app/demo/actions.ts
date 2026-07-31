@@ -139,6 +139,7 @@ export async function createDemoPropertyWithLease(
   });
   const { cookieStore, session } = await readDemoSession();
   session.createdLease = demoLease;
+  session.createdLeases = [...session.createdLeases, demoLease];
   writeDemoSession(cookieStore, session);
   const currentMonth = firstDayOfCurrentMonth();
   const params = buildDemoCreatedLeaseRedirectParams({
@@ -163,8 +164,9 @@ export async function logDemoPayment(
   const clientRequestId =
     String(formData.get("clientRequestId") ?? "").trim() ||
     `demo-payment-${Date.now()}`;
+  const createNewLease = formData.get("createNewLease") === "1";
 
-  if (!propertyId || !receivedAtValue) {
+  if ((!createNewLease && !propertyId) || !receivedAtValue) {
     return { error: "Lease, amount, and date received are required." };
   }
 
@@ -177,20 +179,57 @@ export async function logDemoPayment(
   }
 
   const { cookieStore, session } = await readDemoSession();
+  const existingPayment = session.payments.find(
+    (payment) => payment.id === clientRequestId,
+  );
+  let resolvedPropertyId = existingPayment?.propertyId ?? propertyId;
+
+  if (createNewLease && !existingPayment) {
+    const propertyName = String(formData.get("propertyName") ?? "").trim();
+    const tenantName = String(formData.get("tenantName") ?? "").trim();
+    const rentCents = parseDollarAmount(
+      String(formData.get("monthlyRent") ?? ""),
+    );
+    const firstPeriodMonth = parseMonth(
+      String(formData.get("firstPeriodMonth") ?? ""),
+    );
+
+    if (!propertyName || !tenantName || !rentCents || !firstPeriodMonth) {
+      return {
+        error: "Property, tenant, monthly rent, and rent month are required.",
+      };
+    }
+
+    resolvedPropertyId = `demo-created-${clientRequestId}`;
+    const encodedLease = encodeDemoCreatedLease({
+      id: resolvedPropertyId,
+      propertyName,
+      tenantName,
+      tenantEmail: null,
+      firstPeriodMonth,
+      lastPeriodMonth: null,
+      rentCents,
+    });
+    session.createdLease = encodedLease;
+    session.createdLeases = [...session.createdLeases, encodedLease];
+  }
+
   session.deletedPaymentIds = session.deletedPaymentIds.filter(
     (id) => id !== clientRequestId,
   );
-  session.payments = [
-    ...session.payments.filter((payment) => payment.id !== clientRequestId),
-    {
-      id: clientRequestId,
-      amountCents,
-      notes,
-      paymentMethod,
-      propertyId,
-      receivedAt: receivedAtValue,
-    },
-  ];
+  if (!existingPayment) {
+    session.payments = [
+      ...session.payments,
+      {
+        id: clientRequestId,
+        amountCents,
+        notes,
+        paymentMethod,
+        propertyId: resolvedPropertyId,
+        receivedAt: receivedAtValue,
+      },
+    ];
+  }
   writeDemoSession(cookieStore, session);
 
   const href = withParam(safeReturnHref(formData, "/demo"), "demoSaved", "payment");

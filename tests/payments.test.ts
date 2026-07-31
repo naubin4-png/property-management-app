@@ -214,6 +214,27 @@ describe("payment allocation", () => {
     );
   });
 
+  it("rejects overpayment beyond a fixed lease end", async () => {
+    const { tx } = createMockTransaction({
+      lastPeriodMonth: month("2026-07"),
+    });
+
+    await assert.rejects(
+      allocatePayment(tx as never, {
+        workspaceId: "workspace-1",
+        currentMonth: month("2026-07"),
+        leaseId: "lease-1",
+        amountCents: 200000,
+        receivedAt: new Date("2026-07-10T00:00:00.000Z"),
+        paymentMethod: "CHECK",
+        paymentReference: null,
+        notes: null,
+        clientRequestId: "fixed-overpayment",
+      }),
+      /exceeds remaining rent/,
+    );
+  });
+
   it("reallocates an edited payment and reopens no-longer-covered periods", async () => {
     const { paymentPeriods, tx } = createMockTransaction({
       lastPeriodMonth: null,

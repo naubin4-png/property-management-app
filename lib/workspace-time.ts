@@ -22,6 +22,10 @@ export function workspaceCalendarDate(now: Date, timeZone: string) {
   return new Date(Date.UTC(values.year, values.month - 1, values.day));
 }
 
+export function workspaceDateInputValue(now: Date, timeZone: string) {
+  return workspaceCalendarDate(now, timeZone).toISOString().slice(0, 10);
+}
+
 export function firstDayOfWorkspaceMonth(now: Date, timeZone: string) {
   const localDate = workspaceCalendarDate(now, timeZone);
   return new Date(

@@ -4,7 +4,8 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { parseDollarAmount } from "@/lib/lease-periods";
+import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
+import { createLeaseWithPaymentIdempotently } from "@/lib/payment-first-lease";
 import {
   allocatePayment,
   isRetryableTransactionError,
@@ -32,13 +33,14 @@ function safeReturnHref(formData: FormData, fallback: string) {
 }
 
 function parsePaymentInput(formData: FormData) {
+  const createNewLease = formData.get("createNewLease") === "1";
   const propertyId = String(formData.get("propertyId") ?? "");
   const amountCents = parseDollarAmount(String(formData.get("amount") ?? ""));
   const receivedAtValue = String(formData.get("receivedAt") ?? "");
   const receivedAt = new Date(`${receivedAtValue}T00:00:00.000Z`);
   const clientRequestId = String(formData.get("clientRequestId") ?? "");
 
-  if (!propertyId || !receivedAtValue || !clientRequestId) {
+  if ((!createNewLease && !propertyId) || !receivedAtValue || !clientRequestId) {
     throw new Error("Lease, amount, and date received are required.");
   }
 
@@ -51,6 +53,7 @@ function parsePaymentInput(formData: FormData) {
   }
 
   return {
+    createNewLease,
     propertyId,
     amountCents,
     receivedAt,
@@ -96,55 +99,88 @@ export async function logPayment(
           clientRequestId: input.clientRequestId,
         },
       },
+      select: { lease: { select: { propertyId: true } } },
     });
+    let propertyId = existing?.lease.propertyId ?? input.propertyId;
 
     if (!existing) {
-      const lease = await findActiveLease(
-        input.propertyId,
-        workspaceId,
-        currentMonth,
-      );
-      if (!lease) {
-        throw new Error("The selected lease is no longer active.");
-      }
-
-      try {
-        await prisma.$transaction(
-          (tx) =>
-            allocatePayment(tx, {
-              workspaceId,
-              currentMonth,
-              leaseId: lease.id,
-              amountCents: input.amountCents,
-              receivedAt: input.receivedAt,
-              paymentMethod: input.paymentMethod,
-              paymentReference: input.paymentReference,
-              notes: input.notes,
-              clientRequestId: input.clientRequestId,
-            }),
-          transactionOptions,
+      if (input.createNewLease) {
+        const propertyName = String(formData.get("propertyName") ?? "").trim();
+        const tenantName = String(formData.get("tenantName") ?? "").trim();
+        const rentCents = parseDollarAmount(
+          String(formData.get("monthlyRent") ?? ""),
         );
-      } catch (error) {
-        if (!isRetryableTransactionError(error)) {
-          throw error;
+        const firstPeriodMonth = parseMonth(
+          String(formData.get("firstPeriodMonth") ?? ""),
+        );
+
+        if (!propertyName || !tenantName || !rentCents || !firstPeriodMonth) {
+          throw new Error(
+            "Property, tenant, monthly rent, and rent month are required.",
+          );
         }
 
-        const duplicate = await prisma.payment.findUnique({
-          where: {
-            workspaceId_clientRequestId: {
-              workspaceId,
-              clientRequestId: input.clientRequestId,
-            },
-          },
+        const created = await createLeaseWithPaymentIdempotently(prisma, {
+          workspaceId,
+          currentMonth,
+          propertyName,
+          tenantName,
+          firstPeriodMonth,
+          rentCents,
+          amountCents: input.amountCents,
+          receivedAt: input.receivedAt,
+          paymentMethod: input.paymentMethod,
+          clientRequestId: input.clientRequestId,
         });
-        if (!duplicate) {
-          throw error;
+        propertyId = created.propertyId;
+      } else {
+        const lease = await findActiveLease(
+          input.propertyId,
+          workspaceId,
+          currentMonth,
+        );
+        if (!lease) {
+          throw new Error("The selected lease is no longer active.");
+        }
+
+        try {
+          await prisma.$transaction(
+            (tx) =>
+              allocatePayment(tx, {
+                workspaceId,
+                currentMonth,
+                leaseId: lease.id,
+                amountCents: input.amountCents,
+                receivedAt: input.receivedAt,
+                paymentMethod: input.paymentMethod,
+                paymentReference: input.paymentReference,
+                notes: input.notes,
+                clientRequestId: input.clientRequestId,
+              }),
+            transactionOptions,
+          );
+        } catch (error) {
+          if (!isRetryableTransactionError(error)) {
+            throw error;
+          }
+
+          const duplicate = await prisma.payment.findUnique({
+            where: {
+              workspaceId_clientRequestId: {
+                workspaceId,
+                clientRequestId: input.clientRequestId,
+              },
+            },
+          });
+          if (!duplicate) {
+            throw error;
+          }
         }
       }
     }
 
     revalidatePath("/");
-    revalidatePath(`/properties/${input.propertyId}`);
+    revalidatePath(`/properties/${propertyId}`);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unable to record payment.",

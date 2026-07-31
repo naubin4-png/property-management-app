@@ -12,6 +12,7 @@ import { PropertyPanel } from "@/components/property-panel";
 import { getDashboardData } from "@/lib/dashboard";
 import { getPropertyDetails } from "@/lib/property-details";
 import { getWorkspaceContext } from "@/lib/workspace-context";
+import { workspaceDateInputValue } from "@/lib/workspace-time";
 
 import { logPayment } from "./payments/actions";
 import { createPropertyWithLease } from "./properties/actions";
@@ -59,6 +60,7 @@ export default async function DashboardPage({
     <>
       <DashboardView
         allGood={allGood}
+        emptyPaymentHref="/?addCheck=1"
         needsAttention={needsAttention}
         propertyBaseHref="/?property="
         summary={summary}
@@ -111,6 +113,7 @@ export default async function DashboardPage({
           action={logPayment}
           clientRequestId={randomUUID()}
           closeHref={query.property ? `/?property=${query.property}` : "/"}
+          defaultReceivedAt={workspaceDateInputValue(new Date(), timezone)}
           properties={paymentProperties}
           selectedPropertyId={query.propertyId}
         />

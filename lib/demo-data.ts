@@ -12,6 +12,7 @@ import {
   expectedPaymentAmount,
 } from "@/lib/rent-ledger";
 import { forecastPaymentAllocation } from "@/lib/payment-forecast";
+import { enumerateLeaseMonths } from "@/lib/lease-periods";
 
 type DemoPeriodStatus = "PENDING" | "RECEIVED" | "LATE";
 
@@ -66,6 +67,7 @@ export type DemoNoteSimulation = {
 
 export type DemoSessionState = {
   createdLease: string | null;
+  createdLeases: string[];
   deletedPaymentIds: string[];
   detailEdits: Record<
     string,
@@ -151,6 +153,7 @@ export function parseDemoSessionState(value?: string): DemoSessionState {
   if (!value) {
     return {
       createdLease: null,
+      createdLeases: [],
       deletedPaymentIds: [],
       detailEdits: {},
       payments: [],
@@ -159,9 +162,17 @@ export function parseDemoSessionState(value?: string): DemoSessionState {
 
   try {
     const parsed = JSON.parse(value) as Partial<DemoSessionState>;
+    const legacyCreatedLease =
+      typeof parsed.createdLease === "string" ? parsed.createdLease : null;
     return {
-      createdLease:
-        typeof parsed.createdLease === "string" ? parsed.createdLease : null,
+      createdLease: legacyCreatedLease,
+      createdLeases: Array.isArray(parsed.createdLeases)
+        ? parsed.createdLeases.filter(
+            (lease): lease is string => typeof lease === "string",
+          )
+        : legacyCreatedLease
+          ? [legacyCreatedLease]
+          : [],
       deletedPaymentIds: Array.isArray(parsed.deletedPaymentIds)
         ? parsed.deletedPaymentIds.filter((id): id is string => typeof id === "string")
         : [],
@@ -183,6 +194,7 @@ export function parseDemoSessionState(value?: string): DemoSessionState {
   } catch {
     return {
       createdLease: null,
+      createdLeases: [],
       deletedPaymentIds: [],
       detailEdits: {},
       payments: [],
@@ -282,12 +294,11 @@ export function getDemoCreatedLease(query: {
       payload.id && /^[a-z0-9-]{1,80}$/.test(payload.id)
         ? payload.id
         : `demo-created-${slugify(payload.propertyName) || "lease"}`;
-    const coversCurrent =
-      firstTrackedMonth <= demoBillingPeriod &&
-      (!lastTrackedMonth || lastTrackedMonth >= demoBillingPeriod);
-    const visiblePeriodMonth = coversCurrent
-      ? demoBillingPeriod
-      : firstTrackedMonth;
+    const periodMonths = enumerateLeaseMonths({
+      firstPeriodMonth: firstTrackedMonth,
+      lastPeriodMonth: lastTrackedMonth,
+      minimumThrough: demoBillingPeriod,
+    });
 
     return {
       id,
@@ -301,14 +312,12 @@ export function getDemoCreatedLease(query: {
       note: "",
       creditBalanceCents: 0,
       latestEmail: null,
-      periods: [
-        {
-          id: `${id}-${visiblePeriodMonth.toISOString().slice(0, 7)}`,
-          periodMonth: visiblePeriodMonth,
+      periods: periodMonths.map((periodMonth) => ({
+          id: `${id}-${periodMonth.toISOString().slice(0, 7)}`,
+          periodMonth,
           amountDueCents: rentCents,
-          status: coversCurrent ? "LATE" : "PENDING",
-        },
-      ],
+          status: periodMonth <= demoToday ? "LATE" : "PENDING",
+        })),
       payments: [],
     };
   } catch {
@@ -751,13 +760,17 @@ function applyDemoSession(
 
 function getRecords(
   simulation?: DemoPaymentSimulation | null,
-  createdLease?: DemoPropertyRecord | null,
+  createdLease?: DemoPropertyRecord | DemoPropertyRecord[] | null,
   noteSimulation?: DemoNoteSimulation | null,
   session?: DemoSessionState | null,
 ) {
   const records = cloneRecords();
-  if (createdLease) {
-    records.push(cloneRecord(createdLease));
+  for (const lease of Array.isArray(createdLease)
+    ? createdLease
+    : createdLease
+      ? [createdLease]
+      : []) {
+    records.push(cloneRecord(lease));
   }
 
   return applyDemoSession(
@@ -884,7 +897,7 @@ function periodStatus(period: DemoPeriod): PropertyPeriodStatus {
 
 export function getDemoDashboardData(
   simulation?: DemoPaymentSimulation | null,
-  createdLease?: DemoPropertyRecord | null,
+  createdLease?: DemoPropertyRecord | DemoPropertyRecord[] | null,
   noteSimulation?: DemoNoteSimulation | null,
   session?: DemoSessionState | null,
 ) {
@@ -925,7 +938,7 @@ export function getDemoDashboardData(
 export function getDemoPropertyDetails(
   propertyId: string,
   simulation?: DemoPaymentSimulation | null,
-  createdLease?: DemoPropertyRecord | null,
+  createdLease?: DemoPropertyRecord | DemoPropertyRecord[] | null,
   noteSimulation?: DemoNoteSimulation | null,
   session?: DemoSessionState | null,
 ): PropertyDetailData | null {
