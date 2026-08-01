@@ -355,6 +355,7 @@ export function PropertyTable({
 export function DashboardView({
   allGood,
   emptyActionHref = "/?addProperty=1",
+  emptyPaymentHref = "/?addCheck=1",
   needsAttention,
   onAddProperty,
   onOpenProperty,
@@ -363,6 +364,7 @@ export function DashboardView({
 }: {
   allGood: DashboardViewProperty[];
   emptyActionHref?: string;
+  emptyPaymentHref?: string;
   needsAttention: DashboardViewProperty[];
   onAddProperty?: () => void;
   onOpenProperty?: (propertyId: string) => void;
@@ -387,22 +389,30 @@ export function DashboardView({
             Add a property, tenant, and rent details. This dashboard will show
             what has been paid and what still needs your attention.
           </p>
-          {onAddProperty ? (
-            <button
-              className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
-              onClick={onAddProperty}
-              type="button"
-            >
-              Add lease
-            </button>
-          ) : (
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <Link
-              className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
-              href={emptyActionHref}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
+              href={emptyPaymentHref}
             >
-              Add lease
+              Record first payment
             </Link>
-          )}
+            {onAddProperty ? (
+              <button
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+                onClick={onAddProperty}
+                type="button"
+              >
+                Add lease
+              </button>
+            ) : (
+              <Link
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+                href={emptyActionHref}
+              >
+                Add lease
+              </Link>
+            )}
+          </div>
         </section>
       ) : (
         <div className="mt-6">

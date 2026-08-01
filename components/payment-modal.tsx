@@ -15,6 +15,15 @@ import {
   forecastPaymentAllocation,
   type PaymentForecastInput,
 } from "@/lib/payment-forecast";
+import {
+  NEW_LEASE_OPTION,
+  formatRentMonth,
+  initialPaymentFirstFormState,
+  updatePaymentFirstAmount,
+  updatePaymentFirstMonthlyRent,
+  updatePaymentFirstReceivedAt,
+  updatePaymentFirstRentMonth,
+} from "@/lib/payment-first-form";
 
 export type PaymentPropertyOption = {
   id: string;
@@ -55,6 +64,7 @@ export function PaymentModal({
   payment,
   returnHref,
   onClose,
+  defaultReceivedAt,
 }: {
   properties: PaymentPropertyOption[];
   action: PaymentAction;
@@ -64,12 +74,18 @@ export function PaymentModal({
   payment?: EditablePayment;
   returnHref?: string;
   onClose?: () => void;
+  defaultReceivedAt?: string;
 }) {
   const [state, formAction, isPending] = useActionState(
     action,
     initialState,
   );
   const [propertyId, setPropertyId] = useState(selectedPropertyId ?? "");
+  const initialReceivedAt =
+    payment
+      ? dateInputValue(payment.receivedAt)
+      : defaultReceivedAt ?? dateInputValue(new Date());
+  const [receivedAt, setReceivedAt] = useState(initialReceivedAt);
   const [amount, setAmount] = useState(
     payment
       ? (payment.amountCents / 100).toFixed(2)
@@ -82,14 +98,25 @@ export function PaymentModal({
           return expectedCents > 0 ? (expectedCents / 100).toFixed(2) : "";
         })(),
   );
+  const [paymentFirst, setPaymentFirst] = useState(() =>
+    initialPaymentFirstFormState(initialReceivedAt, amount),
+  );
+  const [showRentMonthPicker, setShowRentMonthPicker] = useState(false);
   const propertyRef = useRef<HTMLSelectElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const selectedProperty = properties.find(
     (property) => property.id === propertyId,
   );
+  const creatingLease = !payment && propertyId === NEW_LEASE_OPTION;
   function selectProperty(nextPropertyId: string) {
     setPropertyId(nextPropertyId);
     if (payment) {
+      return;
+    }
+    if (nextPropertyId === NEW_LEASE_OPTION) {
+      setPaymentFirst((current) =>
+        initialPaymentFirstFormState(current.receivedAt, amount),
+      );
       return;
     }
     const nextProperty = properties.find(
@@ -98,6 +125,14 @@ export function PaymentModal({
     const expectedCents =
       nextProperty?.expectedPaymentCents ?? nextProperty?.rentCents ?? 0;
     setAmount(expectedCents > 0 ? (expectedCents / 100).toFixed(2) : "");
+  }
+  function changeAmount(nextAmount: string) {
+    setAmount(nextAmount);
+    if (creatingLease) {
+      setPaymentFirst((current) =>
+        updatePaymentFirstAmount(current, nextAmount),
+      );
+    }
   }
   const paymentSummary = useMemo(() => {
     const amountCents = Math.round(Number(amount) * 100);
@@ -242,7 +277,7 @@ export function PaymentModal({
             Lease
             <select
               className="h-11 rounded-md border border-zinc-300 bg-white px-3 font-normal"
-              defaultValue={selectedPropertyId ?? ""}
+              value={propertyId}
               disabled={Boolean(payment)}
               name={payment ? undefined : "propertyId"}
               onChange={(event) => selectProperty(event.target.value)}
@@ -257,10 +292,62 @@ export function PaymentModal({
                   {property.name}
                 </option>
               ))}
+              {!payment ? (
+                <option value={NEW_LEASE_OPTION}>+ Add new lease</option>
+              ) : null}
             </select>
           </label>
           {payment ? (
             <input name="propertyId" type="hidden" value={selectedPropertyId} />
+          ) : null}
+          {creatingLease ? (
+            <>
+              <input name="createNewLease" type="hidden" value="1" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-1.5 text-sm font-medium text-zinc-800 sm:col-span-2">
+                  Property or unit name
+                  <input
+                    autoFocus
+                    className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
+                    enterKeyHint="next"
+                    name="propertyName"
+                    required
+                    type="text"
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
+                  Tenant name
+                  <input
+                    className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
+                    enterKeyHint="next"
+                    name="tenantName"
+                    required
+                    type="text"
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium text-zinc-800">
+                  Monthly rent
+                  <input
+                    className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
+                    inputMode="decimal"
+                    min="0.01"
+                    name="monthlyRent"
+                    onChange={(event) =>
+                      setPaymentFirst((current) =>
+                        updatePaymentFirstMonthlyRent(
+                          current,
+                          event.target.value,
+                        ),
+                      )
+                    }
+                    required
+                    step="0.01"
+                    type="number"
+                    value={paymentFirst.monthlyRent}
+                  />
+                </label>
+              </div>
+            </>
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -273,7 +360,7 @@ export function PaymentModal({
                 inputMode="decimal"
                 min="0.01"
                 name="amount"
-                onChange={(event) => setAmount(event.target.value)}
+                onChange={(event) => changeAmount(event.target.value)}
                 placeholder="0.00"
                 required
                 ref={amountRef}
@@ -285,13 +372,71 @@ export function PaymentModal({
               Date Received
               <input
                 className="h-11 rounded-md border border-zinc-300 px-3 font-normal"
-                defaultValue={dateInputValue(payment?.receivedAt ?? new Date())}
+                onChange={(event) => {
+                  setReceivedAt(event.target.value);
+                  if (creatingLease) {
+                    setPaymentFirst((current) =>
+                      updatePaymentFirstReceivedAt(
+                        current,
+                        event.target.value,
+                      ),
+                    );
+                  }
+                }}
                 name="receivedAt"
                 required
                 type="date"
+                value={creatingLease ? paymentFirst.receivedAt : receivedAt}
               />
             </label>
           </div>
+
+          {creatingLease ? (
+            <div className="rounded-md bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+              <div className="flex min-h-11 items-center justify-between gap-3">
+                <span>
+                  Applying to{" "}
+                  <strong className="font-medium text-zinc-950">
+                    {formatRentMonth(paymentFirst.firstPeriodMonth)}
+                  </strong>{" "}
+                  rent
+                </span>
+                <button
+                  className="min-h-11 px-2 text-sm font-medium text-zinc-700 underline underline-offset-4"
+                  onClick={() => setShowRentMonthPicker(true)}
+                  type="button"
+                >
+                  Change
+                </button>
+              </div>
+              {showRentMonthPicker ? (
+                <label className="mt-2 grid gap-1.5 font-medium text-zinc-800">
+                  First rent month
+                  <input
+                    className="h-11 rounded-md border border-zinc-300 bg-white px-3 font-normal"
+                    name="firstPeriodMonth"
+                    onChange={(event) =>
+                      setPaymentFirst((current) =>
+                        updatePaymentFirstRentMonth(
+                          current,
+                          event.target.value,
+                        ),
+                      )
+                    }
+                    required
+                    type="month"
+                    value={paymentFirst.firstPeriodMonth}
+                  />
+                </label>
+              ) : (
+                <input
+                  name="firstPeriodMonth"
+                  type="hidden"
+                  value={paymentFirst.firstPeriodMonth}
+                />
+              )}
+            </div>
+          ) : null}
 
           {paymentSummary ? (
             <p className="rounded-md bg-zinc-50 px-3 py-2 text-sm text-zinc-700">

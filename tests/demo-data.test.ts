@@ -180,6 +180,90 @@ describe("demo dashboard state", () => {
     assert.equal(lease?.tenantEmail, "private@example.com");
   });
 
+  it("keeps multiple payment-first leases in the same demo session", () => {
+    const encodedLeases = ["First Demo Unit", "Second Demo Unit"].map(
+      (propertyName, index) =>
+        encodeDemoCreatedLease({
+          id: `demo-created-${index + 1}`,
+          propertyName,
+          tenantName: `Tenant ${index + 1}`,
+          tenantEmail: null,
+          firstPeriodMonth: new Date("2026-07-01T00:00:00.000Z"),
+          lastPeriodMonth: null,
+          rentCents: 100000,
+        }),
+    );
+    const session = parseDemoSessionState(
+      JSON.stringify({ createdLeases: encodedLeases }),
+    );
+    const leases = session.createdLeases
+      .map((demoLease) => getDemoCreatedLease({ demoLease }))
+      .filter((lease) => lease !== null);
+    const dashboard = getDemoDashboardData(null, leases, null, session);
+
+    assert.ok(card("First Demo Unit", dashboard.properties));
+    assert.ok(card("Second Demo Unit", dashboard.properties));
+  });
+
+  it("preserves backdated arrears and payment allocation in demo session state", () => {
+    const createdLease = getDemoCreatedLease({
+      demoLease: encodeDemoCreatedLease({
+        id: "demo-created-arrears",
+        propertyName: "Arrears Unit",
+        tenantName: "Arrears Tenant",
+        tenantEmail: null,
+        firstPeriodMonth: new Date("2026-05-01T00:00:00.000Z"),
+        lastPeriodMonth: null,
+        rentCents: 100000,
+      }),
+    });
+    assert.ok(createdLease);
+    const session = parseDemoSessionState(
+      JSON.stringify({
+        createdLease: encodeDemoCreatedLease({
+          id: "demo-created-arrears",
+          propertyName: "Arrears Unit",
+          tenantName: "Arrears Tenant",
+          tenantEmail: null,
+          firstPeriodMonth: new Date("2026-05-01T00:00:00.000Z"),
+          lastPeriodMonth: null,
+          rentCents: 100000,
+        }),
+        payments: [
+          {
+            id: "request-arrears",
+            amountCents: 250000,
+            notes: null,
+            paymentMethod: "ACH",
+            propertyId: "demo-created-arrears",
+            receivedAt: "2026-07-20",
+          },
+        ],
+      }),
+    );
+
+    const detail = getDemoPropertyDetails(
+      createdLease.id,
+      null,
+      createdLease,
+      null,
+      session,
+    );
+
+    assert.deepEqual(
+      detail?.activeLease?.periods.map((period) => [
+        period.periodMonth.toISOString().slice(0, 7),
+        period.status,
+      ]),
+      [
+        ["2026-05", "RECEIVED"],
+        ["2026-06", "RECEIVED"],
+        ["2026-07", "LATE"],
+      ],
+    );
+    assert.equal(detail?.activeLease?.creditBalanceCents, 50000);
+  });
+
   it("opens future-start demo leases because they do not need a current-month payment prompt", () => {
     const params = buildDemoCreatedLeaseRedirectParams({
       currentMonth: new Date("2026-07-01T00:00:00.000Z"),
@@ -314,6 +398,7 @@ describe("demo dashboard state", () => {
   it("applies session-scoped demo detail edits and payment deletion to the shared detail model", () => {
     const session: DemoSessionState = {
       createdLease: null,
+      createdLeases: [],
       deletedPaymentIds: ["lakeview-retail-july-partial"],
       payments: [],
       detailEdits: {
@@ -357,6 +442,7 @@ describe("demo dashboard state", () => {
   it("makes the saved demo edit match its reversed-payment forecast", () => {
     const session: DemoSessionState = {
       createdLease: null,
+      createdLeases: [],
       deletedPaymentIds: [],
       detailEdits: {},
       payments: [

@@ -5,6 +5,7 @@ import {
   firstDayOfWorkspaceMonth,
   isValidTimeZone,
   workspaceCalendarDate,
+  workspaceDateInputValue,
 } from "../lib/workspace-time";
 
 describe("workspace calendar boundaries", () => {
@@ -40,5 +41,14 @@ describe("workspace calendar boundaries", () => {
   it("validates IANA timezones", () => {
     assert.equal(isValidTimeZone("America/New_York"), true);
     assert.equal(isValidTimeZone("Not/A_Timezone"), false);
+  });
+
+  it("formats the default received date in the workspace timezone", () => {
+    const instant = new Date("2026-08-01T03:30:00.000Z");
+    assert.equal(
+      workspaceDateInputValue(instant, "America/New_York"),
+      "2026-07-31",
+    );
+    assert.equal(workspaceDateInputValue(instant, "UTC"), "2026-08-01");
   });
 });

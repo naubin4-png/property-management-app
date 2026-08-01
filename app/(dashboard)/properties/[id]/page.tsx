@@ -11,6 +11,7 @@ import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { getPropertyDetails } from "@/lib/property-details";
 import { expectedPaymentAmount } from "@/lib/rent-ledger";
 import { getWorkspaceContext } from "@/lib/workspace-context";
+import { workspaceDateInputValue } from "@/lib/workspace-time";
 
 import { logPayment } from "../../payments/actions";
 
@@ -66,6 +67,7 @@ export default async function PropertyDetailPage({
           action={logPayment}
           clientRequestId={randomUUID()}
           closeHref={`/properties/${detail.id}`}
+          defaultReceivedAt={workspaceDateInputValue(new Date(), timezone)}
           properties={[
             {
               id: detail.id,

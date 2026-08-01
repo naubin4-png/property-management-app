@@ -15,6 +15,7 @@ import {
 } from "@/lib/demo-data";
 import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { expectedPaymentAmount } from "@/lib/rent-ledger";
+import { workspaceDateInputValue } from "@/lib/workspace-time";
 
 import {
   deleteDemoPayment,
@@ -53,11 +54,18 @@ export default async function DemoPropertyDetailPage({
   );
   const paymentSimulation = getDemoPaymentSimulation(query);
   const noteSimulation = getDemoNoteSimulation(query);
-  const createdLease = getDemoCreatedLease(query);
+  const createdLeases = [
+    ...demoSession.createdLeases,
+    ...(demoSession.createdLeases.length === 0 && query.demoLease
+      ? [query.demoLease]
+      : []),
+  ]
+    .map((demoLease) => getDemoCreatedLease({ demoLease }))
+    .filter((lease) => lease !== null);
   const detail = getDemoPropertyDetails(
     id,
     paymentSimulation,
-    createdLease,
+    createdLeases,
     noteSimulation,
     demoSession,
   );
@@ -112,6 +120,7 @@ export default async function DemoPropertyDetailPage({
           action={logDemoPayment}
           clientRequestId={randomUUID()}
           closeHref={detailHref}
+          defaultReceivedAt={workspaceDateInputValue(new Date(), "America/New_York")}
           properties={[
             {
               id: detail.id,

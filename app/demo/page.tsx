@@ -17,6 +17,7 @@ import {
   parseDemoSessionState,
 } from "@/lib/demo-data";
 import { expectedPaymentAmount } from "@/lib/rent-ledger";
+import { workspaceDateInputValue } from "@/lib/workspace-time";
 
 import {
   createDemoPropertyWithLease,
@@ -83,13 +84,18 @@ export default async function DemoPage({
   );
   const paymentSimulation = getDemoPaymentSimulation(query);
   const noteSimulation = getDemoNoteSimulation(query);
-  const createdLease = getDemoCreatedLease({
-    demoLease: demoSession.createdLease ?? query.demoLease,
-  });
+  const createdLeases = [
+    ...demoSession.createdLeases,
+    ...(demoSession.createdLeases.length === 0 && query.demoLease
+      ? [query.demoLease]
+      : []),
+  ]
+    .map((demoLease) => getDemoCreatedLease({ demoLease }))
+    .filter((lease) => lease !== null);
   const { properties, needsAttention, allGood, summary } =
     getDemoDashboardData(
       paymentSimulation,
-      createdLease,
+      createdLeases,
       noteSimulation,
       demoSession,
     );
@@ -97,7 +103,7 @@ export default async function DemoPage({
     ? getDemoPropertyDetails(
         query.property,
         paymentSimulation,
-        createdLease,
+        createdLeases,
         noteSimulation,
         demoSession,
       )
@@ -142,6 +148,7 @@ export default async function DemoPage({
       <DashboardView
         allGood={allGood}
         emptyActionHref="/demo?addProperty=1"
+        emptyPaymentHref="/demo?addCheck=1"
         needsAttention={needsAttention}
         propertyBaseHref={propertyBaseHref}
         summary={summary}
@@ -196,6 +203,7 @@ export default async function DemoPage({
           action={logDemoPayment}
           clientRequestId={randomUUID()}
           closeHref={query.property ? selectedPropertyHref : demoBase}
+          defaultReceivedAt={workspaceDateInputValue(new Date(), "America/New_York")}
           properties={paymentProperties}
           returnHref={query.property ? selectedPropertyHref : demoBase}
           selectedPropertyId={query.propertyId ?? selectedProperty?.id}
