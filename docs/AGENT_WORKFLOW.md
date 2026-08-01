@@ -174,8 +174,16 @@ or used as a real email recipient.
 
 Use `docs/operations.md` for deployment, migration, backup/restore, cron
 diagnosis, OAuth, and emergency procedures. Treat missing retained backups or a
-Supabase plan that can pause for inactivity as a client-launch risk. Never add
-production database credentials to Preview deployments for QA.
+Supabase plan that can pause for inactivity as a client-launch risk.
+
+Preview deployments intentionally have no database access. Never add production
+database credentials to Preview deployments for QA. For changes with no schema
+migration, verification of the exact deployed demo plus automated transaction,
+workspace-isolation, idempotency, and allocation coverage may satisfy the
+pre-merge gate when it is followed by authenticated synthetic production QA.
+Changes involving migrations, database compatibility, or destructive data
+behavior remain blocked without an isolated, migration-capable verification
+environment.
 
 ## Question Policy
 
