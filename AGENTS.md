@@ -12,10 +12,6 @@ landlords. Treat this file as the automatic repository entrypoint.
 - [docs/operations.md](docs/operations.md) before provider, migration,
   production, backup, or authenticated-QA work.
 
-Use the installed Software Factory/gstack skill that matches the task for
-reusable planning, investigation, QA, review, shipping, and deployment
-procedure. Repository documentation contains only Property Manager contracts.
-
 ## Durable constraints
 
 - Use `pnpm`, Next.js App Router, strict TypeScript, Prisma, PostgreSQL on

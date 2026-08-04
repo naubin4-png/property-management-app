@@ -1,8 +1,6 @@
 # Operations
 
 This file contains Property Manager-specific commands and provider contracts.
-Use the installed Software Factory/gstack skills for generic review, PR,
-deployment, and QA procedure.
 
 ## Environments and required configuration
 

@@ -15,8 +15,8 @@ Production: <https://property-management-app-virid.vercel.app>
 - [Operations](docs/operations.md): deployment, migrations, providers, QA,
   backups, and incident controls
 
-These are the only durable project documents. Delivery procedure belongs to the
-installed Software Factory/gstack skills rather than this repository.
+These are the only durable project documents. Reusable software-delivery
+procedure is intentionally not duplicated in this repository.
 
 ## Local development
 
