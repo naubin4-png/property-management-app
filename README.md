@@ -1,28 +1,43 @@
-# Property Management App
+# Property Manager
 
-Commercial lease rent tracker for a single owner portfolio.
+Property Manager is an invite-only commercial rent tracker for small landlords.
+Each client signs in with Google and operates an isolated workspace containing
+its leases, monthly rent obligations, payments, notes, and tenant-email settings.
 
-## Stack
+Production: <https://property-management-app-virid.vercel.app>
 
-- Next.js 15 App Router
-- TypeScript
-- pnpm
-- Prisma with PostgreSQL on Supabase
-- Supabase Auth
-- shadcn/ui with Tailwind CSS
+## Documentation
 
-## Development
+- [AGENTS.md](AGENTS.md): automatic agent entrypoint and non-negotiable rules
+- [Product contract](docs/product.md): supported journeys and current language
+- [Architecture contract](docs/architecture.md): data, financial, auth, and
+  security invariants
+- [Operations](docs/operations.md): deployment, migrations, providers, QA,
+  backups, and incident controls
+
+These are the only durable project documents. Reusable software-delivery
+procedure is intentionally not duplicated in this repository.
+
+## Local development
+
+Requirements: Node.js, pnpm, PostgreSQL/Supabase configuration, and the variables
+documented in [Operations](docs/operations.md).
 
 ```bash
 pnpm install
+pnpm exec prisma validate
 pnpm dev
 ```
 
-The app runs at [http://localhost:3000](http://localhost:3000).
-
-## Database
+The app runs at <http://localhost:3000>. Useful verification commands:
 
 ```bash
-pnpm exec prisma validate
-pnpm exec prisma migrate dev
+pnpm test
+pnpm lint
+pnpm exec tsc --noEmit
+pnpm build
 ```
+
+Create development migrations with `pnpm exec prisma migrate dev`. Apply
+checked-in migrations to a deployed environment only through the procedure in
+[Operations](docs/operations.md).
