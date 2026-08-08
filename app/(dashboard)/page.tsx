@@ -12,7 +12,7 @@ import { PropertyPanel } from "@/components/property-panel";
 import { getDashboardData } from "@/lib/dashboard";
 import { getPropertyDetails } from "@/lib/property-details";
 import { getWorkspaceContext } from "@/lib/workspace-context";
-import { workspaceDateInputValue } from "@/lib/workspace-time";
+import { deriveWorkspaceBillingClock } from "@/lib/workspace-time";
 
 import { logPayment } from "./payments/actions";
 import { createPropertyWithLease } from "./properties/actions";
@@ -35,10 +35,16 @@ export default async function DashboardPage({
 }) {
   const query = await searchParams;
   const { workspaceId, timezone } = await getWorkspaceContext();
+  const requestClock = deriveWorkspaceBillingClock(new Date(), timezone);
   const { properties, needsAttention, allGood, summary } =
-    await getDashboardData(workspaceId, timezone);
+    await getDashboardData(workspaceId, timezone, requestClock.now);
   const selectedProperty = query.property
-    ? await getPropertyDetails(query.property, workspaceId, timezone)
+    ? await getPropertyDetails(
+        query.property,
+        workspaceId,
+        timezone,
+        requestClock.now,
+      )
     : null;
   const selectedLeaseCoversBillingMonth =
     selectedProperty?.activeLease &&
@@ -113,7 +119,7 @@ export default async function DashboardPage({
           action={logPayment}
           clientRequestId={randomUUID()}
           closeHref={query.property ? `/?property=${query.property}` : "/"}
-          defaultReceivedAt={workspaceDateInputValue(new Date(), timezone)}
+          defaultReceivedAt={requestClock.receivedAtDefault}
           properties={paymentProperties}
           selectedPropertyId={query.propertyId}
         />

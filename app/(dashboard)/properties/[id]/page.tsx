@@ -10,10 +10,7 @@ import { PropertyPanel } from "@/components/property-panel";
 import { getPropertyDetails } from "@/lib/property-details";
 import { expectedPaymentAmount } from "@/lib/rent-ledger";
 import { getWorkspaceContext } from "@/lib/workspace-context";
-import {
-  firstDayOfWorkspaceMonth,
-  workspaceDateInputValue,
-} from "@/lib/workspace-time";
+import { deriveWorkspaceBillingClock } from "@/lib/workspace-time";
 
 import { logPayment } from "../../payments/actions";
 
@@ -34,14 +31,20 @@ export default async function PropertyDetailPage({
   const { id } = await params;
   const query = await searchParams;
   const { workspaceId, timezone } = await getWorkspaceContext();
-  const detail = await getPropertyDetails(id, workspaceId, timezone);
+  const requestClock = deriveWorkspaceBillingClock(new Date(), timezone);
+  const detail = await getPropertyDetails(
+    id,
+    workspaceId,
+    timezone,
+    requestClock.now,
+  );
 
   if (!detail) {
     notFound();
   }
 
   const lease = detail.activeLease;
-  const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
+  const currentMonth = requestClock.currentMonth;
   const leaseCoversCurrentMonth =
     lease &&
     lease.firstPeriodMonth <= currentMonth &&
@@ -69,7 +72,7 @@ export default async function PropertyDetailPage({
           action={logPayment}
           clientRequestId={randomUUID()}
           closeHref={`/properties/${detail.id}`}
-          defaultReceivedAt={workspaceDateInputValue(new Date(), timezone)}
+          defaultReceivedAt={requestClock.receivedAtDefault}
           properties={[
             {
               id: detail.id,

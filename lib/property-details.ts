@@ -8,11 +8,7 @@ import {
   type CurrentRentSummary,
   type RentLedgerRow,
 } from "@/lib/rent-ledger";
-import {
-  firstDayOfNextWorkspaceMonth,
-  firstDayOfWorkspaceMonth,
-  workspaceCalendarDate,
-} from "@/lib/workspace-time";
+import { deriveWorkspaceBillingClock } from "@/lib/workspace-time";
 
 export type PropertyPeriodStatus = "RECEIVED" | "DUE" | "LATE" | "UPCOMING";
 
@@ -54,10 +50,13 @@ export type PropertyDetailData = {
 export async function getPropertyDetails(
   propertyId: string,
   workspaceId: string,
-  timeZone = "UTC",
+  timeZone: string,
+  now: Date,
 ): Promise<PropertyDetailData | null> {
-  const currentMonth = firstDayOfWorkspaceMonth(new Date(), timeZone);
-  const nextMonth = firstDayOfNextWorkspaceMonth(new Date(), timeZone);
+  const { currentMonth, nextMonth, today } = deriveWorkspaceBillingClock(
+    now,
+    timeZone,
+  );
   const property = await prisma.property.findFirst({
     where: { id: propertyId, workspaceId },
     include: {
@@ -93,7 +92,6 @@ export async function getPropertyDetails(
     return null;
   }
 
-  const today = workspaceCalendarDate(new Date(), timeZone);
   const activeLease =
     property.leases.find(
       (lease) => !lease.lastPeriodMonth || lease.lastPeriodMonth >= currentMonth,
