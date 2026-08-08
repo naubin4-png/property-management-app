@@ -9,6 +9,7 @@ import { AddCheckModal } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
 import {
+  demoReceivedAtDefault,
   getDemoDashboardData,
   getDemoCreatedLease,
   getDemoNoteSimulation,
@@ -17,7 +18,6 @@ import {
   parseDemoSessionState,
 } from "@/lib/demo-data";
 import { expectedPaymentAmount } from "@/lib/rent-ledger";
-import { workspaceDateInputValue } from "@/lib/workspace-time";
 
 import {
   createDemoPropertyWithLease,
@@ -203,7 +203,7 @@ export default async function DemoPage({
           action={logDemoPayment}
           clientRequestId={randomUUID()}
           closeHref={query.property ? selectedPropertyHref : demoBase}
-          defaultReceivedAt={workspaceDateInputValue(new Date(), "America/New_York")}
+          defaultReceivedAt={demoReceivedAtDefault()}
           properties={paymentProperties}
           returnHref={query.property ? selectedPropertyHref : demoBase}
           selectedPropertyId={query.propertyId ?? selectedProperty?.id}

@@ -8,10 +8,10 @@ import { redirect } from "next/navigation";
 import type { PaymentActionState } from "@/app/(dashboard)/payments/actions";
 import type { InlineEditState } from "@/app/(dashboard)/properties/[id]/actions";
 import type { AddPropertyActionState } from "@/app/(dashboard)/properties/actions";
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { parseDollarAmount, parseMonth } from "@/lib/lease-periods";
 import {
   buildDemoCreatedLeaseRedirectParams,
+  demoCurrentMonth,
   encodeDemoCreatedLease,
   parseDemoSessionState,
   type DemoSessionState,
@@ -141,7 +141,7 @@ export async function createDemoPropertyWithLease(
   session.createdLease = demoLease;
   session.createdLeases = [...session.createdLeases, demoLease];
   writeDemoSession(cookieStore, session);
-  const currentMonth = firstDayOfCurrentMonth();
+  const currentMonth = demoCurrentMonth();
   const params = buildDemoCreatedLeaseRedirectParams({
     currentMonth,
     firstPeriodMonth,
