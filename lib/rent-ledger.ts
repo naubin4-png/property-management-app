@@ -1,7 +1,5 @@
 import { PeriodStatus, TriggerType } from "@prisma/client";
 
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
-
 type LedgerPeriod = {
   id: string;
   periodMonth: Date;
@@ -216,13 +214,17 @@ export function formatShortDate(date: Date) {
 }
 
 export function deriveCurrentRentSummary({
-  billingMonth = firstDayOfCurrentMonth(),
+  billingMonth,
   creditBalanceCents,
   emailLogs,
   payments = [],
   periods,
 }: {
-  billingMonth?: Date;
+  // Required: the caller owns the authoritative billing month (workspace month
+  // in production, the frozen snapshot month in the demo). This function must
+  // never fall back to the system clock, or the panel drifts away from the
+  // dashboard as real time crosses a month boundary.
+  billingMonth: Date;
   creditBalanceCents: number;
   emailLogs: LedgerEmailLog[];
   payments?: LedgerPayment[];

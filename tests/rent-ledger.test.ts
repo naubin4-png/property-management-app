@@ -485,6 +485,7 @@ describe("monthly rent history derivation", () => {
 
   it("has no current rent summary for a future tracking-start lease", () => {
     const current = deriveCurrentRentSummary({
+      billingMonth: month("2026-07"),
       creditBalanceCents: 0,
       periods: [
         {

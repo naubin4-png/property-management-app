@@ -213,10 +213,6 @@ export function demoCurrentMonth() {
   return demoBillingPeriod;
 }
 
-export function demoCurrentDate() {
-  return demoToday;
-}
-
 // The date-received default for demo payment forms. Kept on the frozen demo
 // clock so a payment-first lease starts in the demo billing month, not the real
 // calendar month.
