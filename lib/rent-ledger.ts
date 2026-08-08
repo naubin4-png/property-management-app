@@ -216,17 +216,18 @@ export function formatShortDate(date: Date) {
 }
 
 export function deriveCurrentRentSummary({
+  billingMonth = firstDayOfCurrentMonth(),
   creditBalanceCents,
   emailLogs,
   payments = [],
   periods,
 }: {
+  billingMonth?: Date;
   creditBalanceCents: number;
   emailLogs: LedgerEmailLog[];
   payments?: LedgerPayment[];
   periods: LedgerPeriod[];
 }): CurrentRentSummary | null {
-  const billingMonth = firstDayOfCurrentMonth();
   const billingPeriod =
     periods.find(
       (period) => period.periodMonth.getTime() === billingMonth.getTime(),

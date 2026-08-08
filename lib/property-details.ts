@@ -137,6 +137,7 @@ export async function getPropertyDetails(
           notes: activeLease.notes,
           creditBalanceCents,
           currentRent: deriveCurrentRentSummary({
+            billingMonth: currentMonth,
             creditBalanceCents,
             emailLogs,
             payments: activeLease.payments,

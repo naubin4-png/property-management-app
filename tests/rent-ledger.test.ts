@@ -397,6 +397,7 @@ describe("monthly rent history derivation", () => {
 
   it("shows only successful reminder or late-notice activity in current rent", () => {
     const current = deriveCurrentRentSummary({
+      billingMonth: month("2026-07"),
       creditBalanceCents: 0,
       periods: [
         {
@@ -427,6 +428,59 @@ describe("monthly rent history derivation", () => {
       label: "Late notice sent",
       sentAt: date("2026-07-05"),
     });
+  });
+
+  it("resolves the billing period from the caller's month, not the system clock", () => {
+    // Regression: deriveCurrentRentSummary used to hardcode the real current
+    // month. Once the real clock rolled past the fixture month, the panel
+    // header stopped matching the dashboard (which passes the workspace month),
+    // and the same lease showed two different "current" months. The caller now
+    // owns the billing month, so a non-current fixture month still resolves.
+    const periods = [
+      {
+        id: "jun",
+        periodMonth: month("2026-06"),
+        amountDueCents: 400000,
+        status: PeriodStatus.RECEIVED,
+        paymentId: "june-payment",
+      },
+      {
+        id: "jul",
+        periodMonth: month("2026-07"),
+        amountDueCents: 400000,
+        status: PeriodStatus.LATE,
+        paymentId: null,
+      },
+    ];
+
+    const july = deriveCurrentRentSummary({
+      billingMonth: month("2026-07"),
+      creditBalanceCents: 0,
+      periods,
+      emailLogs: [],
+    });
+    assert.equal(july?.billingMonth.getTime(), month("2026-07").getTime());
+    assert.equal(july?.badge, "UNPAID");
+    assert.equal(july?.amountRemainingCents, 400000);
+
+    const june = deriveCurrentRentSummary({
+      billingMonth: month("2026-06"),
+      creditBalanceCents: 0,
+      periods,
+      emailLogs: [],
+    });
+    assert.equal(june?.billingMonth.getTime(), month("2026-06").getTime());
+    assert.equal(june?.badge, "PAID");
+
+    // A billing month with no matching period yields no summary, regardless of
+    // other unpaid history on the lease.
+    const august = deriveCurrentRentSummary({
+      billingMonth: month("2026-08"),
+      creditBalanceCents: 0,
+      periods,
+      emailLogs: [],
+    });
+    assert.equal(august, null);
   });
 
   it("has no current rent summary for a future tracking-start lease", () => {

@@ -7,11 +7,13 @@ import { NewLeaseModal } from "@/components/new-lease-modal";
 import { AddCheckModal } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { getPropertyDetails } from "@/lib/property-details";
 import { expectedPaymentAmount } from "@/lib/rent-ledger";
 import { getWorkspaceContext } from "@/lib/workspace-context";
-import { workspaceDateInputValue } from "@/lib/workspace-time";
+import {
+  firstDayOfWorkspaceMonth,
+  workspaceDateInputValue,
+} from "@/lib/workspace-time";
 
 import { logPayment } from "../../payments/actions";
 
@@ -39,7 +41,7 @@ export default async function PropertyDetailPage({
   }
 
   const lease = detail.activeLease;
-  const currentMonth = firstDayOfCurrentMonth();
+  const currentMonth = firstDayOfWorkspaceMonth(new Date(), timezone);
   const leaseCoversCurrentMonth =
     lease &&
     lease.firstPeriodMonth <= currentMonth &&

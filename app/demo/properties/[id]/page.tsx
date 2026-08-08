@@ -7,15 +7,15 @@ import { AddCheckModal } from "@/components/payment-modal";
 import { PropertyDetailContent } from "@/components/property-detail-content";
 import { PropertyPanel } from "@/components/property-panel";
 import {
+  demoCurrentMonth,
+  demoReceivedAtDefault,
   getDemoCreatedLease,
   getDemoNoteSimulation,
   getDemoPaymentSimulation,
   getDemoPropertyDetails,
   parseDemoSessionState,
 } from "@/lib/demo-data";
-import { firstDayOfCurrentMonth } from "@/lib/lease-math";
 import { expectedPaymentAmount } from "@/lib/rent-ledger";
-import { workspaceDateInputValue } from "@/lib/workspace-time";
 
 import {
   deleteDemoPayment,
@@ -75,7 +75,7 @@ export default async function DemoPropertyDetailPage({
   }
 
   const lease = detail.activeLease;
-  const currentMonth = firstDayOfCurrentMonth();
+  const currentMonth = demoCurrentMonth();
   const leaseCoversCurrentMonth =
     lease &&
     lease.firstPeriodMonth <= currentMonth &&
@@ -120,7 +120,7 @@ export default async function DemoPropertyDetailPage({
           action={logDemoPayment}
           clientRequestId={randomUUID()}
           closeHref={detailHref}
-          defaultReceivedAt={workspaceDateInputValue(new Date(), "America/New_York")}
+          defaultReceivedAt={demoReceivedAtDefault()}
           properties={[
             {
               id: detail.id,
