@@ -12,7 +12,8 @@ export default async function LoginPage({
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6">
       <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">Property Manager</h1>
+        <p className="mb-6 font-mono text-[11px] uppercase tracking-[.14em] text-zinc-500">Owner workspace</p>
+        <h1 className="font-serif text-3xl italic tracking-tight">Property Manager</h1>
         <p className="mt-2 text-sm text-zinc-600">
           Sign in to manage rent tracking and tenant emails.
         </p>
@@ -31,7 +32,7 @@ export default async function LoginPage({
           />
           <button
             autoFocus
-            className="h-11 w-full rounded-md bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+            className="h-11 w-full rounded-md bg-zinc-900 text-sm font-medium text-[#d9ef85] transition-colors hover:bg-zinc-800"
             type="submit"
           >
             Continue with Google

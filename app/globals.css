@@ -1,20 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --radius: 0.625rem;
+  --background: #f6f6f1;
+  --foreground: #17231f;
+  --radius: 0.25rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans: 'DM Sans', Arial, sans-serif;
+  --font-mono: 'DM Mono', monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'DM Sans', Arial, sans-serif;
 }
+
+/* Shared editorial skin. Existing utility classes remain in place so this is
+   presentation-only and does not alter component behavior or contracts. */
+.font-serif { font-family: 'Fraunces', Georgia, serif; }
+.font-mono { font-family: 'DM Mono', monospace; }
+[class~="bg-white"] { background-color: #fffefa; }
+[class~="bg-zinc-50"] { background-color: #f6f6f1; }
+[class~="bg-zinc-100"] { background-color: #eef2eb; }
+[class~="bg-zinc-900"] { background-color: #17231f; }
+[class~="text-zinc-950"], [class~="text-zinc-900"] { color: #17231f; }
+[class~="text-zinc-800"], [class~="text-zinc-700"] { color: #294039; }
+[class~="text-zinc-600"], [class~="text-zinc-500"] { color: #65736d; }
+[class~="text-zinc-400"] { color: #84918a; }
+[class~="border-zinc-200"], [class~="border-zinc-300"] { border-color: #dfe4dc; }
+[class~="border-zinc-100"] { border-color: #e8ece5; }
+[class~="shadow-sm"] { box-shadow: 0 10px 24px rgba(30, 44, 37, .055); }
+[class~="rounded-2xl"] { border-radius: 5px; }
+[class~="rounded-xl"], [class~="rounded-lg"], [class~="rounded-md"] { border-radius: 3px; }
+[class~="bg-emerald-500"] { background-color: #9fbd55; }
+[class~="bg-emerald-50"] { background-color: #eef4e8; }
+[class~="text-emerald-700"], [class~="text-emerald-800"], [class~="text-emerald-950"] { color: #486338; }
+[class~="border-emerald-200"] { border-color: #cbdab8; }
+[class~="bg-amber-50"] { background-color: #fff2df; }
+[class~="text-amber-800"], [class~="text-amber-900"] { color: #945b2a; }
+[class~="border-amber-200"] { border-color: #efd0a3; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #9fbd55; outline-offset: 2px; }

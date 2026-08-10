@@ -60,8 +60,8 @@ export function TopBar({
             className="inline-flex min-h-11 items-center font-semibold tracking-tight text-zinc-950"
             href={dashboardHref}
           >
-            <span>
-              Property Manager
+              <span className="font-serif text-lg italic sm:text-xl">
+                Property Manager
               {workspaceName ? (
                 <span className="ml-2 hidden text-xs font-normal text-zinc-500 sm:inline">
                   {workspaceName}
@@ -115,7 +115,7 @@ export function TopBar({
             )}
             {onAddCheck ? (
               <button
-                className={`${actionClass} bg-zinc-900 text-white hover:bg-zinc-800`}
+                  className={`${actionClass} bg-zinc-900 text-[#d9ef85] hover:bg-[#2d423a]`}
                 onClick={onAddCheck}
                 type="button"
               >
@@ -123,7 +123,7 @@ export function TopBar({
               </button>
             ) : (
               <Link
-                className={`${actionClass} bg-zinc-900 text-white hover:bg-zinc-800`}
+                className={`${actionClass} bg-zinc-900 text-[#d9ef85] hover:bg-[#2d423a]`}
                 href={resolvedAddCheckHref}
               >
                 Record payment

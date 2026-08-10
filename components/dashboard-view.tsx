@@ -160,9 +160,9 @@ export function MoneyBar({
     });
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+    <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 shadow-sm sm:px-5">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-950">
+        <h1 className="font-serif text-xl italic tracking-tight text-zinc-950">
           {formatMonthHeading(summary.billingPeriodMonth)}
         </h1>
         {activeLeaseCount > 0 ? (
