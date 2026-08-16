@@ -198,6 +198,11 @@ export async function allocatePayment(
     (total, period) => total + period.amountDueCents,
     0,
   );
+
+  if (lease.lastPeriodMonth && effectiveAmount > existingUnpaidCents) {
+    throw new Error("Payment exceeds remaining rent on this lease.");
+  }
+
   const additionalMonths = Math.floor(
     Math.max(effectiveAmount - existingUnpaidCents, 0) / lease.rentCents,
   );
@@ -255,6 +260,17 @@ export async function allocatePayment(
   }
 
   return payment;
+}
+
+export async function reversePaymentAllocations(
+  tx: Pick<TransactionClient, "paymentPeriod">,
+  paymentId: string,
+  workspaceId: string,
+) {
+  await tx.paymentPeriod.updateMany({
+    where: { paymentId, workspaceId },
+    data: { status: PeriodStatus.PENDING, paymentId: null },
+  });
 }
 
 export function isRetryableTransactionError(error: unknown) {

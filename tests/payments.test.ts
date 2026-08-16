@@ -4,7 +4,11 @@ import { describe, it } from "node:test";
 import { PeriodStatus } from "@prisma/client";
 
 import { forecastPaymentAllocation } from "../lib/payment-forecast";
-import { allocatePayment } from "../lib/payments";
+import {
+  allocatePayment,
+  reversePaymentAllocations,
+} from "../lib/payments";
+import { parseDollarAmount } from "../lib/lease-periods";
 
 function month(value: string) {
   return new Date(`${value}-01T00:00:00.000Z`);
@@ -149,7 +153,16 @@ function createMockTransaction({
     },
   };
 
-  return { createdPaymentInputs, paymentPeriods, tx };
+  return {
+    createdPaymentInputs,
+    paymentPeriods,
+    tx,
+    getCreditBalance: () =>
+      payments.reduce((total, payment) => total + payment.amountCents, 0) -
+      paymentPeriods
+        .filter((period) => period.status === PeriodStatus.RECEIVED)
+        .reduce((total, period) => total + period.amountDueCents, 0),
+  };
 }
 
 describe("payment allocation", () => {
@@ -186,6 +199,44 @@ describe("payment allocation", () => {
         clientRequestId: "partial",
       },
     ]);
+  });
+
+  it("asserts the numeric credit and consumes it on the next payment", async () => {
+    const allocation = createMockTransaction({
+      lastPeriodMonth: null,
+    });
+
+    await allocatePayment(allocation.tx as never, {
+      workspaceId: "workspace-1",
+      currentMonth: month("2026-07"),
+      leaseId: "lease-1",
+      amountCents: 150000,
+      receivedAt: new Date("2026-07-10T00:00:00.000Z"),
+      paymentMethod: "CHECK",
+      paymentReference: null,
+      notes: null,
+      clientRequestId: "surplus",
+    });
+
+    assert.equal(allocation.getCreditBalance(), 50000);
+
+    await allocatePayment(allocation.tx as never, {
+      workspaceId: "workspace-1",
+      currentMonth: month("2026-07"),
+      leaseId: "lease-1",
+      amountCents: 50000,
+      receivedAt: new Date("2026-08-10T00:00:00.000Z"),
+      paymentMethod: "CHECK",
+      paymentReference: null,
+      notes: null,
+      clientRequestId: "consumes-surplus",
+    });
+
+    assert.equal(allocation.getCreditBalance(), 0);
+    assert.deepEqual(
+      allocation.paymentPeriods.map((period) => period.status),
+      [PeriodStatus.RECEIVED, PeriodStatus.RECEIVED],
+    );
   });
 
   it("creates enough future periods for open-ended multi-month advance payments", async () => {
@@ -232,6 +283,106 @@ describe("payment allocation", () => {
         clientRequestId: "fixed-overpayment",
       }),
       /exceeds remaining rent/,
+    );
+  });
+
+  it("accepts the exact fixed-term balance but rejects one cent beyond it", async () => {
+    const exact = createMockTransaction({
+      lastPeriodMonth: month("2026-07"),
+    });
+    await allocatePayment(exact.tx as never, {
+      workspaceId: "workspace-1",
+      currentMonth: month("2026-07"),
+      leaseId: "lease-1",
+      amountCents: 100000,
+      receivedAt: new Date("2026-07-10T00:00:00.000Z"),
+      paymentMethod: "CHECK",
+      paymentReference: null,
+      notes: null,
+      clientRequestId: "fixed-exact",
+    });
+
+    const excess = createMockTransaction({
+      lastPeriodMonth: month("2026-07"),
+    });
+    await assert.rejects(
+      allocatePayment(excess.tx as never, {
+        workspaceId: "workspace-1",
+        currentMonth: month("2026-07"),
+        leaseId: "lease-1",
+        amountCents: 100001,
+        receivedAt: new Date("2026-07-10T00:00:00.000Z"),
+        paymentMethod: "CHECK",
+        paymentReference: null,
+        notes: null,
+        clientRequestId: "fixed-one-cent-excess",
+      }),
+      /exceeds remaining rent/,
+    );
+  });
+
+  it("rejects zero and negative amounts before persistence", async () => {
+    for (const amountCents of [0, -1]) {
+      const allocation = createMockTransaction({
+        lastPeriodMonth: null,
+      });
+      await assert.rejects(
+        allocatePayment(allocation.tx as never, {
+          workspaceId: "workspace-1",
+          currentMonth: month("2026-07"),
+          leaseId: "lease-1",
+          amountCents,
+          receivedAt: new Date("2026-07-10T00:00:00.000Z"),
+          paymentMethod: "CHECK",
+          paymentReference: null,
+          notes: null,
+          clientRequestId: `invalid-${amountCents}`,
+        }),
+        /greater than zero/,
+      );
+      assert.deepEqual(allocation.createdPaymentInputs, []);
+    }
+
+    assert.equal(parseDollarAmount("0"), null);
+    assert.equal(parseDollarAmount("-1"), null);
+  });
+
+  it("reopens every period covered by a deleted multi-month advance", async () => {
+    const allocation = createMockTransaction({
+      lastPeriodMonth: null,
+      periods: [
+        {
+          id: "jul",
+          periodMonth: month("2026-07"),
+          amountDueCents: 100000,
+          status: PeriodStatus.RECEIVED,
+          paymentId: "advance",
+        },
+        {
+          id: "aug",
+          periodMonth: month("2026-08"),
+          amountDueCents: 100000,
+          status: PeriodStatus.RECEIVED,
+          paymentId: "advance",
+        },
+      ],
+    });
+
+    await reversePaymentAllocations(
+      allocation.tx as never,
+      "advance",
+      "workspace-1",
+    );
+
+    assert.deepEqual(
+      allocation.paymentPeriods.map((period) => ({
+        status: period.status,
+        paymentId: period.paymentId,
+      })),
+      [
+        { status: PeriodStatus.PENDING, paymentId: null },
+        { status: PeriodStatus.PENDING, paymentId: null },
+      ],
     );
   });
 

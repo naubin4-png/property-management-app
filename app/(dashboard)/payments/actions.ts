@@ -9,6 +9,7 @@ import { createLeaseWithPaymentIdempotently } from "@/lib/payment-first-lease";
 import {
   allocatePayment,
   isRetryableTransactionError,
+  reversePaymentAllocations,
 } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace-context";
@@ -261,10 +262,7 @@ export async function deletePayment(
     if (!payment) {
       throw new Error("Payment not found.");
     }
-    await tx.paymentPeriod.updateMany({
-      where: { paymentId, workspaceId },
-      data: { status: "PENDING", paymentId: null },
-    });
+    await reversePaymentAllocations(tx, paymentId, workspaceId);
     await tx.payment.delete({ where: { id: paymentId, workspaceId } });
   }, transactionOptions);
 
