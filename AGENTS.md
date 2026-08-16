@@ -103,6 +103,10 @@ Conflict rules:
 ## Working Rules
 
 - Follow `docs/AGENT_WORKFLOW.md` for every product request.
+- Every mission starts with `git fetch` and states its position relative to
+  `origin/main` before any branch or schema decision.
+- Mission close-out: after deploy is verified, delete the mission's local and
+  remote branch. One mission, one branch, no survivors.
 - For user-facing requests, inspect the running product in the connected browser
   before asking questions or planning when browser access is available.
 - Use the repository and current behavior to answer questions before asking the
