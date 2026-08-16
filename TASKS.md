@@ -1,5 +1,7 @@
 # TASKS.md
 
+> HISTORICAL ARCHIVE. Do not execute anything in this file. Do not update it. Current instructions: AGENTS.md.
+
 > Historical note: Phase 2 is complete.
 >
 > This file is retained as the completed Phase 2 task plan. It is not an active
@@ -8,7 +10,7 @@
 >
 > For current agent workflow, use `AGENTS.md` and `docs/AGENT_WORKFLOW.md`.
 
-Active Phase 2 UI/UX redesign sequence. Complete tasks in order. After each
+Historical Phase 2 sequence (complete). Complete tasks in order. After each
 task, run `pnpm build`, verify the task in the browser, update `STATUS.md`,
 commit, and push to `main`.
 

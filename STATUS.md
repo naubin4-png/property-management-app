@@ -1,5 +1,7 @@
 # STATUS.md
 
+> HISTORICAL ARCHIVE. Do not execute anything in this file. Do not update it. Current instructions: AGENTS.md.
+
 > Historical note: original build and Phase 2 are complete.
 >
 > This file is retained as implementation history and verification evidence. It

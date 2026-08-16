@@ -396,12 +396,17 @@ describe("monthly rent history derivation", () => {
   });
 
   it("shows only successful reminder or late-notice activity in current rent", () => {
+    const now = new Date();
+    const currentMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+
     const current = deriveCurrentRentSummary({
       creditBalanceCents: 0,
       periods: [
         {
           id: "jul",
-          periodMonth: month("2026-07"),
+          periodMonth: currentMonth,
           amountDueCents: 400000,
           status: PeriodStatus.LATE,
           paymentId: null,
@@ -410,12 +415,16 @@ describe("monthly rent history derivation", () => {
       emailLogs: [
         {
           triggerType: TriggerType.RENT_REMINDER,
-          sentAt: date("2026-07-03"),
+          sentAt: new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 3),
+          ),
           error: "Mailbox unavailable",
         },
         {
           triggerType: TriggerType.LATE_NOTICE,
-          sentAt: date("2026-07-05"),
+          sentAt: new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 5),
+          ),
           error: null,
         },
       ],
@@ -425,7 +434,9 @@ describe("monthly rent history derivation", () => {
     assert.equal(current?.amountRemainingCents, 400000);
     assert.deepEqual(current?.successfulEmailActivity, {
       label: "Late notice sent",
-      sentAt: date("2026-07-05"),
+      sentAt: new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 5),
+      ),
     });
   });
 
