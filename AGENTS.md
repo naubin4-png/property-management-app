@@ -103,6 +103,11 @@ Conflict rules:
 ## Working Rules
 
 - Follow `docs/AGENT_WORKFLOW.md` for every product request.
+- Trivial changes (copy, styling, one-line fixes) can be made directly with a
+  conventional commit and do not need a mission file. Anything touching money,
+  auth, data isolation, or schema always gets a mission.
+- The Acceptance Check must be runnable: use specific commands or tests whose
+  output is the proof, not a prose description of what to confirm.
 - Every mission starts with `git fetch` and states its position relative to
   `origin/main` before any branch or schema decision.
 - Mission close-out: after deploy is verified, delete the mission's local and

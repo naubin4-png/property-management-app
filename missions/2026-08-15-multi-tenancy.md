@@ -1,5 +1,9 @@
 # Multi-tenancy Mission
 
+## Status
+
+Accepted; invitation walkthrough deferred pending manual test by owner.
+
 ## Acceptance Check
 - RLS enabled on every table; a direct anon-key query returns nothing
   from any table
