@@ -96,4 +96,4 @@ Not completed:
   Invitation behavior is covered by `tests/invitations.test.ts`, but the
   production browser flow remains unverified.
 
-Implementation commit SHA: `PENDING`
+Implementation commit SHA: `0075924`
