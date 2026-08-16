@@ -1,5 +1,7 @@
 # TASKS.md
 
+> HISTORICAL ARCHIVE. Do not execute anything in this file. Do not update it. Current instructions: AGENTS.md.
+
 Complete these tasks in order. Do not skip ahead. After completing each task, verify against the "Done when" checklist before committing. Then move to the next task.
 
 Full technical spec is in `docs/spec.md`. Reference it for schema details, allocation rules, cron logic, and UI specifications.

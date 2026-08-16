@@ -38,6 +38,7 @@ yarn-error.log*
 
 # ephemeral production QA authentication state
 /.qa/
+/.gstack/
 
 # typescript
 *.tsbuildinfo

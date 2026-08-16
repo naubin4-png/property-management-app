@@ -24,14 +24,14 @@ behavior.
 ### Desktop
 
 - Keep a compact top app bar with the Property Manager brand.
-- Dashboard and Tenant emails are persistent destinations.
-- Add and Log Payment remain primary actions.
+- Dashboard and Email are persistent destinations.
+- Add and Payment remain primary actions.
 - Avoid oversized page titles when the active destination is already clear.
 
 ### Mobile
 
 - No hamburger menu anywhere.
-- Use an always-visible bottom navigation/action bar with Dashboard, Tenant emails, Add,
+- Use an always-visible bottom navigation/action bar with Dashboard, Email, Add,
   and Payment destinations/actions.
 - The Property Manager brand remains in a compact top bar.
 - Respect `env(safe-area-inset-bottom)` and `env(safe-area-inset-top)`.
@@ -100,8 +100,8 @@ behavior.
   - tenant name and email
   - monthly rent, lease start, lease end
   - credit balance
-  - monthly rent history without future unpaid filler
-  - Log Payment
+  - currently due periods and upcoming periods
+  - Add Check
   - payment history with edit/delete controls
 - Content should be compact. Payment history should begin above the fold where
   possible, but small screens may scroll internally.
@@ -133,13 +133,11 @@ behavior.
 - Rent changes preserve the backend rule for updating eligible future periods.
 - Failed edits leave all related records unchanged and display a useful error.
 
-## Tenant Emails
+## Email
 
-- Tenant email settings use stacked, mobile-first cards rather than an admin
-  table. Rent reminder and Late notice controls determine whether tenant email
-  automation is enabled; there is no separate master checkbox.
-- Preserve existing timing controls, subject/body copy, recent logs, Server
-  Actions, and delivery behavior.
+- Email settings use stacked, mobile-first cards rather than an admin table.
+- Preserve existing timing toggles, numeric settings, subject/body copy, recent
+  logs, Server Actions, and cron behavior.
 - Recent email entries should be readable as compact activity cards on mobile.
 
 ## Demo
@@ -160,11 +158,11 @@ behavior.
 
 - `/` - authenticated dashboard and card overview
 - `/demo` - public demo using the shared app experience
-- `/email` - Tenant emails settings
+- `/email` - email settings
 - `/properties/[id]` - canonical asset detail route, presented with the shared
   detail panel/sheet treatment
 - `/?addProperty=1` - Add flow
-- `/?logPayment=1` - Log Payment flow
+- `/?addCheck=1` - Add Check flow
 - Existing lease routes may remain as direct fallbacks while inline panel editing
   is introduced.
 

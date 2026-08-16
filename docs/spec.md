@@ -4,27 +4,6 @@
 > allocation, credit handling, email, cron, and deployment.
 > UI/navigation/route behavior has been superseded by `docs/redesign.md`.
 
-## Client-readiness ownership addendum
-
-The platform is multi-workspace and invite-only. This section supersedes older
-single-owner and global-settings language elsewhere in this historical spec.
-
-- Every customer-owned row belongs to a `Workspace`.
-- Supabase users receive access only through `WorkspaceMembership`; the initial
-  role is `OWNER`, with `MEMBER` reserved for future collaboration.
-- Server code resolves the authenticated Supabase user and workspace. Browser
-  workspace IDs, user IDs, and ownership claims are never trusted.
-- `WorkspaceInvitation` is email-normalized, expiring, revocable, single-use,
-  and redeemed atomically from a verified Google identity.
-- `naubin4@gmail.com` is represented by its stable Supabase user UUID for
-  platform administration and separately owns `Developer Test Workspace`.
-  Platform-admin status does not grant customer-workspace membership.
-- `AppSettings`, reminder processing, and `EmailLog` are workspace-owned.
-- Browser-facing `anon` and `authenticated` database roles have no direct
-  application-table privileges. RLS is enabled as defense in depth; privileged
-  Prisma access still requires application-level workspace authorization.
-- The public demo uses session-local sample state and never application tables.
-
 ## Overview
 
 A simple web app for one owner to track rent across a portfolio of ~40–60 commercial leases. The owner cares about three things:
@@ -63,13 +42,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 RESEND_API_KEY=
 EMAIL_FROM=              # e.g. reminders@yourdomain.com — must match a verified Resend domain
-RESEND_WEBHOOK_SECRET=   # Resend webhook signing secret
 CRON_SECRET=
 ```
 
 ---
 
 ## Project Structure
+
+> Structure below is historical; old property/lease pages are now compatibility redirects, primary UX is shared modals/panels per docs/redesign.md.
 
 ```
 /
@@ -484,15 +464,14 @@ This is the heart of the app. **The owner never picks months.** He enters one do
 
 ---
 
-### 6. Tenant Emails
+### 6. Email Reminders
 
 Two email triggers: a reminder before rent is due, and a late notice after if unpaid. Both are owner-configurable: timing and copy.
 
 **Email page** (`/email`):
 
 **Email Timing section:**
-- The **Rent reminder** and **Late notice** controls determine whether tenant
-  email automation is enabled. There is no separate product-facing master toggle.
+- **Reminders Enabled** — master toggle
 - **Send reminder before due date** — toggle + "X days before" number input (default: 3)
 - **Send late notice after due date** — toggle + "X days after" number input (default: 5)
 - **Grace period (days)** — number input (default: 5). Used for both:
@@ -512,18 +491,11 @@ Two email triggers: a reminder before rent is due, and a late notice after if un
 - Substitution happens server-side at send time; no escaping issues since the body becomes plain-text email content.
 
 **Recent Emails section:**
-- Last 20 `EmailLog` entries: Date Sent, Recipient, Subject, Status
-  (Processing / Accepted / Delivered / Failed / Bounced / Complaint)
+- Last 20 `EmailLog` entries: Date Sent, Recipient, Subject, Status (Sent / Failed)
 - Gives the owner confidence the automation is working
 
 **Sending behavior:**
-- All emails are sent via Resend using `EMAIL_FROM` as the sender and the
-  workspace Reply-to address.
-- Tenant delivery is fail-closed unless the workspace toggle and Resend API,
-  sender, and webhook configuration are all present.
-- Signed Resend webhooks update accepted messages to delivered, failed, bounced,
-  or complained. Provider event IDs are stored uniquely so retries are
-  idempotent.
+- All emails sent via Resend using `EMAIL_FROM` env var as the sender address.
 - Reminder fires once per (tenant, period) when `today == periodMonth - daysBeforeReminder` AND status is PENDING.
 - Late notice fires once per (tenant, period) when `today == periodMonth + daysAfterLateNotice` AND status is PENDING or LATE.
 - Both deduped via `EmailLog` (matching tenantId + triggerType + periodMonth).
@@ -681,7 +653,7 @@ Cheap query, idempotent, eliminates the "cron silently failed" failure mode.
 
 ## Verification Checklist
 
-1. `npx prisma migrate dev` runs clean; all 7 models + 2 enums visible (Property, Tenant, Lease, PaymentPeriod, Payment, EmailLog, AppSettings, PeriodStatus, TriggerType)
+1. `pnpm exec prisma migrate dev` runs clean; all 7 models + 2 enums visible (Property, Tenant, Lease, PaymentPeriod, Payment, EmailLog, AppSettings, PeriodStatus, TriggerType)
 2. Unauthenticated request to `/` redirects to `/login`; public sign-up is blocked; Google OAuth login works
 3. Create property → create lease with new tenant inline (first rent due: Jan 2025, lease ends: June 2027) → verify PaymentPeriod rows created for all 30 months (Jan 2025 through June 2027 inclusive)
 4. Dashboard shows property with correct next due date and "Due" status
