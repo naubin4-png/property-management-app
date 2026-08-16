@@ -47,6 +47,49 @@ describe("demo dashboard state", () => {
     assert.equal(dashboard.summary.outstandingCents, 1290000);
   });
 
+  it("keeps the panel current-rent summary on the same billing month as the dashboard", () => {
+    // Regression: the demo panel resolved "current rent" from the real system
+    // clock while the dashboard and seed used the frozen demo billing month.
+    // Once real time passed the snapshot month, the same lease showed one month
+    // on the dashboard card and a different month in its panel header (e.g.
+    // Lakeview Retail: $2,100 remaining for July on the card, $5,200 for August
+    // in the panel). Both surfaces must agree on the frozen demo billing month.
+    const dashboard = getDemoDashboardData();
+    const billingMonth = dashboard.summary.billingPeriodMonth.getTime();
+
+    for (const property of dashboard.properties) {
+      if (!property.hasActiveLease) {
+        continue;
+      }
+      const detail = getDemoPropertyDetails(property.id);
+      const summary = detail?.activeLease?.currentRent;
+      assert.ok(summary, `${property.name} should have a current-rent summary`);
+      assert.equal(
+        summary.billingMonth.getTime(),
+        billingMonth,
+        `${property.name} panel billing month must match the dashboard`,
+      );
+      assert.equal(
+        summary.amountRemainingCents,
+        property.billingPeriodRemainingCents,
+        `${property.name} panel remaining must match the dashboard card`,
+      );
+      assert.equal(
+        summary.badge,
+        property.billingPeriodRemainingCents === 0 ? "PAID" : "UNPAID",
+        `${property.name} panel badge must match the dashboard card`,
+      );
+    }
+
+    // Pin the specific number from the reported contradiction.
+    const lakeview = card("Lakeview Retail", dashboard.properties);
+    const lakeviewDetail = getDemoPropertyDetails(lakeview.id);
+    assert.equal(
+      lakeviewDetail?.activeLease?.currentRent?.amountRemainingCents,
+      210000,
+    );
+  });
+
   it("explains advance-paid leases from covered payment periods", () => {
     const market = card("88 Market Street");
 
