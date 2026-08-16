@@ -32,7 +32,7 @@ features.
 
 ## Evidence
 
-Canonical base: `origin/main` at `bde5527`.
+Canonical base: `origin/main` at deployed merge commit `aeb0fb3`.
 
 Passed:
 
@@ -88,6 +88,18 @@ Production failed-migration remediation (not executed):
   comparison, rather than re-executed there. Both actions require explicit
   production approval.
 
+Mission status: complete except for the deferred invitation walkthrough.
+
+Post-merge closeout:
+
+- Local `main` matches `origin/main` exactly at `aeb0fb3`.
+- Vercel Production deployment `5935077946` deployed `aeb0fb3`.
+- The public production homepage, `/demo`, and `/login` returned HTTP 200
+  and rendered their expected page titles/content.
+- Production `prisma migrate status` reports `Database schema is up to date!`.
+- The invitation walkthrough is explicitly deferred pending owner approval;
+  no invitation walkthrough was run.
+
 Not completed:
 
 - The real invitation walkthrough could not be executed without creating a
@@ -97,3 +109,4 @@ Not completed:
   production browser flow remains unverified.
 
 Implementation commit SHA: `0075924`
+Deployed merge commit SHA: `aeb0fb3`
