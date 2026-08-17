@@ -22,7 +22,7 @@ Everything in this spec exists in service of those three things. Single admin us
 |---|---|
 | Framework | Next.js 15 (App Router, Server Actions) |
 | Language | TypeScript (strict mode) |
-| Auth | Supabase Auth (email/password + Google OAuth) |
+| Auth | Supabase Auth (Google OAuth; invite-only) |
 | ORM | Prisma |
 | Database | PostgreSQL via Supabase |
 | UI | shadcn/ui + Tailwind CSS |
@@ -54,7 +54,7 @@ CRON_SECRET=
 ```
 /
 ├── app/
-│   ├── login/page.tsx                         # Supabase Auth login (email/password + Google OAuth)
+│   ├── login/page.tsx                         # Supabase Auth login (Google OAuth; invite-only)
 │   ├── (dashboard)/
 │   │   ├── layout.tsx                       # Protected shell with top bar nav
 │   │   ├── page.tsx                         # Dashboard home — portfolio overview
@@ -321,7 +321,12 @@ function getCreditBalance(lease: Lease): number {
 
 ### 1. Authentication
 
-- Supabase Auth handles all auth. Supports email/password and Google OAuth (Gmail login).
+- Supabase Auth handles all auth. The app currently supports verified Google OAuth
+  (Gmail login) only; email/password redemption is not implemented.
+- Onboarding is invite-first: the admin sends the Supabase Auth invitation, creates
+  the matching `WorkspaceInvitation` in `/admin`, and the invitee then signs in
+  with that same Google account. The callback redeems the workspace invitation and
+  creates the invitee's workspace membership and settings.
 - Use `@supabase/ssr` for Next.js server-side auth. Middleware checks session on all `(dashboard)` routes.
 - Unauthenticated requests redirect to `/login`.
 - Sign-ups disabled in Supabase dashboard (Authentication → Settings → disable "Allow new users to sign up"). Admin user created manually.

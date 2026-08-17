@@ -1,5 +1,9 @@
 # Workspace provisioning runbook
 
+Standing production test account: `clawmarket65@gmail.com`. Use it only for
+repeatable onboarding and workspace-isolation verification; do not record its
+credentials in the repository.
+
 1. In the Supabase dashboard, invite the user by email. Do not enable public
    signup. The user must use the invited Google account for sign-in.
 2. In the platform admin screen (`/admin`), create a workspace invitation for
