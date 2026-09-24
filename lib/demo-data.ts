@@ -205,6 +205,20 @@ export function parseDemoSessionState(value?: string): DemoSessionState {
 const demoBillingPeriod = new Date("2026-07-01T00:00:00.000Z");
 const demoToday = new Date("2026-07-22T00:00:00.000Z");
 const demoComingMonth = new Date("2026-08-01T00:00:00.000Z");
+
+// The demo is a frozen snapshot. Every demo surface must resolve "now" through
+// these accessors instead of the real system clock, or the dashboard, panel,
+// and seed data drift apart as real time advances past the snapshot month.
+export function demoCurrentMonth() {
+  return demoBillingPeriod;
+}
+
+// The date-received default for demo payment forms. Kept on the frozen demo
+// clock so a payment-first lease starts in the demo billing month, not the real
+// calendar month.
+export function demoReceivedAtDefault() {
+  return demoToday.toISOString().slice(0, 10);
+}
 const firstPeriodMonth = new Date("2026-01-01T00:00:00.000Z");
 const lastPeriodMonth = new Date("2027-12-01T00:00:00.000Z");
 
@@ -1000,6 +1014,7 @@ export function getDemoPropertyDetails(
       notes: record.note || null,
       creditBalanceCents: record.creditBalanceCents,
       currentRent: deriveCurrentRentSummary({
+        billingMonth: demoBillingPeriod,
         creditBalanceCents: record.creditBalanceCents,
         emailLogs: successfulEmailLogs,
         payments: ledgerPayments,

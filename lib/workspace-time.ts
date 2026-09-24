@@ -38,6 +38,35 @@ export function firstDayOfNextWorkspaceMonth(now: Date, timeZone: string) {
   return new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1));
 }
 
+export type WorkspaceBillingClock = {
+  now: Date;
+  currentMonth: Date;
+  nextMonth: Date;
+  today: Date;
+  receivedAtDefault: string;
+};
+
+// Derive every time-sensitive value a request needs from ONE captured instant.
+// A single property/dashboard request must call this once at its boundary and
+// thread the result through, so the panel summary, ledger, payment availability,
+// and payment-date default can never straddle two workspace months when the
+// request happens to run across a month boundary.
+export function deriveWorkspaceBillingClock(
+  now: Date,
+  timeZone: string,
+): WorkspaceBillingClock {
+  const currentMonth = firstDayOfWorkspaceMonth(now, timeZone);
+  return {
+    now,
+    currentMonth,
+    nextMonth: new Date(
+      Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() + 1, 1),
+    ),
+    today: workspaceCalendarDate(now, timeZone),
+    receivedAtDefault: workspaceDateInputValue(now, timeZone),
+  };
+}
+
 export function shiftCalendarDate(date: Date, days: number) {
   const result = new Date(date);
   result.setUTCDate(result.getUTCDate() + days);
