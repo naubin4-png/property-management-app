@@ -1,5 +1,9 @@
 # Payment and Money Logic Hardening Mission
 
+## Status
+
+Accepted.
+
 ## Acceptance Check
 
 - `pnpm test` passes with explicit tests for:

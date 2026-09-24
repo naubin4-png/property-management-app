@@ -14,12 +14,21 @@ function month(value: string) {
   return new Date(`${value}-01T00:00:00.000Z`);
 }
 
+function relativeMonth(offset = 0) {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1),
+  );
+}
+
 function createMockTransaction({
+  firstPeriodMonth = month("2026-07"),
   lastPeriodMonth,
   payments: initialPayments = [],
   periods = [],
   rentCents = 100000,
 }: {
+  firstPeriodMonth?: Date;
   lastPeriodMonth: Date | null;
   payments?: Array<{ id: string; amountCents: number }>;
   rentCents?: number;
@@ -33,7 +42,7 @@ function createMockTransaction({
 }) {
   const lease = {
     id: "lease-1",
-    firstPeriodMonth: month("2026-07"),
+    firstPeriodMonth,
     lastPeriodMonth,
     rentCents,
   };
@@ -387,20 +396,23 @@ describe("payment allocation", () => {
   });
 
   it("reallocates an edited payment and reopens no-longer-covered periods", async () => {
+    const currentMonth = relativeMonth();
+    const nextMonth = relativeMonth(1);
     const { paymentPeriods, tx } = createMockTransaction({
+      firstPeriodMonth: currentMonth,
       lastPeriodMonth: null,
       payments: [{ id: "payment-1", amountCents: 200000 }],
       periods: [
         {
-          id: "jul",
-          periodMonth: month("2026-07"),
+          id: "current",
+          periodMonth: currentMonth,
           amountDueCents: 100000,
           status: PeriodStatus.RECEIVED,
           paymentId: "payment-1",
         },
         {
-          id: "aug",
-          periodMonth: month("2026-08"),
+          id: "next",
+          periodMonth: nextMonth,
           amountDueCents: 100000,
           status: PeriodStatus.RECEIVED,
           paymentId: "payment-1",
@@ -421,9 +433,9 @@ describe("payment allocation", () => {
 
     const preview = forecastPaymentAllocation({
       amountCents: 100000,
-      currentMonth: month("2026-07"),
+      currentMonth,
       editedPaymentId: "payment-1",
-      firstPeriodMonth: month("2026-07"),
+      firstPeriodMonth: currentMonth,
       lastPeriodMonth: null,
       payments: [{ id: "payment-1", amountCents: 200000 }],
       periods: paymentPeriods,
@@ -434,9 +446,16 @@ describe("payment allocation", () => {
       tx as never,
       {
         workspaceId: "workspace-1",
+        currentMonth,
         leaseId: "lease-1",
         amountCents: 100000,
-        receivedAt: new Date("2026-07-16T00:00:00.000Z"),
+        receivedAt: new Date(
+          Date.UTC(
+            currentMonth.getUTCFullYear(),
+            currentMonth.getUTCMonth(),
+            16,
+          ),
+        ),
         paymentMethod: "CHECK",
         paymentReference: null,
         notes: "Edited to one month",
@@ -453,12 +472,12 @@ describe("payment allocation", () => {
       })),
       [
         {
-          month: "2026-07",
+          month: currentMonth.toISOString().slice(0, 7),
           paymentId: "payment-1",
           status: PeriodStatus.RECEIVED,
         },
         {
-          month: "2026-08",
+          month: nextMonth.toISOString().slice(0, 7),
           paymentId: null,
           status: PeriodStatus.PENDING,
         },

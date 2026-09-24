@@ -13,6 +13,13 @@ function month(value: string) {
   return new Date(`${value}-01T00:00:00.000Z`);
 }
 
+function relativeMonth(offset = 0) {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1),
+  );
+}
+
 function date(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
@@ -441,12 +448,13 @@ describe("monthly rent history derivation", () => {
   });
 
   it("has no current rent summary for a future tracking-start lease", () => {
+    const futureMonth = relativeMonth(1);
     const current = deriveCurrentRentSummary({
       creditBalanceCents: 0,
       periods: [
         {
-          id: "sep",
-          periodMonth: month("2026-09"),
+          id: "future",
+          periodMonth: futureMonth,
           amountDueCents: 140000,
           status: PeriodStatus.PENDING,
           paymentId: null,

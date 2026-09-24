@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted; invitation walkthrough deferred pending manual test by owner.
+Accepted; invitation walkthrough verified in production with clawmarket.
 
 ## Acceptance Check
 - RLS enabled on every table; a direct anon-key query returns nothing
@@ -92,7 +92,7 @@ Production failed-migration remediation (not executed):
   comparison, rather than re-executed there. Both actions require explicit
   production approval.
 
-Mission status: complete except for the deferred invitation walkthrough.
+Mission status: accepted.
 
 Post-merge closeout:
 
@@ -101,16 +101,20 @@ Post-merge closeout:
 - The public production homepage, `/demo`, and `/login` returned HTTP 200
   and rendered their expected page titles/content.
 - Production `prisma migrate status` reports `Database schema is up to date!`.
-- The invitation walkthrough is explicitly deferred pending owner approval;
-  no invitation walkthrough was run.
+- The invitation walkthrough was subsequently completed in production with the
+  standing clawmarket test account.
 
-Not completed:
+Production revalidation on 2026-09-19:
 
-- The real invitation walkthrough could not be executed without creating a
-  new production invitation/user/workspace. Production has zero invitations
-  and only the developer workspace; no safe test subject was available.
-  Invitation behavior is covered by `tests/invitations.test.ts`, but the
-  production browser flow remains unverified.
+- `pnpm exec prisma migrate status` reported all 9 migrations applied and the
+  database schema up to date.
+- RLS was enabled on all 11 application tables.
+- Anonymous access returned zero rows from every browser-readable application
+  table; `EmailWebhookEvent` remained inaccessible to the browser roles.
+- The owner and clawmarket identities each had one active owner membership and,
+  under the authenticated role, each could see exactly its own workspace.
+- Clawmarket's property, tenant, lease, periods, and payment remained isolated
+  from the empty developer workspace.
 
 Implementation commit SHA: `0075924`
 Deployed merge commit SHA: `aeb0fb3`
